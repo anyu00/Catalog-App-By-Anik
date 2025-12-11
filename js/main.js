@@ -931,34 +931,35 @@ async function filterTabsByPermissions(permissions) {
         'adminPanel': { label: 'Admin Panel', permission: 'userManagement' }
     };
 
+    // Filter both sidebar and top nav buttons
     document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
         const tabId = btn.getAttribute('data-tab');
         const tabConfig_item = tabConfig[tabId];
+        let shouldShow = true;
 
         // On GitHub Pages, show all tabs
-        if (isGitHubPages) {
-            console.log('GitHub Pages detected - showing all tabs');
-            btn.style.display = 'block';
-            return;
-        }
-
-        if (tabConfig_item && permissions[tabConfig_item.permission]) {
-            if (permissions[tabConfig_item.permission].read === true) {
-                console.log('Showing tab:', tabId);
-                btn.style.display = 'block';
+        if (!isGitHubPages) {
+            if (tabConfig_item && permissions[tabConfig_item.permission]) {
+                if (permissions[tabConfig_item.permission].read !== true) {
+                    shouldShow = false;
+                    console.log('Hiding tab (no read):', tabId);
+                } else {
+                    console.log('Showing tab:', tabId);
+                }
             } else {
-                console.log('Hiding tab (no read):', tabId);
-                btn.style.display = 'none';
+                shouldShow = false;
+                console.log('Hiding tab (not in config):', tabId);
             }
         } else {
-            console.log('Hiding tab (not in config):', tabId);
-            btn.style.display = 'none';
+            console.log('GitHub Pages detected - showing all tabs');
         }
+
+        btn.style.display = shouldShow ? 'block' : 'none';
     });
 
     // Make first visible tab active
     let firstVisibleBtn = null;
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+    document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)').forEach(btn => {
         if (!firstVisibleBtn && btn.style.display !== 'none') {
             firstVisibleBtn = btn;
         }
