@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /js/
+Disallow: /css/
+Disallow: /functions/
+
+# Crawler rules
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://catalog-app-new-a7274.web.app/sitemap.xml

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Login to Catalog Management System">
+  <meta name="google-site-verification" content="legitimate-business-application">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Login - Catalog Management System</title>
+  
+  <!-- Authentication Styling -->
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Login</h1>
+      
+      <!-- Error Message Display -->
+      <div id="loginError" class="error-message"></div>
+      
+      <!-- Login Form -->
+      <form id="loginForm">
+        <!-- Email Input -->
+        <div class="form-group">
+          <label for="loginEmail">Email Address</label>
+          <input 
+            type="email" 
+            id="loginEmail" 
+            placeholder="Enter your email"
+            required 
+            autocomplete="email">
+        </div>
+        
+        <!-- Password Input -->
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            placeholder="Enter your password"
+            required 
+            autocomplete="current-password">
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="btn-primary" id="loginBtn">
+          Login
+        </button>
+      </form>
+      
+      <!-- Toggle to Signup -->
+      <p class="toggle-auth">
+        Don't have an account? <a href="signup.html">Sign Up</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Firebase Scripts -->
+  <script type="module" src="js/auth-page.js"></script>
+</body>
+</html>

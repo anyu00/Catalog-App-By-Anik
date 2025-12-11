@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign up for Catalog Management System">
+  <meta name="google-site-verification" content="legitimate-business-application">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Sign Up - Catalog Management System</title>
+  
+  <!-- Authentication Styling -->
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <h2>Sign Up</h2>
+      
+      <!-- Info Message -->
+      <div class="info-message show">
+        Contact an administrator to create your account with specific permissions.
+      </div>
+      
+      <!-- Error Message Display -->
+      <div id="signupError" class="error-message"></div>
+      
+      <!-- Success Message Display -->
+      <div id="signupSuccess" class="success-message"></div>
+      
+      <!-- Signup Form (Disabled for regular users) -->
+      <form id="signupForm" style="opacity: 0.6; pointer-events: none;">
+        <!-- Email Input -->
+        <div class="form-group">
+          <label for="signupEmail">Email Address</label>
+          <input 
+            type="email" 
+            id="signupEmail" 
+            placeholder="Enter your email"
+            required 
+            autocomplete="email"
+            disabled>
+        </div>
+        
+        <!-- Display Name Input -->
+        <div class="form-group">
+          <label for="displayName">Full Name</label>
+          <input 
+            type="text" 
+            id="displayName" 
+            placeholder="Enter your full name"
+            required
+            disabled>
+        </div>
+        
+        <!-- Password Input -->
+        <div class="form-group">
+          <label for="signupPassword">Password</label>
+          <input 
+            type="password" 
+            id="signupPassword" 
+            placeholder="Enter a password (min 6 characters)"
+            required 
+            minlength="6"
+            autocomplete="new-password"
+            disabled>
+        </div>
+        
+        <!-- Confirm Password Input -->
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input 
+            type="password" 
+            id="confirmPassword" 
+            placeholder="Confirm your password"
+            required 
+            minlength="6"
+            autocomplete="new-password"
+            disabled>
+        </div>
+        
+        <!-- Submit Button -->
+        <button type="submit" class="btn-primary" id="signupBtn" disabled>
+          Sign Up
+        </button>
+      </form>
+      
+      <!-- Contact Admin Section -->
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center;">
+        <p style="color: #666; font-size: 13px; margin-bottom: 10px;">
+          Need an account? Contact your administrator.
+        </p>
+        <p style="color: #999; font-size: 12px;">
+          Admins can create user accounts and assign permissions through the Admin Panel.
+        </p>
+      </div>
+      
+      <!-- Toggle to Login -->
+      <p class="toggle-auth">
+        Already have an account? <a href="login.html">Login</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Firebase Scripts -->
+  <script type="module" src="js/auth-page.js"></script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option B: Workflow-Based Design</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        
+        .workflow-container {
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        /* Progress Stepper */
+        .stepper {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            margin-bottom: 16px;
+        }
+        .step-line {
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            z-index: 0;
+        }
+        .step-line-progress {
+            height: 100%;
+            background: white;
+            width: 33%;
+            transition: width 0.4s;
+        }
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        .step.active .step-circle,
+        .step.completed .step-circle {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.4);
+        }
+        .step-label {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+            text-align: center;
+        }
+        .step.active .step-label {
+            color: white;
+            font-weight: 600;
+        }
+        
+        /* Main Card */
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .card-header {
+            margin-bottom: 32px;
+        }
+        .card-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .card-subtitle {
+            font-size: 15px;
+            color: #64748b;
+        }
+        
+        /* Form Sections */
+        .form-section {
+            margin-bottom: 24px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Info Box */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            align-items: start;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .info-icon {
+            color: #2563eb;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .info-text {
+            font-size: 14px;
+            color: #1e40af;
+        }
+        
+        /* Summary */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-item {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        .summary-label {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .summary-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 32px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .watermark {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="workflow-container">
+        <!-- Progress Stepper -->
+        <div class="stepper">
+            <div class="steps">
+                <div class="step-line">
+                    <div class="step-line-progress"></div>
+                </div>
+                <div class="step completed">
+                    <div class="step-circle"><i class="fas fa-check"></i></div>
+                    <div class="step-label">Select Type</div>
+                </div>
+                <div class="step active">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Item Details</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Review</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Complete</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Card -->
+        <div class="card">
+            <div class="card-header">
+                <h1 class="card-title">Add Item Details</h1>
+                <p class="card-subtitle">Fill in the information about your catalog item</p>
+            </div>
+            
+            <!-- Info Box -->
+            <div class="info-box">
+                <i class="fas fa-lightbulb info-icon"></i>
+                <div class="info-text">
+                    <strong>Tip:</strong> Make sure to include accurate stock quantities and warehouse locations for better inventory tracking.
+                </div>
+            </div>
+            
+            <!-- Form Section 1 -->
+            <div class="form-section">
+                <h3 class="section-title">Basic Information</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Item Name *</label>
+                        <input type="text" class="form-input" placeholder="e.g., Blue Widget" value="Premium Gadget">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category *</label>
+                        <select class="form-select">
+                            <option>Electronics</option>
+                            <option>Tools</option>
+                            <option>Accessories</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-input" placeholder="Brief description of the item">
+                </div>
+            </div>
+            
+            <!-- Form Section 2 -->
+            <div class="form-section">
+                <h3 class="section-title">Inventory Details</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Quantity *</label>
+                        <input type="number" class="form-input" placeholder="0" value="150">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Unit Price *</label>
+                        <input type="number" class="form-input" placeholder="0.00" value="29.99">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Warehouse Location *</label>
+                        <select class="form-select">
+                            <option>Warehouse A - Tokyo</option>
+                            <option>Warehouse B - Osaka</option>
+                            <option>Warehouse C - Kyoto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reorder Level</label>
+                        <input type="number" class="form-input" placeholder="10" value="20">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary Preview -->
+            <div class="form-section">
+                <h3 class="section-title">Quick Summary</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Total Value</div>
+                        <div class="summary-value">¥4,498.50</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Alert Threshold</div>
+                        <div class="summary-value">20 units</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="actions">
+                <button class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button class="btn btn-primary">
+                    Next: Review <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="watermark">OPTION B: Workflow-Based</div>
+</body>
+</html>

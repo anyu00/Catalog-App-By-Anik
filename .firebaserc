@@ -1,0 +1,13 @@
+{
+  "projects": {},
+  "targets": {
+    "catalog-app-new-a7274": {
+      "hosting": {
+        "catalogpro": [
+          "catalogpro"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
