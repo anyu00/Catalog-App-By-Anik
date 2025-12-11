@@ -884,7 +884,27 @@ document.addEventListener('DOMContentLoaded', () => {
         initCatalogForm();
         initOrderForm();
         initMobileToggle();
-        initAdminPanel();  
+        initAdminPanel();
+        updateKPIs();
+        setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
+        
+        // Wire bulk edit button
+        const bulkEditBtn = document.getElementById('bulkEditBtn');
+        if (bulkEditBtn) {
+            bulkEditBtn.addEventListener('click', openBulkEditModal);
+        }
+        
+        // Wire tab click events for audit log and movement history
+        document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tab = this.getAttribute('data-tab');
+                if (tab === 'auditLog') {
+                    setTimeout(renderAuditLog, 100);
+                } else if (tab === 'movementHistory') {
+                    setTimeout(renderMovementHistory, 100);
+                }
+            });
+        });
 
         // Setup logout handler
         setupLogoutHandler();
@@ -937,10 +957,18 @@ async function filterTabsByPermissions(permissions) {
     });
 
     // Make first visible tab active
-    const firstVisibleBtn = document.querySelector('.sidebar-nav-btn[style="display: block"]');
+    let firstVisibleBtn = null;
+    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+        if (!firstVisibleBtn && btn.style.display !== 'none') {
+            firstVisibleBtn = btn;
+        }
+    });
+    
     if (firstVisibleBtn) {
         console.log('Activating first visible tab:', firstVisibleBtn.getAttribute('data-tab'));
         firstVisibleBtn.click();  
+    } else {
+        console.warn('No visible tabs found!');
     }
 }
 
@@ -1406,33 +1434,3 @@ async function bulkDeleteItem(id) {
 
 window.bulkApplyChanges = bulkApplyChanges;
 window.bulkDeleteItem = bulkDeleteItem;
-
-// ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', async () => {
-    initializeCatalogSelects();
-    initTabSwitching();
-    initCatalogForm();
-    initOrderForm();
-    initAuthListeners();
-    initSearchFilter();
-    updateKPIs();
-    setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
-    
-    // Wire bulk edit button
-    const bulkEditBtn = document.getElementById('bulkEditBtn');
-    if (bulkEditBtn) {
-        bulkEditBtn.addEventListener('click', openBulkEditModal);
-    }
-    
-    // Wire tab click events for audit log and movement history
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const tab = this.getAttribute('data-tab');
-            if (tab === 'auditLog') {
-                setTimeout(renderAuditLog, 100);
-            } else if (tab === 'movementHistory') {
-                setTimeout(renderMovementHistory, 100);
-            }
-        });
-    });
-});
