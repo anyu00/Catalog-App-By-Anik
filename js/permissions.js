@@ -61,6 +61,8 @@ export function getAdminPermissions() {
     reports: { read: true },
     stockCalendar: { read: true },
     analytics: { read: true },
+    movementHistory: { read: true },
+    auditLog: { read: true },
     userManagement: { create: true, read: true, update: true, delete: true }
   };
 }
@@ -78,6 +80,8 @@ export function getDefaultUserPermissions() {
     reports: { read: true },
     stockCalendar: { read: true },
     analytics: { read: false },
+    movementHistory: { read: true },
+    auditLog: { read: true },
     userManagement: { create: false, read: false, update: false, delete: false }
   };
 }

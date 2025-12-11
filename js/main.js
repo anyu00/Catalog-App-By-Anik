@@ -928,7 +928,9 @@ async function filterTabsByPermissions(permissions) {
         'reports': { label: 'Reports', permission: 'reports' },
         'stockCalendar': { label: 'Stock Calendar', permission: 'stockCalendar' },
         'analytics': { label: 'Analytics', permission: 'analytics' },
-        'adminPanel': { label: 'Admin Panel', permission: 'userManagement' }
+        'adminPanel': { label: 'Admin Panel', permission: 'userManagement' },
+        'movementHistory': { label: 'Movement History', permission: 'movementHistory' },
+        'auditLog': { label: 'Audit Log', permission: 'auditLog' }
     };
 
     // Filter both sidebar and top nav buttons
@@ -939,12 +941,20 @@ async function filterTabsByPermissions(permissions) {
 
         // On GitHub Pages, show all tabs
         if (!isGitHubPages) {
-            if (tabConfig_item && permissions[tabConfig_item.permission]) {
-                if (permissions[tabConfig_item.permission].read !== true) {
-                    shouldShow = false;
-                    console.log('Hiding tab (no read):', tabId);
+            if (tabConfig_item) {
+                // For movementHistory and auditLog, don't require explicit permission - show if user is logged in
+                if (tabId === 'movementHistory' || tabId === 'auditLog') {
+                    console.log('Showing tab (always visible):', tabId);
+                } else if (permissions[tabConfig_item.permission]) {
+                    if (permissions[tabConfig_item.permission].read !== true) {
+                        shouldShow = false;
+                        console.log('Hiding tab (no read):', tabId);
+                    } else {
+                        console.log('Showing tab:', tabId);
+                    }
                 } else {
-                    console.log('Showing tab:', tabId);
+                    shouldShow = false;
+                    console.log('Hiding tab (no permission):', tabId);
                 }
             } else {
                 shouldShow = false;
