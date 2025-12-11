@@ -42,10 +42,17 @@ export function loginUser(email, password) {
       const uid = userCredential.user.uid;
       const userRef = ref(db, `Users/${uid}`);
       return get(userRef).then(snapshot => {
+        const isAdminEmail = email === 'admin@example.com';
         if (!snapshot.exists()) {
           // Create profile if it doesn't exist
-          const role = email === 'admin@example.com' ? 'admin' : 'user';
+          const role = isAdminEmail ? 'admin' : 'user';
           return createUserProfile(uid, email, email.split('@')[0], role);
+        } else {
+          // Update role if admin email but currently not admin
+          const userData = snapshot.val();
+          if (isAdminEmail && userData.role !== 'admin') {
+            return update(userRef, { role: 'admin' });
+          }
         }
         return userCredential;
       });
