@@ -30,22 +30,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Create artifact directory
-        run: |
-          mkdir -p artifact
-          # Copy only necessary files to artifact
-          cp -r index.html artifact/
-          cp -r login.html artifact/
-          cp -r signup.html artifact/
-          cp -r css artifact/
-          cp -r js artifact/
-          cp -r robots.txt artifact/ || true
-          cp .nojekyll artifact/ || true
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'artifact'
+          path: '.'
 
       - name: Deploy to GitHub Pages
         id: deployment
