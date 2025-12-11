@@ -3,10 +3,15 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      ".firebaserc",
+      ".git",
+      ".gitignore",
       "**/.*",
       "**/node_modules/**",
       "**/*.ps1",
-      "**/*.md"
+      "**/*.md",
+      "functions/**",
+      ".firebase/**"
     ],
     "rewrites": [
       {
