@@ -1172,10 +1172,19 @@ async function updateKPIs() {
             }
         }
         
-        document.getElementById('kpiTotalCatalogs').textContent = totalCatalogs;
-        document.getElementById('kpiTotalItems').textContent = totalItems;
-        document.getElementById('kpiPendingDist').textContent = pendingCount;
-        document.getElementById('kpiMostDist').textContent = mostDist;
+        // Update KPI elements only if they exist
+        if (document.getElementById('kpiTotalCatalogs')) {
+            document.getElementById('kpiTotalCatalogs').textContent = totalCatalogs;
+        }
+        if (document.getElementById('kpiTotalItems')) {
+            document.getElementById('kpiTotalItems').textContent = totalItems;
+        }
+        if (document.getElementById('kpiPendingDist')) {
+            document.getElementById('kpiPendingDist').textContent = pendingCount;
+        }
+        if (document.getElementById('kpiMostDist')) {
+            document.getElementById('kpiMostDist').textContent = mostDist;
+        }
     } catch (error) {
         console.error('Error updating KPIs:', error);
     }
