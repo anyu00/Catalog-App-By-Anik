@@ -665,7 +665,17 @@ function initializeCalendar() {
     const calendarEl = document.getElementById('stockCalendarContent');
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+        headerToolbar: { 
+            left: 'prev,next today', 
+            center: 'title', 
+            right: 'dayGridMonth,timeGridWeek,timeGridDay' 
+        },
+        height: 'auto',
+        contentHeight: 'auto',
+        eventMaxStack: 3,
+        dayMaxEvents: 3,
+        dayMaxEventRows: true,
+        expandRows: false,
         events: function(info, successCallback) {
             const events = [];
             const catalogRef = ref(db, 'Catalogs/');
@@ -675,6 +685,9 @@ function initializeCalendar() {
                         events.push({
                             title: entry.CatalogName,
                             start: entry.DeliveryDate,
+                            backgroundColor: '#232946',
+                            borderColor: '#232946',
+                            textColor: '#ffffff',
                             extendedProps: {
                                 catalogName: entry.CatalogName,
                                 stock: entry.StockQuantity,
@@ -689,9 +702,22 @@ function initializeCalendar() {
         },
         eventClick: function(info) {
             showCalendarEventModal(info.event);
+        },
+        eventDidMount: function(info) {
+            // Add custom styling to event elements
+            info.el.style.cursor = 'pointer';
+            info.el.classList.add('calendar-event-professional');
         }
     });
     calendar.render();
+    
+    // Add custom styling for the calendar container
+    const calendarContainer = document.getElementById('stockCalendarContent');
+    if (calendarContainer) {
+        calendarContainer.style.borderRadius = '8px';
+        calendarContainer.style.overflow = 'hidden';
+        calendarContainer.style.boxShadow = '0 4px 12px rgba(35, 41, 70, 0.1)';
+    }
 }
 
 function showCalendarEventModal(event) {

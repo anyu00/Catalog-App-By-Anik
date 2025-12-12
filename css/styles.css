@@ -419,9 +419,186 @@ body {
     font-size: 1rem;
 }
 
-/* FullCalendar */
+/* FullCalendar Professional Styling */
+.fc {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+.fc .fc-button-primary {
+    background-color: #232946 !important;
+    border-color: #232946 !important;
+    color: white !important;
+    font-weight: 500 !important;
+}
+
+.fc .fc-button-primary:hover {
+    background-color: #2d3a5c !important;
+    border-color: #2d3a5c !important;
+}
+
+.fc .fc-button-primary.fc-button-active {
+    background-color: #0f172a !important;
+    border-color: #0f172a !important;
+}
+
+.fc .fc-col-header-cell {
+    background-color: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #334155 !important;
+    font-weight: 600 !important;
+    padding: 12px 0 !important;
+}
+
+.fc .fc-daygrid-day {
+    border-color: #e2e8f0 !important;
+}
+
+.fc .fc-daygrid-day-number {
+    padding: 8px 8px !important;
+    color: #334155 !important;
+}
+
+.fc .fc-daygrid-day.fc-day-other {
+    background-color: #f8fafc !important;
+}
+
+.fc .fc-daygrid-day:hover {
+    background-color: #f0f4f8 !important;
+}
+
+.fc-daygrid-day.fc-day-today {
+    background-color: #f0f4f8 !important;
+}
+
+.fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+    background-color: #232946 !important;
+    color: white !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    margin: 4px 4px !important;
+}
+
+.fc .fc-event {
+    border: none !important;
+    box-shadow: 0 2px 6px rgba(35, 41, 70, 0.15) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc .fc-event:hover {
+    box-shadow: 0 4px 12px rgba(35, 41, 70, 0.25) !important;
+    transform: translateY(-2px) !important;
+}
+
+.fc .fc-event-title {
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 0 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+}
+
 .fc-event-main {
-    color: #1e293b !important;
+    color: white !important;
+    padding: 4px 6px !important;
+}
+
+.fc .fc-event-main-frame {
+    padding: 4px 6px !important;
+}
+
+.fc .fc-daygrid-event {
+    margin-bottom: 2px !important;
+}
+
+.fc .fc-daygrid-event-harness {
+    padding: 2px 2px 0 2px !important;
+}
+
+/* Professional event colors */
+.fc .fc-event {
+    background: linear-gradient(135deg, #232946 0%, #2d3a5c 100%) !important;
+}
+
+.fc .fc-event-bg {
+    background: linear-gradient(135deg, #232946 0%, #2d3a5c 100%) !important;
+}
+
+/* Limit event display and add "more" indicator */
+.fc .fc-daygrid-day-frame {
+    position: relative;
+}
+
+.fc .fc-daygrid-day-events {
+    max-height: 120px !important;
+    overflow: hidden !important;
+}
+
+.fc-daygrid-day-events.fc-scrollable-y {
+    overflow-y: auto !important;
+}
+
+.fc .fc-daygrid-more-link {
+    background-color: #232946 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 6px 8px !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    margin: 2px 2px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.fc .fc-daygrid-more-link:hover {
+    background-color: #0f172a !important;
+    transform: translateY(-1px) !important;
+}
+
+.fc .fc-col-header {
+    border-color: #e2e8f0 !important;
+}
+
+.fc .fc-daygrid-body {
+    border-color: #e2e8f0 !important;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+    border-color: #e2e8f0 !important;
+}
+
+.fc .fc-daygrid-day-frame {
+    min-height: 140px !important;
+}
+
+/* Time grid styling */
+.fc .fc-timegrid-slot {
+    height: 3em !important;
+}
+
+.fc .fc-col-time-text {
+    vertical-align: middle !important;
+}
+
+/* Professional Calendar Event Styling */
+.calendar-event-professional {
+    border-radius: 6px !important;
+    padding: 2px 6px !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+}
+
+.calendar-event-professional:hover {
+    filter: brightness(0.95);
+}
+
+#stockCalendarContent {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
 }
 
 /* Mobile Overlay */
