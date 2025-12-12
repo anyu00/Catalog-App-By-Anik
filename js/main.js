@@ -676,17 +676,40 @@ function initializeCalendar() {
                             title: entry.CatalogName,
                             start: entry.DeliveryDate,
                             extendedProps: {
+                                catalogName: entry.CatalogName,
                                 stock: entry.StockQuantity,
-                                requester: entry.Requester
+                                requester: entry.Requester,
+                                deliveryDate: entry.DeliveryDate
                             }
                         });
                     });
                 }
                 successCallback(events);
             });
+        },
+        eventClick: function(info) {
+            showCalendarEventModal(info.event);
         }
     });
     calendar.render();
+}
+
+function showCalendarEventModal(event) {
+    const modal = document.getElementById('calendarEventModal');
+    const props = event.extendedProps;
+    
+    document.getElementById('eventModalTitle').textContent = props.catalogName || 'Event Details';
+    document.getElementById('eventCatalogName').textContent = props.catalogName || '--';
+    document.getElementById('eventDeliveryDate').textContent = props.deliveryDate || '--';
+    document.getElementById('eventStockQty').textContent = props.stock || '--';
+    document.getElementById('eventRequester').textContent = props.requester || '--';
+    
+    modal.style.display = 'flex';
+}
+
+function closeCalendarEventModal() {
+    const modal = document.getElementById('calendarEventModal');
+    modal.style.display = 'none';
 }
 
 // ===== ANALYTICS =====
@@ -892,6 +915,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const bulkEditBtn = document.getElementById('bulkEditBtn');
         if (bulkEditBtn) {
             bulkEditBtn.addEventListener('click', openBulkEditModal);
+        }
+        
+        // Wire calendar event modal close button
+        const closeEventModalBtn = document.getElementById('closeEventModal');
+        if (closeEventModalBtn) {
+            closeEventModalBtn.addEventListener('click', closeCalendarEventModal);
+        }
+        
+        // Close modal when clicking outside of it
+        const calendarEventModal = document.getElementById('calendarEventModal');
+        if (calendarEventModal) {
+            calendarEventModal.addEventListener('click', (e) => {
+                if (e.target === calendarEventModal) {
+                    closeCalendarEventModal();
+                }
+            });
         }
         
         // Wire tab click events for audit log and movement history

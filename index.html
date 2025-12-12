@@ -313,6 +313,34 @@
                 <div class="glass-card tab-section" id="tab-stockCalendar" style="display:none;">
                     <h2>カレンダー</h2>
                     <div id="stockCalendarContent"></div>
+                    
+                    <!-- Calendar Event Details Modal -->
+                    <div id="calendarEventModal" class="calendar-event-modal" style="display:none;">
+                        <div class="calendar-event-modal-content">
+                            <div class="calendar-event-modal-header">
+                                <h3 id="eventModalTitle"></h3>
+                                <button class="calendar-event-modal-close" id="closeEventModal">&times;</button>
+                            </div>
+                            <div class="calendar-event-modal-body">
+                                <div class="event-detail-row">
+                                    <label>Catalog Name:</label>
+                                    <span id="eventCatalogName"></span>
+                                </div>
+                                <div class="event-detail-row">
+                                    <label>Delivery Date:</label>
+                                    <span id="eventDeliveryDate"></span>
+                                </div>
+                                <div class="event-detail-row">
+                                    <label>Stock Quantity:</label>
+                                    <span id="eventStockQty"></span>
+                                </div>
+                                <div class="event-detail-row">
+                                    <label>Requester:</label>
+                                    <span id="eventRequester"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- TAB: Audit Log -->
