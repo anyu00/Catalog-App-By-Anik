@@ -56,7 +56,10 @@ function initTabSwitching() {
                 initializeCalendar();
                 window.calendarInitialized = true;
             }
-            if (tabName === 'catalogEntries') renderCatalogTablesAccordion();
+            if (tabName === 'catalogEntries') {
+                renderCatalogTablesAccordion();
+                setTimeout(() => initCatalogSearch(), 100);
+            }
             if (tabName === 'orderEntries') renderOrderTablesAccordion();
             if (tabName === 'analytics') {
                 document.getElementById('analyticsDateRangeCard').style.display = 'block';
@@ -96,7 +99,10 @@ function initTabSwitching() {
                     initializeCalendar();
                     window.calendarInitialized = true;
                 }
-                if (tab === 'catalogEntries') renderCatalogTablesAccordion();
+                if (tab === 'catalogEntries') {
+                    renderCatalogTablesAccordion();
+                    setTimeout(() => initCatalogSearch(), 100);
+                }
                 if (tab === 'orderEntries') renderOrderTablesAccordion();
                 if (tab === 'analytics') {
                     document.getElementById('analyticsDateRangeCard').style.display = 'block';
@@ -155,6 +161,7 @@ function initCatalogForm() {
             alert("カタログエントリを登録しました");
             form.reset();
             renderCatalogTablesAccordion();
+            setTimeout(() => initCatalogSearch(), 100);
             updateKPIs();
         } catch (error) {
             alert("エラー: " + error);
@@ -196,6 +203,11 @@ function initOrderForm() {
 function renderCatalogTablesAccordion() {
     const container = document.getElementById('catalogEntriesAccordion');
     container.innerHTML = '';
+    
+    // Clear search box when rendering new data
+    const searchBox = document.getElementById('catalogSearchBox');
+    if (searchBox) searchBox.value = '';
+    
     const dbRef = ref(db, 'Catalogs/');
     get(dbRef).then((snapshot) => {
         if (snapshot.exists()) {
@@ -286,6 +298,77 @@ function renderCatalogTablesAccordion() {
         }
     });
 } 
+
+// ===== SEARCH CATALOG ENTRIES =====
+function initCatalogSearch() {
+    const searchBox = document.getElementById('catalogSearchBox');
+    if (!searchBox) return;
+    
+    searchBox.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const sections = document.querySelectorAll('.catalog-section');
+        let visibleSections = 0;
+        
+        sections.forEach(section => {
+            const header = section.querySelector('.catalog-header');
+            const catName = header ? header.textContent.toLowerCase() : '';
+            const table = section.querySelector('.catalog-table-wrapper table');
+            
+            if (!table) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            const rows = table.querySelectorAll('tbody tr');
+            let visibleRows = 0;
+            
+            rows.forEach(row => {
+                if (searchTerm === '') {
+                    row.style.display = '';
+                    visibleRows++;
+                } else {
+                    const rowText = row.textContent.toLowerCase();
+                    const matches = rowText.includes(searchTerm);
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) visibleRows++;
+                }
+            });
+            
+            // Show/hide section based on visible rows or catalog name match
+            const catalogMatches = catName.includes(searchTerm);
+            section.style.display = (visibleRows > 0 || catalogMatches) ? '' : 'none';
+            
+            if ((visibleRows > 0 || catalogMatches) && searchTerm !== '') {
+                // Auto-expand section if search results found
+                const wrapper = section.querySelector('.catalog-table-wrapper');
+                const chevron = section.querySelector('.fa-chevron-down');
+                if (wrapper && visibleRows > 0) {
+                    wrapper.style.display = 'block';
+                    if (chevron) chevron.style.transform = 'rotate(180deg)';
+                }
+            }
+            
+            if (visibleRows > 0 || catalogMatches) {
+                visibleSections++;
+            }
+        });
+        
+        // Show no results message if needed
+        const container = document.getElementById('catalogEntriesAccordion');
+        if (visibleSections === 0 && searchTerm !== '') {
+            if (!document.getElementById('noSearchResults')) {
+                const noResults = document.createElement('div');
+                noResults.id = 'noSearchResults';
+                noResults.style.cssText = 'text-align: center; color: #999; padding: 30px; font-size: 16px;';
+                noResults.innerHTML = `<i class="fas fa-search" style="font-size: 40px; margin-bottom: 10px; opacity: 0.5;"></i><p>No items found matching "${searchTerm}"</p>`;
+                container.appendChild(noResults);
+            }
+        } else {
+            const noResults = document.getElementById('noSearchResults');
+            if (noResults) noResults.remove();
+        }
+    });
+}
 
 // ===== RENDER ORDER TABLES ACCORDION =====
 function renderOrderTablesAccordion() {
