@@ -1131,35 +1131,38 @@ function updateUserDisplay(user) {
     const userRoleInline = document.getElementById('userRoleInline');
     const userAvatar = document.getElementById('userAvatar');
 
-    // Set avatar with UI Avatars (more reliable than Dicebear)
+    // Create avatar with initials (Notion-style)
     if (userAvatar) {
-        // Use UI Avatars with fallback to initials
         const initials = user.email.split('@')[0].substring(0, 2).toUpperCase();
-        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=random&color=fff&size=36`;
         
-        userAvatar.src = avatarUrl;
-        userAvatar.onerror = function() {
-            // Fallback: create a simple colored avatar with initials
-            const canvas = document.createElement('canvas');
-            canvas.width = 36;
-            canvas.height = 36;
-            const ctx = canvas.getContext('2d');
-            
-            // Random color based on email
-            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#6C5CE7', '#A29BFE', '#FD79A8'];
-            const colorIndex = user.email.charCodeAt(0) % colors.length;
-            ctx.fillStyle = colors[colorIndex];
-            ctx.fillRect(0, 0, 36, 36);
-            
-            // Draw initials
-            ctx.font = 'bold 14px sans-serif';
-            ctx.fillStyle = '#fff';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(initials, 18, 18);
-            
-            userAvatar.src = canvas.toDataURL();
-        };
+        // Color palette
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#6C5CE7', '#A29BFE', '#FD79A8', '#FDCB6E', '#6C7A89'];
+        
+        // Generate consistent color based on email
+        const colorIndex = user.email.charCodeAt(0) % colors.length;
+        const bgColor = colors[colorIndex];
+        
+        // Create canvas avatar
+        const canvas = document.createElement('canvas');
+        canvas.width = 36;
+        canvas.height = 36;
+        const ctx = canvas.getContext('2d');
+        
+        // Draw circle background
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.arc(18, 18, 18, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw initials
+        ctx.font = 'bold 14px Poppins, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(initials, 18, 18);
+        
+        userAvatar.src = canvas.toDataURL();
+        userAvatar.style.backgroundColor = bgColor;
     }
 
     if (userEmail) {
