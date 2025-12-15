@@ -1129,6 +1129,13 @@ function updateUserDisplay(user) {
     const userRole = document.getElementById('userRole');
     const userEmailInline = document.getElementById('userEmailInline');
     const userRoleInline = document.getElementById('userRoleInline');
+    const userAvatar = document.getElementById('userAvatar');
+
+    // Set avatar with Dicebear API (Notion-style generated avatar)
+    if (userAvatar) {
+        const avatarSeed = encodeURIComponent(user.email);
+        userAvatar.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}&scale=80`;
+    }
 
     if (userEmail) {
         userEmail.textContent = user.email;
