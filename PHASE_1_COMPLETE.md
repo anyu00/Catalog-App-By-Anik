@@ -329,7 +329,7 @@ Before moving to Phase 2, verify:
 ## ⚙️ Configuration
 
 **Firebase Config (firebase-config.js):**
-- Project: `catalog-13aa0`
+- Project: `catalog-13aa0`   
 - Auth Domain: `catalog-13aa0.firebaseapp.com`
 - Database URL: `https://catalog-13aa0-default-rtdb.firebaseio.com`
 - Both Realtime Database and Auth enabled

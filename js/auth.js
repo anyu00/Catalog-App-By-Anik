@@ -38,24 +38,38 @@ export function signupUser(email, password, displayName) {
 export function loginUser(email, password) {
   return signInWithEmailAndPassword(auth, email, password)
     .then(userCredential => {
-      // Ensure user profile exists in database
+      // Ensure user profile exists and is complete in database
       const uid = userCredential.user.uid;
       const userRef = ref(db, `Users/${uid}`);
+      const isAdminEmail = email === 'admin@example.com';
+      const role = isAdminEmail ? 'admin' : 'user';
+      const displayName = email.split('@')[0];
+      
       return get(userRef).then(snapshot => {
-        const isAdminEmail = email === 'admin@example.com';
-        if (!snapshot.exists()) {
-          // Create profile if it doesn't exist
-          const role = isAdminEmail ? 'admin' : 'user';
-          return createUserProfile(uid, email, email.split('@')[0], role);
+        const userData = snapshot.exists() ? snapshot.val() : {};
+        
+        // Check if profile is incomplete (missing critical fields)
+        const isIncomplete = !userData.email || !userData.role || !userData.displayName;
+        
+        if (!snapshot.exists() || isIncomplete) {
+          // Create or update with complete profile
+          return set(userRef, {
+            email,
+            displayName,
+            role,
+            isActive: userData.isActive !== undefined ? userData.isActive : true,
+            createdAt: userData.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+          });
         } else {
-          // Update role if admin email but currently not admin
-          const userData = snapshot.val();
-          if (isAdminEmail && userData.role !== 'admin') {
-            return update(userRef, { role: 'admin' });
-          }
+          // Profile exists and is complete - just update lastLogin
+          return update(userRef, {
+            lastLogin: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
         }
-        return userCredential;
-      });
+      }).then(() => userCredential);
     })
     .catch(error => {
       console.error('Login error:', error.message);
