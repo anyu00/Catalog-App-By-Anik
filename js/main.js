@@ -1131,10 +1131,35 @@ function updateUserDisplay(user) {
     const userRoleInline = document.getElementById('userRoleInline');
     const userAvatar = document.getElementById('userAvatar');
 
-    // Set avatar with Dicebear API (Notion-style generated avatar)
+    // Set avatar with UI Avatars (more reliable than Dicebear)
     if (userAvatar) {
-        const avatarSeed = encodeURIComponent(user.email);
-        userAvatar.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}&scale=80`;
+        // Use UI Avatars with fallback to initials
+        const initials = user.email.split('@')[0].substring(0, 2).toUpperCase();
+        const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.email)}&background=random&color=fff&size=36`;
+        
+        userAvatar.src = avatarUrl;
+        userAvatar.onerror = function() {
+            // Fallback: create a simple colored avatar with initials
+            const canvas = document.createElement('canvas');
+            canvas.width = 36;
+            canvas.height = 36;
+            const ctx = canvas.getContext('2d');
+            
+            // Random color based on email
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#6C5CE7', '#A29BFE', '#FD79A8'];
+            const colorIndex = user.email.charCodeAt(0) % colors.length;
+            ctx.fillStyle = colors[colorIndex];
+            ctx.fillRect(0, 0, 36, 36);
+            
+            // Draw initials
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(initials, 18, 18);
+            
+            userAvatar.src = canvas.toDataURL();
+        };
     }
 
     if (userEmail) {
