@@ -982,9 +982,6 @@ document.addEventListener('DOMContentLoaded', () => {
 async function filterTabsByPermissions(permissions) {
     console.log('Filtering tabs with permissions:', permissions);
     
-    // On GitHub Pages, always show all tabs for demo purposes
-    const isGitHubPages = window.location.hostname.includes('github.io');
-    
     const tabConfig = {
         'manageCatalog': { label: 'Manage Catalog', permission: 'manageCatalog' },
         'placeOrder': { label: 'Place Order', permission: 'placeOrder' },
@@ -1004,29 +1001,24 @@ async function filterTabsByPermissions(permissions) {
         const tabConfig_item = tabConfig[tabId];
         let shouldShow = true;
 
-        // On GitHub Pages, show all tabs
-        if (!isGitHubPages) {
-            if (tabConfig_item) {
-                // For movementHistory and auditLog, don't require explicit permission - show if user is logged in
-                if (tabId === 'movementHistory' || tabId === 'auditLog') {
-                    console.log('Showing tab (always visible):', tabId);
-                } else if (permissions[tabConfig_item.permission]) {
-                    if (permissions[tabConfig_item.permission].read !== true) {
-                        shouldShow = false;
-                        console.log('Hiding tab (no read):', tabId);
-                    } else {
-                        console.log('Showing tab:', tabId);
-                    }
-                } else {
+        if (tabConfig_item) {
+            // For movementHistory and auditLog, don't require explicit permission - show if user is logged in
+            if (tabId === 'movementHistory' || tabId === 'auditLog') {
+                console.log('Showing tab (always visible):', tabId);
+            } else if (permissions[tabConfig_item.permission]) {
+                if (permissions[tabConfig_item.permission].read !== true) {
                     shouldShow = false;
-                    console.log('Hiding tab (no permission):', tabId);
+                    console.log('Hiding tab (no read):', tabId);
+                } else {
+                    console.log('Showing tab:', tabId);
                 }
             } else {
                 shouldShow = false;
-                console.log('Hiding tab (not in config):', tabId);
+                console.log('Hiding tab (no permission):', tabId);
             }
         } else {
-            console.log('GitHub Pages detected - showing all tabs');
+            shouldShow = false;
+            console.log('Hiding tab (not in config):', tabId);
         }
 
         btn.style.display = shouldShow ? 'block' : 'none';
