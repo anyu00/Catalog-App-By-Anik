@@ -986,8 +986,105 @@ function initMobileToggle() {
     });
 }
 
+// ===== LANGUAGE SWITCHING =====
+function initLanguageToggle() {
+    const langJABtn = document.getElementById('langJA');
+    const langENBtn = document.getElementById('langEN');
+    
+    if (!langJABtn || !langENBtn) return;
+    
+    // Set initial active button
+    updateLanguageButtonState();
+    
+    langJABtn.addEventListener('click', () => {
+        i18n.setLanguage('ja');
+        updateLanguageButtonState();
+        updateUILanguage();
+    });
+    
+    langENBtn.addEventListener('click', () => {
+        i18n.setLanguage('en');
+        updateLanguageButtonState();
+        updateUILanguage();
+    });
+}
+
+function updateLanguageButtonState() {
+    const lang = i18n.getLanguage();
+    const langJABtn = document.getElementById('langJA');
+    const langENBtn = document.getElementById('langEN');
+    
+    if (lang === 'ja') {
+        langJABtn.style.background = '#2563eb';
+        langJABtn.style.color = 'white';
+        langENBtn.style.background = 'transparent';
+        langENBtn.style.color = '#64748b';
+    } else {
+        langENBtn.style.background = '#2563eb';
+        langENBtn.style.color = 'white';
+        langJABtn.style.background = 'transparent';
+        langJABtn.style.color = '#64748b';
+    }
+}
+
+function updateUILanguage() {
+    // Update sidebar navigation buttons
+    const updates = {
+        '.sidebar-nav-btn': {
+            0: 'sidebar.manage',
+            1: 'sidebar.order',
+            2: 'sidebar.entries',
+            3: 'sidebar.orders',
+            4: 'sidebar.calendar',
+            5: 'sidebar.history',
+            6: 'sidebar.audit',
+            7: 'sidebar.analytics',
+            8: 'sidebar.admin',
+        }
+    };
+    
+    // Update sidebar buttons
+    const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn');
+    const btnKeys = ['sidebar.manage', 'sidebar.order', 'sidebar.entries', 'sidebar.orders', 
+                     'sidebar.calendar', 'sidebar.history', 'sidebar.audit', 'sidebar.analytics', 'sidebar.admin'];
+    sidebarBtns.forEach((btn, idx) => {
+        if (btnKeys[idx]) {
+            btn.innerHTML = btn.innerHTML.replace(btn.textContent, i18n.t(btnKeys[idx]));
+            // Keep the icon
+            const icon = btn.querySelector('i');
+            if (icon) {
+                btn.innerHTML = icon.outerHTML + ' ' + i18n.t(btnKeys[idx]);
+            }
+        }
+    });
+    
+    // Update section titles
+    const sectionUpdates = {
+        'tab-manageCatalog': 'section.manage_catalog',
+        'tab-placeOrder': 'section.place_order',
+        'tab-catalogEntries': 'section.catalog_entries',
+        'tab-orderEntries': 'section.order_entries',
+        'tab-stockCalendar': 'section.calendar',
+        'tab-movementHistory': 'section.history',
+        'tab-auditLog': 'section.audit',
+        'tab-analytics': 'section.analytics',
+        'tab-adminPanel': 'section.admin',
+    };
+    
+    for (const [tabId, key] of Object.entries(sectionUpdates)) {
+        const tab = document.getElementById(tabId);
+        if (tab) {
+            const h2 = tab.querySelector('h2');
+            if (h2) h2.textContent = i18n.t(key);
+        }
+    }
+}
+
 // ===== INITIALIZE ON DOM READY =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize language toggle first
+    initLanguageToggle();
+    
     // Check authentication state before initializing app
     onAuthStateChanged(async (user) => {
         if (!user) {

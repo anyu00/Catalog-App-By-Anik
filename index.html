@@ -19,6 +19,9 @@
     <!-- Chart & Calendar Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
+    
+    <!-- Internationalization -->
+    <script src="js/i18n.js"></script>
 </head>
 <body>
     <!-- SIDEBAR -->
@@ -74,6 +77,12 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:12px;">
                     <button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button>
+                    <!-- Language Toggle -->
+                    <div style="display:flex; gap:6px; align-items:center; padding:6px 12px; background:#f1f5f9; border-radius:6px;">
+                        <button id="langJA" style="padding:4px 8px; border:none; background:transparent; cursor:pointer; font-weight:600; font-size:12px; color:#64748b;" title="日本語">日本語</button>
+                        <span style="color:#cbd5e1; font-size:12px;">|</span>
+                        <button id="langEN" style="padding:4px 8px; border:none; background:transparent; cursor:pointer; font-weight:600; font-size:12px; color:#64748b;" title="English">EN</button>
+                    </div>
                     <div class="user-display" style="display:flex; align-items:center; gap:10px;">
                         <img id="userAvatar" src="" alt="Avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#e2e8f0;">
                         <div class="user-info-inline">
