@@ -205,6 +205,7 @@ let catalogRequesterFilter = null;
 let orderRequesterFilter = null;
 let auditDateRange = { from: null, to: null };
 let movementDateRange = { from: null, to: null };
+let expandedCatalogSections = new Set(); // Track which accordion sections are expanded
 
 // ===== UTILITY: Get unique values from array =====
 function getUniqueValues(data, field) {
@@ -333,7 +334,7 @@ function renderCatalogTablesAccordion() {
                             <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${entries.length} entries)</span>
                         </div>
                     </div>
-                    <div class="catalog-table-wrapper" style="display: none; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
+                    <div class="catalog-table-wrapper" style="display: ${expandedCatalogSections.has(catName) ? 'block' : 'none'}; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
                         <table class="glass-table excel-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
                             <thead style="background: #f8fafc;">
                                 <tr>
@@ -367,7 +368,18 @@ function renderCatalogTablesAccordion() {
                     const isHidden = wrapper.style.display === 'none';
                     wrapper.style.display = isHidden ? 'block' : 'none';
                     chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                    // Update expanded state
+                    if (isHidden) {
+                        expandedCatalogSections.add(catName);
+                    } else {
+                        expandedCatalogSections.delete(catName);
+                    }
                 });
+                
+                // Restore chevron rotation if expanded
+                if (expandedCatalogSections.has(catName)) {
+                    chevron.style.transform = 'rotate(180deg)';
+                }
                 
                 // Add column header click handlers for sorting
                 const headers = section.querySelectorAll('thead th[data-column]');
