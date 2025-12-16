@@ -1,4 +1,4 @@
-// Notifications System - Facebook-style notification center
+// Notifications System - Integrated with existing bell button
 // Real-time alerts for admins
 
 let notificationsData = [];
@@ -10,6 +10,12 @@ export function initNotificationSystem() {
     loadNotificationsFromStorage();
     setupNotificationListeners();
     displayBadgeCount();
+    
+    // Hook existing bell button
+    const existingBell = document.querySelector('button[title="Notifications"]');
+    if (existingBell) {
+        existingBell.addEventListener('click', toggleNotificationCenter);
+    }
 }
 
 function createNotificationPanel() {
@@ -116,49 +122,11 @@ function createNotificationPanel() {
                 </div>
             </div>
         </div>
-        
-        <!-- Notification Badge -->
-        <button id="notificationBell" style="
-            position:fixed;
-            top:12px;
-            right:20px;
-            width:40px;
-            height:40px;
-            border-radius:50%;
-            border:none;
-            background:#f3f4f6;
-            cursor:pointer;
-            font-size:20px;
-            z-index:9998;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            transition:background 0.2s;
-        ">
-            🔔
-            <span id="notificationBadge" style="
-                position:absolute;
-                top:-6px;
-                right:-6px;
-                background:#dc2626;
-                color:#fff;
-                border-radius:50%;
-                width:24px;
-                height:24px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                font-size:12px;
-                font-weight:600;
-                display:none;
-            ">0</span>
-        </button>
     `;
     
     document.body.insertAdjacentHTML('afterbegin', html);
     
     // Event Listeners
-    document.getElementById('notificationBell').addEventListener('click', toggleNotificationCenter);
     document.getElementById('notifCloseBtn').addEventListener('click', closeNotificationCenter);
     document.getElementById('notifMarkAllRead').addEventListener('click', markAllAsRead);
     
@@ -456,12 +424,34 @@ function markAllAsRead() {
 }
 
 function displayBadgeCount() {
-    const badge = document.getElementById('notificationBadge');
+    const existingBell = document.querySelector('button[title="Notifications"]');
+    if (!existingBell) return;
+    
+    // Remove existing badge if any
+    let badge = existingBell.querySelector('.notif-badge');
+    if (badge) badge.remove();
+    
     if (notificationBadgeCount > 0) {
-        badge.textContent = notificationBadgeCount > 99 ? '99+' : notificationBadgeCount;
-        badge.style.display = 'flex';
-    } else {
-        badge.style.display = 'none';
+        const badgeHtml = document.createElement('span');
+        badgeHtml.className = 'notif-badge';
+        badgeHtml.textContent = notificationBadgeCount > 99 ? '99+' : notificationBadgeCount;
+        badgeHtml.style.cssText = `
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #dc2626;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        `;
+        existingBell.style.position = 'relative';
+        existingBell.appendChild(badgeHtml);
     }
 }
 
