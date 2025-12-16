@@ -3,6 +3,7 @@
 
 // ===== IMPORTS =====
 import { db } from './firebase-config.js';
+import { initNotificationSystem, addNotification } from './notifications.js';
 import { onAuthStateChanged, getCurrentUser, logoutUser, updateLastLogin } from './auth.js';
 import { getUserPermissions, canUserAction, getUserAccessiblePages, isAdmin } from './permissions.js';
 import { initAdminPanel } from './admin.js';
@@ -189,6 +190,15 @@ function initOrderForm() {
         try {
             await set(ref(db, "Orders/" + data.CatalogName + "_" + Date.now()), data);
             await logAuditEvent('CREATE_ORDER', `Order: ${data.CatalogName} × ${data.OrderQuantity}`, currentUser?.email);
+            
+            // Add notification
+            addNotification({
+                type: 'order',
+                priority: 'info',
+                title: '📝 新しい注文が作成されました',
+                message: `${data.Requester}さんが${data.CatalogName}を${data.OrderQuantity}個注文しました`
+            });
+            
             alert("注文を登録しました");
             form.reset();
             document.getElementById('OrderMessage').innerHTML = '';
@@ -1663,6 +1673,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Load analytics settings
         await loadAnalyticsSettings();
 
+        // Initialize notification system
+        initNotificationSystem();
+
         // Initialize app components
         initializeCatalogSelects();
         initTabSwitching();
@@ -1672,6 +1685,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initAdminPanel();
         updateKPIs();
         setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
+        
+        // Monitor stock levels for alerts
+        monitorStockLevels();
+        setInterval(monitorStockLevels, 60000); // Check every minute
         
         // Wire bulk edit button
         const bulkEditBtn = document.getElementById('bulkEditBtn');
@@ -2015,6 +2032,57 @@ async function updateKPIs() {
         }
     } catch (error) {
         console.error('Error updating KPIs:', error);
+    }
+}
+
+// ===== STOCK LEVEL MONITORING & NOTIFICATIONS =====
+async function monitorStockLevels() {
+    try {
+        const catalogsRef = ref(db, 'Catalogs/');
+        const snapshot = await get(catalogsRef);
+        
+        if (!snapshot.exists()) return;
+        
+        const catalogs = snapshot.val();
+        const shownNotifications = JSON.parse(sessionStorage.getItem('shownStockNotifs') || '{}');
+        
+        Object.entries(catalogs).forEach(([key, item]) => {
+            const stockQty = Number(item.StockQuantity || 0);
+            const catalogName = item.CatalogName;
+            const itemThreshold = getItemThreshold(catalogName, 'low');
+            
+            // CRITICAL: Out of stock (0 units)
+            if (stockQty === 0 && !shownNotifications[`critical_${catalogName}`]) {
+                addNotification({
+                    type: 'stock',
+                    priority: 'critical',
+                    title: '🔴 重大: 在庫切れ',
+                    message: `${catalogName}の在庫がなくなりました。すぐに補充が必要です。`
+                });
+                shownNotifications[`critical_${catalogName}`] = true;
+            }
+            
+            // WARNING: Low stock (below threshold)
+            if (stockQty > 0 && stockQty < itemThreshold && !shownNotifications[`warning_${catalogName}`]) {
+                addNotification({
+                    type: 'stock',
+                    priority: 'warning',
+                    title: '⚠️ 警告: 在庫不足',
+                    message: `${catalogName}の在庫が少なくなっています (${stockQty}/${itemThreshold})`
+                });
+                shownNotifications[`warning_${catalogName}`] = true;
+            }
+            
+            // Clear notification flags if stock recovers
+            if (stockQty >= itemThreshold) {
+                delete shownNotifications[`warning_${catalogName}`];
+                delete shownNotifications[`critical_${catalogName}`];
+            }
+        });
+        
+        sessionStorage.setItem('shownStockNotifs', JSON.stringify(shownNotifications));
+    } catch (error) {
+        console.error('Error monitoring stock levels:', error);
     }
 }
 

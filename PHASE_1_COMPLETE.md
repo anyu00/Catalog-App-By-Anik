@@ -285,7 +285,7 @@ Before moving to Phase 2, verify:
 - [ ] Mobile login page is responsive
 - [ ] Error messages are user-friendly
 
----
+--- 
 
 ## 🔜 Next Phase: Admin Panel (Phase 2)
 
