@@ -157,16 +157,7 @@ function createNotificationPanel() {
                 opacity: 0;
             }
         }
-        @keyframes toastSlideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
+
     `;
     document.head.appendChild(style);
 }
@@ -203,9 +194,6 @@ export function addNotification(notification) {
     saveNotificationsToStorage();
     displayBadgeCount();
     
-    // Show toast notification
-    showToastNotification(fullNotif);
-    
     // Auto-open center for critical notifications
     if (fullNotif.priority === 'critical') {
         setTimeout(() => {
@@ -217,79 +205,7 @@ export function addNotification(notification) {
     return fullNotif;
 }
 
-function showToastNotification(notif) {
-    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
-    
-    const colors = {
-        critical: '#dc2626',
-        warning: '#f59e0b',
-        info: '#3b82f6'
-    };
-    
-    const icons = {
-        critical: '🔴',
-        warning: '⚠️',
-        info: 'ℹ️',
-        stock: '📦',
-        order: '📝',
-        user: '👤'
-    };
-    
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        background:#fff;
-        border-left:4px solid ${colors[notif.priority]};
-        padding:16px;
-        margin-bottom:12px;
-        border-radius:6px;
-        box-shadow:0 4px 12px rgba(0,0,0,0.15);
-        animation:toastSlideIn 0.3s ease-out;
-        max-width:380px;
-        cursor:pointer;
-    `;
-    
-    toast.innerHTML = `
-        <div style="display:flex;gap:12px;">
-            <div style="font-size:20px;">${icons[notif.type] || icons[notif.priority]}</div>
-            <div style="flex:1;">
-                <div style="font-weight:600;margin-bottom:4px;">${notif.title}</div>
-                <div style="font-size:14px;color:#666;">${notif.message}</div>
-                <div style="font-size:12px;color:#999;margin-top:4px;">${getTimeAgo(notif.timestamp)}</div>
-            </div>
-        </div>
-    `;
-    
-    toast.addEventListener('click', () => {
-        document.getElementById('notificationCenter').style.display = 'flex';
-        renderNotifications('all');
-        toast.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => toast.remove(), 300);
-    });
-    
-    toastContainer.appendChild(toast);
-    
-    // Auto-remove after 6 seconds
-    setTimeout(() => {
-        if (toast.parentElement) {
-            toast.style.animation = 'slideOut 0.3s ease-out';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 6000);
-}
 
-function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.style.cssText = `
-        position:fixed;
-        bottom:20px;
-        right:20px;
-        z-index:9997;
-        max-width:400px;
-    `;
-    document.body.appendChild(container);
-    return container;
-}
 
 function renderNotifications(filter = 'all') {
     const listContainer = document.getElementById('notificationsList');
