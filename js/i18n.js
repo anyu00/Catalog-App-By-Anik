@@ -123,17 +123,22 @@ const translations = {
 };
 
 // Global i18n state
-let i18n = {
+const i18n = {
     lang: localStorage.getItem('appLanguage') || 'ja',
     
     t(key) {
-        return translations[this.lang][key] || key;
+        const result = translations[this.lang]?.[key];
+        if (!result) {
+            console.warn(`Translation missing for key: ${key}`);
+        }
+        return result || key;
     },
     
     setLanguage(lang) {
         if (translations[lang]) {
             this.lang = lang;
             localStorage.setItem('appLanguage', lang);
+            console.log(`Language changed to: ${lang}`);
             return true;
         }
         return false;
@@ -146,3 +151,4 @@ let i18n = {
 
 // Make globally available
 window.i18n = i18n;
+console.log('i18n loaded. Current language:', i18n.getLanguage());

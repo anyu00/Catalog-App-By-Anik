@@ -988,25 +988,37 @@ function initMobileToggle() {
 
 // ===== LANGUAGE SWITCHING =====
 function initLanguageToggle() {
+    console.log('Initializing language toggle...');
     const langJABtn = document.getElementById('langJA');
     const langENBtn = document.getElementById('langEN');
     
-    if (!langJABtn || !langENBtn) return;
+    if (!langJABtn || !langENBtn) {
+        console.error('Language buttons not found in DOM');
+        return;
+    }
+    
+    console.log('Language buttons found, setting up listeners');
     
     // Set initial active button
     updateLanguageButtonState();
     
-    langJABtn.addEventListener('click', () => {
+    langJABtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('Japanese button clicked');
         i18n.setLanguage('ja');
         updateLanguageButtonState();
         updateUILanguage();
     });
     
-    langENBtn.addEventListener('click', () => {
+    langENBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('English button clicked');
         i18n.setLanguage('en');
         updateLanguageButtonState();
         updateUILanguage();
     });
+    
+    console.log('Language toggle initialized');
 }
 
 function updateLanguageButtonState() {
@@ -1014,46 +1026,36 @@ function updateLanguageButtonState() {
     const langJABtn = document.getElementById('langJA');
     const langENBtn = document.getElementById('langEN');
     
+    if (!langJABtn || !langENBtn) return;
+    
     if (lang === 'ja') {
-        langJABtn.style.background = '#2563eb';
+        langJABtn.style.backgroundColor = '#2563eb';
         langJABtn.style.color = 'white';
-        langENBtn.style.background = 'transparent';
+        langENBtn.style.backgroundColor = 'transparent';
         langENBtn.style.color = '#64748b';
     } else {
-        langENBtn.style.background = '#2563eb';
+        langENBtn.style.backgroundColor = '#2563eb';
         langENBtn.style.color = 'white';
-        langJABtn.style.background = 'transparent';
+        langJABtn.style.backgroundColor = 'transparent';
         langJABtn.style.color = '#64748b';
     }
 }
 
 function updateUILanguage() {
-    // Update sidebar navigation buttons
-    const updates = {
-        '.sidebar-nav-btn': {
-            0: 'sidebar.manage',
-            1: 'sidebar.order',
-            2: 'sidebar.entries',
-            3: 'sidebar.orders',
-            4: 'sidebar.calendar',
-            5: 'sidebar.history',
-            6: 'sidebar.audit',
-            7: 'sidebar.analytics',
-            8: 'sidebar.admin',
-        }
-    };
+    console.log('Updating UI language to:', i18n.getLanguage());
     
     // Update sidebar buttons
     const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn');
     const btnKeys = ['sidebar.manage', 'sidebar.order', 'sidebar.entries', 'sidebar.orders', 
                      'sidebar.calendar', 'sidebar.history', 'sidebar.audit', 'sidebar.analytics', 'sidebar.admin'];
+    
     sidebarBtns.forEach((btn, idx) => {
         if (btnKeys[idx]) {
-            btn.innerHTML = btn.innerHTML.replace(btn.textContent, i18n.t(btnKeys[idx]));
-            // Keep the icon
             const icon = btn.querySelector('i');
             if (icon) {
                 btn.innerHTML = icon.outerHTML + ' ' + i18n.t(btnKeys[idx]);
+            } else {
+                btn.textContent = i18n.t(btnKeys[idx]);
             }
         }
     });
