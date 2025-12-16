@@ -1,5 +1,6 @@
 // i18n.js - Complete Internationalization System
 // All UI text in English and Japanese
+// Version: 1.0 - Full bilingual support
 
 const translations = {
     ja: {
