@@ -1060,6 +1060,48 @@ function updateUILanguage() {
         }
     });
     
+    // Update top navigation buttons
+    const topNavBtns = document.querySelectorAll('.nav-link-btn');
+    const topBtnKeys = ['topnav.dashboard', 'topnav.order', 'topnav.inventory', 'topnav.orders', 
+                        'topnav.calendar', 'topnav.audit', 'topnav.movement', 'topnav.analytics', 'topnav.settings'];
+    topNavBtns.forEach((btn, idx) => {
+        // Check if this is a top nav button (not a sidebar button)
+        if (btn.classList.contains('nav-link-btn') && !btn.classList.contains('sidebar-nav-btn')) {
+            const text = btn.textContent.trim();
+            // Map English/Japanese to translation keys
+            const topNavMap = {
+                'Dashboard': 'section.manage_catalog',
+                'Place Order': 'section.place_order',
+                'Inventory': 'section.catalog_entries',
+                'Orders': 'section.order_entries',
+                'Calendar': 'section.calendar',
+                'Audit Log': 'section.audit',
+                'Movement': 'section.history',
+                'Analytics': 'section.analytics',
+                'Settings': 'section.admin',
+            };
+            
+            if (topNavMap[text] || text.length > 0) {
+                // Try to translate based on the current tab
+                const tabId = btn.getAttribute('data-tab');
+                const tabToKey = {
+                    'manageCatalog': 'section.manage_catalog',
+                    'placeOrder': 'section.place_order',
+                    'catalogEntries': 'section.catalog_entries',
+                    'orderEntries': 'section.order_entries',
+                    'stockCalendar': 'section.calendar',
+                    'movementHistory': 'section.history',
+                    'auditLog': 'section.audit',
+                    'analytics': 'section.analytics',
+                    'adminPanel': 'section.admin',
+                };
+                if (tabToKey[tabId]) {
+                    btn.textContent = i18n.t(tabToKey[tabId]);
+                }
+            }
+        }
+    });
+    
     // Update section titles
     const sectionUpdates = {
         'tab-manageCatalog': 'section.manage_catalog',
@@ -1203,6 +1245,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize language toggle
         initLanguageToggle();
+        
+        // Apply current language to all UI elements
+        updateUILanguage();
 
         // Initialize app components
         initializeCatalogSelects();
