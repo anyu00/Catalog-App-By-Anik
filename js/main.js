@@ -199,6 +199,30 @@ function initOrderForm() {
     });
 }
 
+// ===== SORTING & FILTERING STATE =====
+let catalogSortState = { column: null, direction: 'asc' };
+let catalogRequesterFilter = null;
+let orderRequesterFilter = null;
+let auditDateRange = { from: null, to: null };
+let movementDateRange = { from: null, to: null };
+
+// ===== UTILITY: Get unique values from array =====
+function getUniqueValues(data, field) {
+    const values = new Set();
+    Object.values(data).forEach(item => {
+        if (item[field]) values.add(item[field]);
+    });
+    return Array.from(values).sort();
+}
+
+// ===== UTILITY: Filter by date range =====
+function isInDateRange(timestamp, fromDate, toDate) {
+    const date = new Date(timestamp).getTime();
+    const from = fromDate ? new Date(fromDate).getTime() : 0;
+    const to = toDate ? new Date(toDate).getTime() : Infinity;
+    return date >= from && date <= to;
+}
+
 // ===== RENDER CATALOG TABLES ACCORDION =====
 function renderCatalogTablesAccordion() {
     const container = document.getElementById('catalogEntriesAccordion');
@@ -213,20 +237,70 @@ function renderCatalogTablesAccordion() {
         if (snapshot.exists()) {
             const data = snapshot.val();
             const catalogs = {};
+            
+            // Collect all requesters for filter dropdown
+            let allRequesters = new Set();
+            
             for (const key in data) {
                 const catName = data[key].CatalogName;
                 if (!catalogs[catName]) catalogs[catName] = [];
                 catalogs[catName].push({ ...data[key], _key: key });
-            }   
+                if (data[key].Requester) allRequesters.add(data[key].Requester);
+            }
+            
+            // Add requester filter dropdown at the top
+            const filterHtml = `
+                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                    <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
+                    <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
+                        <option value="">すべて表示</option>
+                        ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            container.innerHTML = filterHtml;
+            
+            const filterSelect = container.querySelector('#catalogRequesterSelect');
+            if (filterSelect) {
+                filterSelect.value = catalogRequesterFilter || '';
+                filterSelect.addEventListener('change', (e) => {
+                    catalogRequesterFilter = e.target.value;
+                    renderCatalogTablesAccordion();
+                });
+            }
             
             Object.keys(catalogs).forEach((catName, idx) => {
-                const sortedEntries = catalogs[catName].slice().sort((a, b) =>
-                    new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01')
-                );
+                let entries = catalogs[catName].slice();
+                
+                // Apply requester filter
+                if (catalogRequesterFilter) {
+                    entries = entries.filter(e => e.Requester === catalogRequesterFilter);
+                }
+                
+                // Skip if no entries after filtering
+                if (entries.length === 0) return;
+                
+                // Sort entries
+                entries.sort((a, b) => {
+                    if (catalogSortState.column === 'ReceiptDate') {
+                        const aVal = new Date(a.ReceiptDate || '1970-01-01');
+                        const bVal = new Date(b.ReceiptDate || '1970-01-01');
+                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    } else if (catalogSortState.column === 'QuantityReceived') {
+                        const aVal = Number(a.QuantityReceived || 0);
+                        const bVal = Number(b.QuantityReceived || 0);
+                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    } else if (catalogSortState.column === 'IssueQuantity') {
+                        const aVal = Number(a.IssueQuantity || 0);
+                        const bVal = Number(b.IssueQuantity || 0);
+                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    }
+                    return new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01');
+                });
                 
                 let prevStock = null;
                 let totalReceived = 0, totalIssued = 0;
-                const rowsHtml = sortedEntries.map((entry, i) => {
+                const rowsHtml = entries.map((entry, i) => {
                     const qtyReceived = Number(entry.QuantityReceived || 0);
                     const qtyIssued = Number(entry.IssueQuantity || 0);
                     let stock = (i === 0) ? (qtyReceived - qtyIssued) : (prevStock + qtyReceived - qtyIssued);
@@ -256,18 +330,18 @@ function renderCatalogTablesAccordion() {
                             <i class="fas fa-chevron-down" style="transition: transform 0.2s; font-size: 14px; color: #64748b;"></i>
                             <i class='fa-solid fa-box' style="color: #2563eb;"></i>
                             <span style="font-weight: 600; color: #1e293b; font-size: 15px;">${catName}</span>
-                            <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${sortedEntries.length} entries)</span>
+                            <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${entries.length} entries)</span>
                         </div>
                     </div>
                     <div class="catalog-table-wrapper" style="display: none; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
                         <table class="glass-table excel-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
                             <thead style="background: #f8fafc;">
                                 <tr>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">カタログ名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納入日</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">受領数量</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="CatalogName">カタログ名</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="ReceiptDate">納入日 ${catalogSortState.column === 'ReceiptDate' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="QuantityReceived">受領数量 ${catalogSortState.column === 'QuantityReceived' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納品日</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発行数量</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="IssueQuantity">発行数量 ${catalogSortState.column === 'IssueQuantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫数量</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">依頼者</th>
@@ -293,6 +367,21 @@ function renderCatalogTablesAccordion() {
                     const isHidden = wrapper.style.display === 'none';
                     wrapper.style.display = isHidden ? 'block' : 'none';
                     chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                });
+                
+                // Add column header click handlers for sorting
+                const headers = section.querySelectorAll('thead th[data-column]');
+                headers.forEach(th => {
+                    th.addEventListener('click', () => {
+                        const column = th.getAttribute('data-column');
+                        if (catalogSortState.column === column) {
+                            catalogSortState.direction = catalogSortState.direction === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            catalogSortState.column = column;
+                            catalogSortState.direction = 'asc';
+                        }
+                        renderCatalogTablesAccordion();
+                    });
                 });
             });
         }
@@ -379,14 +468,49 @@ function renderOrderTablesAccordion() {
         if (snapshot.exists()) {
             const data = snapshot.val();
             const catalogs = {};
+            
+            // Collect all requesters for filter dropdown
+            let allRequesters = new Set();
+            
             for (const key in data) {
                 const catName = data[key].CatalogName;
                 if (!catalogs[catName]) catalogs[catName] = [];
                 catalogs[catName].push({ ...data[key], _key: key });
+                if (data[key].Requester) allRequesters.add(data[key].Requester);
+            }
+            
+            // Add requester filter dropdown at the top
+            const filterHtml = `
+                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                    <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
+                    <select id="orderRequesterSelect" style="padding: 8px 12px; border: 1px solid #fbbf24; border-radius: 6px; font-size: 14px; background: white;">
+                        <option value="">すべて表示</option>
+                        ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+            container.innerHTML = filterHtml;
+            
+            const filterSelect = container.querySelector('#orderRequesterSelect');
+            if (filterSelect) {
+                filterSelect.value = orderRequesterFilter || '';
+                filterSelect.addEventListener('change', (e) => {
+                    orderRequesterFilter = e.target.value;
+                    renderOrderTablesAccordion();
+                });
             }
             
             Object.keys(catalogs).forEach((catName, idx) => {
-                const entries = catalogs[catName];
+                let entries = catalogs[catName].slice();
+                
+                // Apply requester filter
+                if (orderRequesterFilter) {
+                    entries = entries.filter(e => e.Requester === orderRequesterFilter);
+                }
+                
+                // Skip if no entries after filtering
+                if (entries.length === 0) return;
+                
                 const section = document.createElement('div');
                 section.className = 'order-section';
                 section.innerHTML = `
@@ -1617,6 +1741,49 @@ async function renderAuditLog() {
         });
         logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
+        // Add date range filter
+        const filterHtml = `
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <label style="font-weight: 600; color: #1e293b;">期間フィルター:</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="date" id="auditFromDate" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <span style="color: #999;">から</span>
+                    <input type="date" id="auditToDate" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <button id="auditClearDate" style="padding: 6px 12px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px;">クリア</button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = filterHtml;
+        
+        // Set current filter values
+        const fromInput = container.querySelector('#auditFromDate');
+        const toInput = container.querySelector('#auditToDate');
+        const clearBtn = container.querySelector('#auditClearDate');
+        
+        if (auditDateRange.from) fromInput.value = auditDateRange.from;
+        if (auditDateRange.to) toInput.value = auditDateRange.to;
+        
+        fromInput.addEventListener('change', () => {
+            auditDateRange.from = fromInput.value;
+            renderAuditLog();
+        });
+        
+        toInput.addEventListener('change', () => {
+            auditDateRange.to = toInput.value;
+            renderAuditLog();
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            auditDateRange.from = null;
+            auditDateRange.to = null;
+            renderAuditLog();
+        });
+        
+        // Filter logs by date range
+        const filteredLogs = logs.filter(log => 
+            isInDateRange(log.timestamp, auditDateRange.from, auditDateRange.to)
+        );
+        
         const tableHtml = `
             <table class="glass-table" style="width: 100%;">
                 <thead>
@@ -1628,18 +1795,18 @@ async function renderAuditLog() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${logs.map(log => `
+                    ${filteredLogs.length > 0 ? filteredLogs.map(log => `
                         <tr>
                             <td style="font-size: 13px;">${new Date(log.timestamp).toLocaleString('ja-JP')}</td>
                             <td><strong>${log.action}</strong></td>
                             <td style="font-size: 13px;">${log.details}</td>
                             <td style="font-size: 13px;">${log.userId}</td>
                         </tr>
-                    `).join('')}
+                    `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">フィルター条件に合うレコードがありません</td></tr>'}
                 </tbody>
             </table>
         `;
-        container.innerHTML = tableHtml;
+        container.innerHTML += tableHtml;
     } catch (error) {
         console.error('Error rendering audit log:', error);
     }
@@ -1682,6 +1849,49 @@ async function renderMovementHistory() {
         });
         movements.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
+        // Add date range filter
+        const filterHtml = `
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <label style="font-weight: 600; color: #1e293b;">期間フィルター:</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input type="date" id="movementFromDate" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <span style="color: #999;">から</span>
+                    <input type="date" id="movementToDate" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px;">
+                    <button id="movementClearDate" style="padding: 6px 12px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 12px;">クリア</button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = filterHtml;
+        
+        // Set current filter values
+        const fromInput = container.querySelector('#movementFromDate');
+        const toInput = container.querySelector('#movementToDate');
+        const clearBtn = container.querySelector('#movementClearDate');
+        
+        if (movementDateRange.from) fromInput.value = movementDateRange.from;
+        if (movementDateRange.to) toInput.value = movementDateRange.to;
+        
+        fromInput.addEventListener('change', () => {
+            movementDateRange.from = fromInput.value;
+            renderMovementHistory();
+        });
+        
+        toInput.addEventListener('change', () => {
+            movementDateRange.to = toInput.value;
+            renderMovementHistory();
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            movementDateRange.from = null;
+            movementDateRange.to = null;
+            renderMovementHistory();
+        });
+        
+        // Filter movements by date range
+        const filteredMovements = movements.filter(m => 
+            isInDateRange(m.timestamp, movementDateRange.from, movementDateRange.to)
+        );
+        
         const tableHtml = `
             <table class="glass-table" style="width: 100%;">
                 <thead>
@@ -1695,7 +1905,7 @@ async function renderMovementHistory() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${movements.map(m => {
+                    ${filteredMovements.length > 0 ? filteredMovements.map(m => {
                         const changeColor = m.change > 0 ? '#10b981' : m.change < 0 ? '#ef4444' : '#999';
                         return `
                             <tr>
@@ -1707,11 +1917,11 @@ async function renderMovementHistory() {
                                 <td style="font-size: 13px;">${m.action}</td>
                             </tr>
                         `;
-                    }).join('')}
+                    }).join('') : '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">フィルター条件に合うレコードがありません</td></tr>'}
                 </tbody>
             </table>
         `;
-        container.innerHTML = tableHtml;
+        container.innerHTML += tableHtml;
     } catch (error) {
         console.error('Error rendering movement history:', error);
     }
