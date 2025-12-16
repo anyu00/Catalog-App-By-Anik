@@ -1044,7 +1044,7 @@ function updateLanguageButtonState() {
 function updateUILanguage() {
     console.log('Updating UI language to:', i18n.getLanguage());
     
-    // Update sidebar buttons
+    // Update sidebar buttons with icons
     const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn');
     const btnKeys = ['sidebar.manage', 'sidebar.order', 'sidebar.entries', 'sidebar.orders', 
                      'sidebar.calendar', 'sidebar.history', 'sidebar.audit', 'sidebar.analytics', 'sidebar.admin'];
@@ -1080,6 +1080,91 @@ function updateUILanguage() {
             if (h2) h2.textContent = i18n.t(key);
         }
     }
+    
+    // Update form labels
+    const labelUpdates = {
+        'CatalogName': 'form.catalog_name',
+        'ReceiptDate': 'form.receipt_date',
+        'QuantityReceived': 'form.quantity_received',
+        'DeliveryDate': 'form.delivery_date',
+        'IssueQuantity': 'form.issue_quantity',
+        'StockQuantity': 'form.stock_quantity',
+        'DistributionDestination': 'form.distribution',
+        'Requester': 'form.requester',
+        'Remarks': 'form.remarks',
+    };
+    
+    for (const [fieldId, key] of Object.entries(labelUpdates)) {
+        const label = document.querySelector(`label[for="${fieldId}"]`);
+        if (label) label.textContent = i18n.t(key);
+    }
+    
+    // Update order form labels
+    const orderLabels = {
+        'OrderCatalogName': 'order.catalog_name',
+        'OrderQuantity': 'order.order_quantity',
+        'Requester': 'form.requester',
+        'OrderMessage': 'order.message',
+    };
+    
+    for (const [fieldId, key] of Object.entries(orderLabels)) {
+        const label = document.querySelector(`label[for="${fieldId}"]`);
+        if (label) label.textContent = i18n.t(key);
+    }
+    
+    // Update buttons
+    const btnUpdates = {
+        'Insbtn': 'btn.insert',
+        'Updbtn': 'btn.update',
+        'Delbtn': 'btn.delete',
+        'orderbtn': 'btn.submit',
+    };
+    
+    for (const [btnId, key] of Object.entries(btnUpdates)) {
+        const btn = document.getElementById(btnId);
+        if (btn) btn.textContent = i18n.t(key);
+    }
+    
+    // Update select placeholders
+    const catalogSelects = document.querySelectorAll('#CatalogName, #OrderCatalogName');
+    catalogSelects.forEach(select => {
+        const firstOption = select.querySelector('option[value=""]');
+        if (firstOption) {
+            firstOption.textContent = i18n.t('form.placeholder_select');
+        }
+    });
+    
+    // Update table headers dynamically when they're rendered
+    setTimeout(() => {
+        const tableHeaders = document.querySelectorAll('th');
+        tableHeaders.forEach(th => {
+            const text = th.textContent.trim();
+            const keyMap = {
+                'カタログ名': 'table.catalog_name',
+                'Catalog Name': 'table.catalog_name',
+                '納入日': 'table.delivery_date',
+                'Delivery Date': 'table.delivery_date',
+                '受領数量': 'table.quantity_received',
+                'Received Qty': 'table.quantity_received',
+                '出荷日': 'table.shipment_date',
+                'Shipment Date': 'table.shipment_date',
+                '発行数量': 'table.issue_quantity',
+                'Issue Qty': 'table.issue_quantity',
+                '在庫数量': 'table.stock_quantity',
+                'Stock Qty': 'table.stock_quantity',
+                '配布先': 'table.distribution',
+                'Distribution': 'table.distribution',
+                '依頼者': 'table.requester',
+                'Requester': 'table.requester',
+                '備考': 'table.remarks',
+                'Remarks': 'table.remarks',
+            };
+            
+            if (keyMap[text]) {
+                th.textContent = i18n.t(keyMap[text]);
+            }
+        });
+    }, 100);
 }
 
 // ===== INITIALIZE ON DOM READY =====
