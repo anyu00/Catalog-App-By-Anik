@@ -264,7 +264,7 @@ function renderCatalogTablesAccordion() {
                             <thead style="background: #f8fafc;">
                                 <tr>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">カタログ名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">受領日</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納入日</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">受領数量</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納品日</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発行数量</th>
@@ -531,7 +531,7 @@ document.getElementById('exportCatalogCSV')?.addEventListener('click', async () 
             return;
         }
         const data = snapshot.val();
-        const tableData = [['カタログ名', '受領日', '受領数量', '配送日', '発行数量', '在庫数量', '配布先', '依頼者', '備考']];
+        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '依頼者', '備考']];
         for (const entry of Object.values(data)) {
             tableData.push([
                 entry.CatalogName,
@@ -561,7 +561,7 @@ document.getElementById('exportCatalogPDF')?.addEventListener('click', async () 
             return;
         }
         const data = snapshot.val();
-        const tableData = [['カタログ名', '受領日', '受領数量', '配送日', '発行数量', '在庫数量', '配布先', '依頼者']];
+        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '依頼者']];
         for (const entry of Object.values(data)) {
             tableData.push([
                 entry.CatalogName,
