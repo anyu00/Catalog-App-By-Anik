@@ -41,8 +41,139 @@ export function initAdminPanel() {
   if (saveBtn) saveBtn.addEventListener('click', handleSaveUser);
   if (deactivateBtn) deactivateBtn.addEventListener('click', handleDeactivateUser);
 
+  // Admin Tab Switching
+  const adminTabUsers = document.getElementById('adminTabUsers');
+  const adminTabSettings = document.getElementById('adminTabSettings');
+  const adminPanelUsers = document.getElementById('adminPanelUsers');
+  const adminPanelSettings = document.getElementById('adminPanelSettings');
+
+  if (adminTabUsers && adminTabSettings) {
+    adminTabUsers.addEventListener('click', () => {
+      adminPanelUsers.style.display = 'block';
+      adminPanelSettings.style.display = 'none';
+      adminTabUsers.style.borderBottom = '3px solid #2563eb';
+      adminTabSettings.style.borderBottom = 'none';
+    });
+    
+    adminTabSettings.addEventListener('click', () => {
+      adminPanelUsers.style.display = 'none';
+      adminPanelSettings.style.display = 'block';
+      adminTabUsers.style.borderBottom = 'none';
+      adminTabSettings.style.borderBottom = '3px solid #2563eb';
+      loadAnalyticsSettingsUI();
+    });
+  }
+
+  // Analytics Settings Buttons
+  const saveGlobalBtn = document.getElementById('saveGlobalAnalyticsBtn');
+  const savePerItemBtn = document.getElementById('savePerItemAnalyticsBtn');
+  
+  if (saveGlobalBtn) saveGlobalBtn.addEventListener('click', saveGlobalAnalyticsSettings);
+  if (savePerItemBtn) savePerItemBtn.addEventListener('click', savePerItemAnalyticsSettings);
+
   // Initial load
   fetchAndRenderUsers();
+}
+
+async function loadAnalyticsSettingsUI() {
+  try {
+    const globalLowInput = document.getElementById('globalLowStockInput');
+    const globalHighInput = document.getElementById('globalHighStockInput');
+    const globalFastInput = document.getElementById('globalFastMovingInput');
+    
+    globalLowInput.value = analyticsSettings.globalLowStockThreshold;
+    globalHighInput.value = analyticsSettings.globalHighStockThreshold;
+    globalFastInput.value = analyticsSettings.globalFastMovingDefinition;
+
+    // Load all catalog names for per-item overrides
+    const catalogsRef = ref(db, 'Catalogs/');
+    const snapshot = await get(catalogsRef);
+    const catalogs = snapshot.exists() ? snapshot.val() : {};
+    
+    const catalogNames = [...new Set(Object.values(catalogs).map(cat => cat.CatalogName))].sort();
+    const container = document.getElementById('perItemOverridesContainer');
+    container.innerHTML = '';
+    
+    catalogNames.forEach(catalogName => {
+      const override = analyticsSettings.perItemOverrides[catalogName] || {};
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:12px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;';
+      div.innerHTML = `
+        <div style="font-weight:600;margin-bottom:8px;">${catalogName}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input type="number" class="form-control item-low-input" data-catalog="${catalogName}" placeholder="低在庫 (override)" value="${override.lowStock ?? ''}" style="font-size:0.9rem;">
+          <input type="number" class="form-control item-high-input" data-catalog="${catalogName}" placeholder="高在庫 (override)" value="${override.highStock ?? ''}" style="font-size:0.9rem;">
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error loading analytics settings UI:', error);
+  }
+}
+
+async function saveGlobalAnalyticsSettings() {
+  const lowVal = Number(document.getElementById('globalLowStockInput').value);
+  const highVal = Number(document.getElementById('globalHighStockInput').value);
+  const fastVal = Number(document.getElementById('globalFastMovingInput').value);
+  
+  try {
+    await set(ref(db, 'Settings/Analytics/'), {
+      globalLowStockThreshold: lowVal,
+      globalHighStockThreshold: highVal,
+      globalFastMovingDefinition: fastVal,
+      perItemOverrides: analyticsSettings.perItemOverrides || {},
+      updatedAt: new Date().toISOString()
+    });
+    
+    analyticsSettings.globalLowStockThreshold = lowVal;
+    analyticsSettings.globalHighStockThreshold = highVal;
+    analyticsSettings.globalFastMovingDefinition = fastVal;
+    
+    alert('グローバル設定を保存しました');
+    window.analyticsSettingsUpdated = true;
+  } catch (error) {
+    alert('エラー: ' + error.message);
+  }
+}
+
+async function savePerItemAnalyticsSettings() {
+  const overrides = {};
+  
+  document.querySelectorAll('[data-catalog]').forEach(input => {
+    const catalog = input.getAttribute('data-catalog');
+    if (!overrides[catalog]) overrides[catalog] = {};
+  });
+  
+  document.querySelectorAll('.item-low-input').forEach(input => {
+    const catalog = input.getAttribute('data-catalog');
+    const value = input.value ? Number(input.value) : null;
+    if (!overrides[catalog]) overrides[catalog] = {};
+    overrides[catalog].lowStock = value;
+  });
+  
+  document.querySelectorAll('.item-high-input').forEach(input => {
+    const catalog = input.getAttribute('data-catalog');
+    const value = input.value ? Number(input.value) : null;
+    if (!overrides[catalog]) overrides[catalog] = {};
+    overrides[catalog].highStock = value;
+  });
+  
+  try {
+    await set(ref(db, 'Settings/Analytics/'), {
+      globalLowStockThreshold: analyticsSettings.globalLowStockThreshold,
+      globalHighStockThreshold: analyticsSettings.globalHighStockThreshold,
+      globalFastMovingDefinition: analyticsSettings.globalFastMovingDefinition,
+      perItemOverrides: overrides,
+      updatedAt: new Date().toISOString()
+    });
+    
+    analyticsSettings.perItemOverrides = overrides;
+    alert('個別設定を保存しました');
+    window.analyticsSettingsUpdated = true;
+  } catch (error) {
+    alert('エラー: ' + error.message);
+  }
 }
 
 async function fetchAndRenderUsers() {

@@ -968,12 +968,44 @@ function closeCalendarEventModal() {
 }
 
 // ===== ANALYTICS =====
+let analyticsSettings = {
+    globalLowStockThreshold: 10,
+    globalHighStockThreshold: 100,
+    globalFastMovingDefinition: 50,
+    perItemOverrides: {}
+};
+
+async function loadAnalyticsSettings() {
+    try {
+        const settingsRef = ref(db, 'Settings/Analytics/');
+        const snapshot = await get(settingsRef);
+        if (snapshot.exists()) {
+            analyticsSettings = snapshot.val();
+        }
+    } catch (error) {
+        console.log('Analytics settings not yet configured');
+    }
+}
+
+function getItemThreshold(catalogName, thresholdType) {
+    const override = analyticsSettings.perItemOverrides?.[catalogName];
+    if (thresholdType === 'low') {
+        return override?.lowStock !== null && override?.lowStock !== undefined ? override.lowStock : analyticsSettings.globalLowStockThreshold;
+    }
+    return override?.highStock !== null && override?.highStock !== undefined ? override.highStock : analyticsSettings.globalHighStockThreshold;
+}
+
 const ANALYTICS_CARDS = [
     { key: 'totalStock', label: '総在庫数', icon: 'fa-boxes-stacked' },
     { key: 'totalOrders', label: '総注文数', icon: 'fa-cart-shopping' },
     { key: 'avgOrderQty', label: '平均注文数量', icon: 'fa-divide' },
     { key: 'stockByItem', label: 'カタログ別在庫', icon: 'fa-layer-group' },
     { key: 'ordersByItem', label: 'カタログ別注文', icon: 'fa-list-ol' },
+    { key: 'lowStockItems', label: '在庫不足アイテム', icon: 'fa-triangle-exclamation' },
+    { key: 'fastMovingItems', label: '販売数の多いアイテム', icon: 'fa-arrow-trend-up' },
+    { key: 'stockTrend', label: '在庫トレンド', icon: 'fa-chart-line' },
+    { key: 'requesterRankings', label: 'リクエスター顧問', icon: 'fa-ranking-star' },
+    { key: 'distributionAnalysis', label: '配分分析', icon: 'fa-pie-chart' },
 ];
 
 function getAnalyticsSelection() {
@@ -1057,6 +1089,270 @@ function renderAnalyticsDashboard(catalogData, orderData) {
                     },
                     options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
                 });
+            } else if (card.key === 'lowStockItems') {
+                renderLowStockItems(catalogData);
+            } else if (card.key === 'fastMovingItems') {
+                renderFastMovingItems(orderData);
+            } else if (card.key === 'stockTrend') {
+                renderStockTrend(catalogData, orderData);
+            } else if (card.key === 'requesterRankings') {
+                renderRequesterRankings(orderData);
+            } else if (card.key === 'distributionAnalysis') {
+                renderDistributionAnalysis(catalogData);
+            }
+        }
+    });
+}
+
+// Low Stock Items - Shows items below threshold
+function renderLowStockItems(catalogData) {
+    const container = document.getElementById('analytics-lowStockItems');
+    
+    const lowStockItems = [];
+    Object.values(catalogData).forEach(item => {
+        const itemThreshold = getItemThreshold(item.CatalogName, 'low');
+        const currentStock = Number(item.StockQuantity || 0);
+        if (currentStock < itemThreshold) {
+            lowStockItems.push({
+                name: item.CatalogName,
+                current: currentStock,
+                threshold: itemThreshold,
+                percentage: Math.round((currentStock / itemThreshold) * 100)
+            });
+        }
+    });
+    
+    lowStockItems.sort((a, b) => a.percentage - b.percentage);
+    
+    if (lowStockItems.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">✓ すべてのアイテムが十分な在庫を持っています</div>';
+        return;
+    }
+    
+    let html = '<div style="max-height:400px;overflow-y:auto;">';
+    lowStockItems.forEach(item => {
+        const bgColor = item.percentage < 25 ? '#fff3cd' : '#f8f9fa';
+        const borderColor = item.percentage < 25 ? '#f08c00' : '#dc3545';
+        const statusIcon = item.percentage < 25 ? '🔴 緊急' : '⚠️ 警告';
+        html += `
+            <div style="padding:12px;margin-bottom:8px;background:${bgColor};border-left:4px solid ${borderColor};border-radius:4px;">
+                <div style="font-weight:600;margin-bottom:4px;">${item.name} ${statusIcon}</div>
+                <div style="font-size:0.9rem;color:#666;">現在: ${item.current} / 閾値: ${item.threshold}</div>
+                <div style="margin-top:6px;background:#ddd;height:8px;border-radius:4px;overflow:hidden;">
+                    <div style="background:${borderColor};height:100%;width:${item.percentage}%;transition:width 0.3s;"></div>
+                </div>
+                <div style="font-size:0.85rem;margin-top:4px;color:#666;text-align:right;">${item.percentage}%</div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Fast Moving Items - Shows items with high demand in last 30 days
+function renderFastMovingItems(orderData) {
+    const fastMovingDefinition = analyticsSettings.globalFastMovingDefinition;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const itemDemand = {};
+    Object.values(orderData).forEach(order => {
+        const orderDate = new Date(order.OrderDate || new Date());
+        if (orderDate >= thirtyDaysAgo) {
+            const catalogName = order.CatalogName;
+            itemDemand[catalogName] = (itemDemand[catalogName] || 0) + Number(order.OrderQuantity || 0);
+        }
+    });
+    
+    const fastMoving = Object.entries(itemDemand)
+        .filter(([name, qty]) => qty >= fastMovingDefinition)
+        .map(([name, qty]) => ({ name, quantity: qty }))
+        .sort((a, b) => b.quantity - a.quantity);
+    
+    const container = document.getElementById('analytics-fastMovingItems');
+    
+    if (fastMoving.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">過去30日間で販売数が多いアイテムはありません</div>';
+        return;
+    }
+    
+    const ctxId = 'fastMoving-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    if (window.fastMovingChart) window.fastMovingChart.destroy();
+    
+    window.fastMovingChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: fastMoving.map(item => item.name),
+            datasets: [{
+                label: '過去30日間の注文数',
+                data: fastMoving.map(item => item.quantity),
+                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                borderColor: 'rgb(34, 197, 94)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+}
+
+// Stock Trend - Shows inventory changes over time
+function renderStockTrend(catalogData, orderData) {
+    const container = document.getElementById('analytics-stockTrend');
+    
+    // Calculate daily stock levels for last 30 days
+    const dailyStock = {};
+    const today = new Date();
+    
+    for (let i = 30; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        let totalStock = 0;
+        Object.values(catalogData).forEach(item => {
+            totalStock += Number(item.StockQuantity || 0);
+        });
+        
+        // Adjust for orders before this date (approximation)
+        Object.values(orderData).forEach(order => {
+            const orderDate = new Date(order.OrderDate || today);
+            if (orderDate < date) {
+                totalStock += Number(order.OrderQuantity || 0);
+            }
+        });
+        
+        dailyStock[dateStr] = totalStock;
+    }
+    
+    const dates = Object.keys(dailyStock);
+    const stocks = Object.values(dailyStock);
+    
+    const ctxId = 'stockTrend-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    if (window.stockTrendChart) window.stockTrendChart.destroy();
+    
+    window.stockTrendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: dates.map(d => new Date(d).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })),
+            datasets: [{
+                label: '総在庫数',
+                data: stocks,
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            plugins: { legend: { display: true } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// Requester Rankings - Shows top requesters
+function renderRequesterRankings(orderData) {
+    const requesterCount = {};
+    Object.values(orderData).forEach(order => {
+        const requester = order.Requester || '未指定';
+        requesterCount[requester] = (requesterCount[requester] || 0) + 1;
+    });
+    
+    const rankings = Object.entries(requesterCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+    
+    const container = document.getElementById('analytics-requesterRankings');
+    
+    if (rankings.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">注文データがありません</div>';
+        return;
+    }
+    
+    const ctxId = 'requester-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    if (window.requesterChart) window.requesterChart.destroy();
+    
+    const colors = ['#f87171', '#fb923c', '#facc15', '#86efac', '#67e8f9', '#60a5fa', '#a78bfa'];
+    
+    window.requesterChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: rankings.map(r => r.name),
+            datasets: [{
+                data: rankings.map(r => r.count),
+                backgroundColor: rankings.map((_, i) => colors[i % colors.length])
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'right' }
+            }
+        }
+    });
+}
+
+// Distribution Analysis - Shows where stock is distributed
+function renderDistributionAnalysis(catalogData) {
+    const distributionMap = {};
+    Object.values(catalogData).forEach(item => {
+        const destination = item.DistributionDestination || '未指定';
+        distributionMap[destination] = (distributionMap[destination] || 0) + Number(item.StockQuantity || 0);
+    });
+    
+    const container = document.getElementById('analytics-distributionAnalysis');
+    
+    if (Object.keys(distributionMap).length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">配分データがありません</div>';
+        return;
+    }
+    
+    const ctxId = 'distribution-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    if (window.distributionChart) window.distributionChart.destroy();
+    
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#74b9ff'];
+    
+    window.distributionChart = new Chart(canvas, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(distributionMap),
+            datasets: [{
+                data: Object.values(distributionMap),
+                backgroundColor: Object.keys(distributionMap).map((_, i) => colors[i % colors.length])
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'bottom' }
             }
         }
     });
@@ -1363,6 +1659,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Apply current language to all UI elements
         updateUILanguage();
+
+        // Load analytics settings
+        await loadAnalyticsSettings();
 
         // Initialize app components
         initializeCatalogSelects();
