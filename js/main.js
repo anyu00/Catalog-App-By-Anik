@@ -773,9 +773,14 @@ function initializeCalendar() {
                             textColor: '#ffffff',
                             extendedProps: {
                                 catalogName: entry.CatalogName,
+                                receiptDate: entry.ReceiptDate,
+                                quantityReceived: entry.QuantityReceived,
+                                deliveryDate: entry.DeliveryDate,
+                                issueQuantity: entry.IssueQuantity,
                                 stock: entry.StockQuantity,
+                                distributionDestination: entry.DistributionDestination,
                                 requester: entry.Requester,
-                                deliveryDate: entry.DeliveryDate
+                                remarks: entry.Remarks || 'N/A'
                             }
                         });
                     });
@@ -809,9 +814,14 @@ function showCalendarEventModal(event) {
     
     document.getElementById('eventModalTitle').textContent = props.catalogName || 'Event Details';
     document.getElementById('eventCatalogName').textContent = props.catalogName || '--';
+    document.getElementById('eventReceiptDate').textContent = props.receiptDate || '--';
+    document.getElementById('eventQuantityReceived').textContent = props.quantityReceived || '--';
     document.getElementById('eventDeliveryDate').textContent = props.deliveryDate || '--';
+    document.getElementById('eventIssueQuantity').textContent = props.issueQuantity || '--';
     document.getElementById('eventStockQty').textContent = props.stock || '--';
+    document.getElementById('eventDistributionDestination').textContent = props.distributionDestination || '--';
     document.getElementById('eventRequester').textContent = props.requester || '--';
+    document.getElementById('eventRemarks').textContent = props.remarks || '--';
     
     modal.style.display = 'flex';
 }
