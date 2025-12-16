@@ -1169,9 +1169,6 @@ function updateUILanguage() {
 
 // ===== INITIALIZE ON DOM READY =====
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize language toggle first
-    initLanguageToggle();
-    
     // Check authentication state before initializing app
     onAuthStateChanged(async (user) => {
         if (!user) {
@@ -1203,6 +1200,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Display user info
         updateUserDisplay(user);
+
+        // Initialize language toggle
+        initLanguageToggle();
 
         // Initialize app components
         initializeCatalogSelects();
