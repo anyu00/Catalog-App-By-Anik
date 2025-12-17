@@ -1006,9 +1006,6 @@ function getItemThreshold(catalogName, thresholdType) {
 }
 
 const ANALYTICS_CARDS = [
-    { key: 'totalStock', label: '総在庫数', icon: 'fa-boxes-stacked' },
-    { key: 'totalOrders', label: '総注文数', icon: 'fa-cart-shopping' },
-    { key: 'avgOrderQty', label: '平均注文数量', icon: 'fa-divide' },
     { key: 'stockByItem', label: 'カタログ別在庫', icon: 'fa-layer-group' },
     { key: 'ordersByItem', label: 'カタログ別注文', icon: 'fa-list-ol' },
     { key: 'lowStockItems', label: '在庫不足アイテム', icon: 'fa-triangle-exclamation' },
@@ -1044,22 +1041,7 @@ function renderAnalyticsDashboard(catalogData, orderData) {
             cardDiv.innerHTML = `<h2><i class="fa-solid ${card.icon}"></i> ${card.label}</h2><div id="analytics-${card.key}"></div>`;
             container.appendChild(cardDiv);
             
-            if (card.key === 'totalStock') {
-                let total = 0;
-                Object.values(catalogData).forEach(e => total += Number(e.StockQuantity || 0));
-                document.getElementById('analytics-totalStock').innerHTML = `<div style="font-size:2.2rem;font-weight:600;color:#232946;">${total}</div>`;
-            } else if (card.key === 'totalOrders') {
-                document.getElementById('analytics-totalOrders').innerHTML = `<div style="font-size:2.2rem;font-weight:600;color:#232946;">${Object.keys(orderData).length}</div>`;
-            } else if (card.key === 'avgOrderQty') {
-                const orders = Object.values(orderData);
-                if (orders.length === 0) {
-                    document.getElementById('analytics-avgOrderQty').innerHTML = '<span>--</span>';
-                } else {
-                    let total = 0;
-                    orders.forEach(o => total += Number(o.OrderQuantity || 0));
-                    document.getElementById('analytics-avgOrderQty').innerHTML = `<div style="font-size:2.2rem;font-weight:600;color:#232946;">${(total / orders.length).toFixed(1)}</div>`;
-                }
-            } else if (card.key === 'stockByItem') {
+            if (card.key === 'stockByItem') {
                 const byItem = {};
                 Object.values(catalogData).forEach(e => { byItem[e.CatalogName] = (byItem[e.CatalogName] || 0) + Number(e.StockQuantity || 0); });
                 const ctxId = 'stockByItem-chart';
