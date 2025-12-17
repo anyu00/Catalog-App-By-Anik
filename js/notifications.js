@@ -16,6 +16,17 @@ export function initNotificationSystem() {
     if (existingBell) {
         existingBell.addEventListener('click', toggleNotificationCenter);
     }
+    
+    // Setup button listeners
+    setTimeout(() => {
+        const markAllBtn = document.getElementById('notifMarkAllRead');
+        const closeBtn = document.getElementById('notifCloseBtn');
+        const clearBtn = document.getElementById('notifClearBtn');
+        
+        if (markAllBtn) markAllBtn.addEventListener('click', markAllAsRead);
+        if (closeBtn) closeBtn.addEventListener('click', toggleNotificationCenter);
+        if (clearBtn) clearBtn.addEventListener('click', clearAllNotifications);
+    }, 100);
 }
 
 function createNotificationPanel() {
@@ -48,6 +59,7 @@ function createNotificationPanel() {
                 <h3 style="margin:0;font-size:18px;font-weight:600;">通知</h3>
                 <div style="display:flex;gap:8px;">
                     <button id="notifMarkAllRead" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:12px;">すべて既読</button>
+                    <button id="notifClearBtn" class="btn btn-sm btn-outline-danger" style="padding:4px 8px;font-size:12px;color:#dc2626;border-color:#dc2626;">クリア</button>
                     <button id="notifCloseBtn" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:12px;">×</button>
                 </div>
             </div>
@@ -257,7 +269,15 @@ function renderNotifications(filter = 'all') {
             markAsRead(id);
         });
     });
-}
+    
+    // Add delete button listeners
+    listContainer.querySelectorAll('.notif-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            deleteNotification(id);
+        });
+    });}
 
 function renderNotificationItem(notif) {
     const colors = {
@@ -285,12 +305,12 @@ function renderNotificationItem(notif) {
         <div class="notification-item" data-id="${notif.id}" style="
             padding:12px 16px;
             border-bottom:1px solid #e5e7eb;
-            cursor:pointer;
             background:${bgColor};
             border-left:3px solid ${borderColor};
             transition:background 0.2s;
             display:flex;
             gap:12px;
+            align-items:flex-start;
         " onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='${bgColor}'">
             <div style="font-size:24px;flex-shrink:0;">${icons[notif.type] || '🔔'}</div>
             <div style="flex:1;min-width:0;">
@@ -298,7 +318,18 @@ function renderNotificationItem(notif) {
                 <div style="font-size:13px;color:#666;margin-bottom:6px;word-break:break-word;">${notif.message}</div>
                 <div style="font-size:11px;color:#999;">${getTimeAgo(notif.timestamp)}</div>
             </div>
-            ${!notif.read ? '<div style="width:8px;height:8px;background:#2563eb;border-radius:50%;flex-shrink:0;margin-top:6px;"></div>' : ''}
+            <div style="display:flex;gap:4px;flex-shrink:0;">
+                ${!notif.read ? '<div style="width:8px;height:8px;background:#2563eb;border-radius:50%;margin-top:6px;"></div>' : ''}
+                <button class="notif-delete-btn" data-id="${notif.id}" style="
+                    background:none;
+                    border:none;
+                    color:#dc2626;
+                    cursor:pointer;
+                    font-size:14px;
+                    padding:0 4px;
+                    margin-top:2px;
+                ">×</button>
+            </div>
         </div>
     `;
 }
@@ -337,6 +368,30 @@ function markAllAsRead() {
     saveNotificationsToStorage();
     displayBadgeCount();
     renderNotifications('all');
+}
+
+function clearAllNotifications() {
+    if (confirm('すべての通知を削除してもよろしいですか?')) {
+        notificationsData = [];
+        notificationBadgeCount = 0;
+        saveNotificationsToStorage();
+        displayBadgeCount();
+        renderNotifications('all');
+    }
+}
+
+function deleteNotification(id) {
+    const index = notificationsData.findIndex(n => n.id === id);
+    if (index !== -1) {
+        const notif = notificationsData[index];
+        if (!notif.read) {
+            notificationBadgeCount = Math.max(0, notificationBadgeCount - 1);
+        }
+        notificationsData.splice(index, 1);
+        saveNotificationsToStorage();
+        displayBadgeCount();
+        renderNotifications('all');
+    }
 }
 
 function displayBadgeCount() {
