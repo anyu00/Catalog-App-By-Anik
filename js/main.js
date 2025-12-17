@@ -3,7 +3,7 @@
 
 // ===== IMPORTS =====
 import { db } from './firebase-config.js';
-import { initNotificationSystem, addNotification } from './notifications.js';
+import { initNotificationSystem, addNotification } from './notifications-firebase.js';
 import { onAuthStateChanged, getCurrentUser, logoutUser, updateLastLogin } from './auth.js';
 import { getUserPermissions, canUserAction, getUserAccessiblePages, isAdmin } from './permissions.js';
 import { initAdminPanel } from './admin.js';

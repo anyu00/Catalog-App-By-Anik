@@ -53,7 +53,7 @@ Both accounts are **already set up** in your Firebase project. You can log in wi
 2. Click "Settings" tab (top right nav) or "管理者パネル" (sidebar)
 3. You'll see the **Admin Panel - User Management**
 
-### **What You Can See:**
+### **What You Can See:** 
 
 #### **LEFT SIDE: Users List Table**
 ```

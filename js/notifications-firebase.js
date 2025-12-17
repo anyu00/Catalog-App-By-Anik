@@ -1,13 +1,18 @@
-// Notifications System - Integrated with existing bell button
-// Real-time alerts for admins
+// Notifications System - Firebase Backend
+// Real-time notifications stored in Firebase
+
+import { db } from './firebase-config.js';
+import { ref, set, get, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { auth } from './firebase-config.js';
 
 let notificationsData = [];
 let notificationBadgeCount = 0;
+let currentUserEmail = null;
+let notificationsListener = null;
 
 // Initialize Notification Center
 export function initNotificationSystem() {
     createNotificationPanel();
-    loadNotificationsFromStorage();
     setupNotificationListeners();
     displayBadgeCount();
     
@@ -27,6 +32,14 @@ export function initNotificationSystem() {
         if (closeBtn) closeBtn.addEventListener('click', toggleNotificationCenter);
         if (clearBtn) clearBtn.addEventListener('click', clearAllNotifications);
     }, 100);
+    
+    // Get current user and listen to their notifications
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            currentUserEmail = user.email;
+            loadNotificationsFromFirebase();
+        }
+    });
 }
 
 function createNotificationPanel() {
@@ -83,15 +96,6 @@ function createNotificationPanel() {
                     cursor:pointer;
                     white-space:nowrap;
                 ">すべて</button>
-                <button class="notif-filter-btn" data-filter="stock" style="
-                    padding:6px 12px;
-                    border:1px solid #d1d5db;
-                    background:#fff;
-                    border-radius:20px;
-                    font-size:12px;
-                    cursor:pointer;
-                    white-space:nowrap;
-                ">在庫</button>
                 <button class="notif-filter-btn" data-filter="orders" style="
                     padding:6px 12px;
                     border:1px solid #d1d5db;
@@ -125,28 +129,22 @@ function createNotificationPanel() {
                 display:flex;
                 align-items:center;
                 justify-content:center;
-                color:#9ca3af;
-                text-align:center;
-            ">
-                <div>
-                    <div style="font-size:48px;margin-bottom:8px;">🔔</div>
-                    <div>通知はありません</div>
-                </div>
-            </div>
+                color:#999;
+                font-size:14px;
+            ">通知はありません</div>
         </div>
     `;
     
-    document.body.insertAdjacentHTML('afterbegin', html);
+    document.body.insertAdjacentHTML('beforeend', html);
     
-    // Event Listeners
-    document.getElementById('notifCloseBtn').addEventListener('click', closeNotificationCenter);
-    document.getElementById('notifMarkAllRead').addEventListener('click', markAllAsRead);
-    
+    // Add filter button listeners
     document.querySelectorAll('.notif-filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => filterNotifications(btn.dataset.filter));
+        btn.addEventListener('click', () => {
+            filterNotifications(btn.dataset.filter);
+        });
     });
     
-    // Add CSS animation
+    // Add styles
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideIn {
@@ -169,7 +167,6 @@ function createNotificationPanel() {
                 opacity: 0;
             }
         }
-
     `;
     document.head.appendChild(style);
 }
@@ -186,40 +183,80 @@ function closeNotificationCenter() {
     document.getElementById('notificationCenter').style.display = 'none';
 }
 
-export function addNotification(notification) {
-    console.log('NOTIFICATION ADDED:', notification);
-    const id = Date.now().toString();
-    const fullNotif = {
-        id,
-        timestamp: new Date().toISOString(),
-        read: false,
-        ...notification
-    };
+export async function addNotification(notification) {
+    console.log('📢 FIREBASE Notification added:', notification);
     
-    notificationsData.unshift(fullNotif);
-    notificationBadgeCount++;
-    console.log('Badge count:', notificationBadgeCount, 'Total:', notificationsData.length);
-    
-    // Keep only last 50 notifications
-    if (notificationsData.length > 50) {
-        notificationsData = notificationsData.slice(0, 50);
+    if (!currentUserEmail) {
+        console.warn('No user logged in, cannot add notification');
+        return;
     }
     
-    saveNotificationsToStorage();
-    displayBadgeCount();
-    
-    // Auto-open center for critical notifications
-    if (fullNotif.priority === 'critical') {
-        setTimeout(() => {
-            document.getElementById('notificationCenter').style.display = 'flex';
-            renderNotifications('all');
-        }, 500);
+    try {
+        const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+        const newNotifRef = push(notificationsRef);
+        
+        const fullNotif = {
+            type: notification.type,
+            priority: notification.priority,
+            title: notification.title,
+            message: notification.message,
+            timestamp: new Date().toISOString(),
+            read: false
+        };
+        
+        await set(newNotifRef, fullNotif);
+        console.log('✅ Notification saved to Firebase');
+    } catch (error) {
+        console.error('Error adding notification:', error);
     }
-    
-    return fullNotif;
 }
 
-
+function loadNotificationsFromFirebase() {
+    if (!currentUserEmail) return;
+    
+    console.log('📥 Loading notifications for:', currentUserEmail);
+    
+    const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+    
+    // Remove old listener if exists
+    if (notificationsListener) {
+        notificationsListener();
+    }
+    
+    // Listen for real-time updates
+    notificationsListener = onValue(notificationsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            notificationsData = [];
+            notificationBadgeCount = 0;
+            
+            // Convert Firebase object to array
+            Object.entries(data).forEach(([key, notif]) => {
+                notificationsData.push({
+                    id: key,
+                    ...notif
+                });
+                if (!notif.read) {
+                    notificationBadgeCount++;
+                }
+            });
+            
+            // Sort by newest first
+            notificationsData.sort((a, b) => 
+                new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            
+            console.log('✅ Notifications loaded:', notificationsData.length);
+            displayBadgeCount();
+            renderNotifications('all');
+        } else {
+            notificationsData = [];
+            notificationBadgeCount = 0;
+            displayBadgeCount();
+            renderNotifications('all');
+        }
+    });
+}
 
 function renderNotifications(filter = 'all') {
     const listContainer = document.getElementById('notificationsList');
@@ -279,7 +316,8 @@ function renderNotifications(filter = 'all') {
             const id = btn.dataset.id;
             deleteNotification(id);
         });
-    });}
+    });
+}
 
 function renderNotificationItem(notif) {
     const colors = {
@@ -353,46 +391,64 @@ function filterNotifications(filter) {
     renderNotifications(filter);
 }
 
-function markAsRead(id) {
-    const notif = notificationsData.find(n => n.id === id);
-    if (notif && !notif.read) {
-        notif.read = true;
-        notificationBadgeCount = Math.max(0, notificationBadgeCount - 1);
-        saveNotificationsToStorage();
-        displayBadgeCount();
-        renderNotifications('all');
-    }
-}
-
-function markAllAsRead() {
-    notificationsData.forEach(n => n.read = true);
-    notificationBadgeCount = 0;
-    saveNotificationsToStorage();
-    displayBadgeCount();
-    renderNotifications('all');
-}
-
-function clearAllNotifications() {
-    if (confirm('すべての通知を削除してもよろしいですか?')) {
-        notificationsData = [];
-        notificationBadgeCount = 0;
-        saveNotificationsToStorage();
-        displayBadgeCount();
-        renderNotifications('all');
-    }
-}
-
-function deleteNotification(id) {
-    const index = notificationsData.findIndex(n => n.id === id);
-    if (index !== -1) {
-        const notif = notificationsData[index];
-        if (!notif.read) {
-            notificationBadgeCount = Math.max(0, notificationBadgeCount - 1);
+async function markAsRead(id) {
+    if (!currentUserEmail || !notificationsData) return;
+    
+    try {
+        const notif = notificationsData.find(n => n.id === id);
+        if (notif && !notif.read) {
+            const notifRef = ref(db, `Notifications/${currentUserEmail}/${id}`);
+            await update(notifRef, { read: true });
+            console.log('✅ Marked as read:', id);
         }
-        notificationsData.splice(index, 1);
-        saveNotificationsToStorage();
-        displayBadgeCount();
-        renderNotifications('all');
+    } catch (error) {
+        console.error('Error marking as read:', error);
+    }
+}
+
+async function markAllAsRead() {
+    if (!currentUserEmail || !notificationsData) return;
+    
+    try {
+        const updates = {};
+        notificationsData.forEach(n => {
+            if (!n.read) {
+                updates[`Notifications/${currentUserEmail}/${n.id}/read`] = true;
+            }
+        });
+        
+        if (Object.keys(updates).length > 0) {
+            await update(ref(db), updates);
+            console.log('✅ All marked as read');
+        }
+    } catch (error) {
+        console.error('Error marking all as read:', error);
+    }
+}
+
+async function deleteNotification(id) {
+    if (!currentUserEmail) return;
+    
+    try {
+        const notifRef = ref(db, `Notifications/${currentUserEmail}/${id}`);
+        await remove(notifRef);
+        console.log('✅ Notification deleted:', id);
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+    }
+}
+
+async function clearAllNotifications() {
+    if (!currentUserEmail) return;
+    
+    if (confirm('すべての通知を削除してもよろしいですか?')) {
+        try {
+            const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+            await remove(notificationsRef);
+            console.log('✅ All notifications cleared');
+        } catch (error) {
+            console.error('Error clearing notifications:', error);
+        }
     }
 }
 
@@ -420,28 +476,11 @@ function displayBadgeCount() {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: bold;
         `;
         existingBell.style.position = 'relative';
         existingBell.appendChild(badgeHtml);
-    }
-}
-
-function saveNotificationsToStorage() {
-    localStorage.setItem('appNotifications', JSON.stringify(notificationsData));
-}
-
-function loadNotificationsFromStorage() {
-    const stored = localStorage.getItem('appNotifications');
-    if (stored) {
-        try {
-            notificationsData = JSON.parse(stored);
-            notificationBadgeCount = notificationsData.filter(n => !n.read).length;
-            displayBadgeCount();
-        } catch (e) {
-            console.error('Error loading notifications:', e);
-        }
     }
 }
 
