@@ -1016,7 +1016,21 @@ const ANALYTICS_CARDS = [
 ];
 
 function getAnalyticsSelection() {
-    return JSON.parse(localStorage.getItem('analyticsSelection') || JSON.stringify(ANALYTICS_CARDS.map(c => c.key)));
+    const stored = localStorage.getItem('analyticsSelection');
+    const defaultSelection = ANALYTICS_CARDS.map(c => c.key);
+    
+    if (!stored) {
+        return defaultSelection;
+    }
+    
+    // Parse stored selection and filter to only include cards that exist
+    try {
+        const parsed = JSON.parse(stored);
+        const validKeys = ANALYTICS_CARDS.map(c => c.key);
+        return parsed.filter(key => validKeys.includes(key));
+    } catch {
+        return defaultSelection;
+    }
 }
 
 function fetchAndRenderAnalytics() {
