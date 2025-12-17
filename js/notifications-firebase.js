@@ -8,7 +8,18 @@ import { auth } from './firebase-config.js';
 let notificationsData = [];
 let notificationBadgeCount = 0;
 let currentUserEmail = null;
+let currentUserEmailEncoded = null;
 let notificationsListener = null;
+
+// Helper to encode email for Firebase paths
+function encodeEmail(email) {
+    return email.replace(/\./g, '_').replace(/@/g, '_at_');
+}
+
+// Helper to decode email
+function decodeEmail(encoded) {
+    return encoded.replace(/_at_/g, '@').replace(/_/g, '.');
+}
 
 // Initialize Notification Center
 export function initNotificationSystem() {
@@ -37,6 +48,7 @@ export function initNotificationSystem() {
     auth.onAuthStateChanged(user => {
         if (user) {
             currentUserEmail = user.email;
+            currentUserEmailEncoded = encodeEmail(user.email);
             loadNotificationsFromFirebase();
         }
     });
@@ -186,13 +198,13 @@ function closeNotificationCenter() {
 export async function addNotification(notification) {
     console.log('📢 FIREBASE Notification added:', notification);
     
-    if (!currentUserEmail) {
+    if (!currentUserEmail || !currentUserEmailEncoded) {
         console.warn('No user logged in, cannot add notification');
         return;
     }
     
     try {
-        const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+        const notificationsRef = ref(db, `Notifications/${currentUserEmailEncoded}`);
         const newNotifRef = push(notificationsRef);
         
         const fullNotif = {
@@ -212,11 +224,11 @@ export async function addNotification(notification) {
 }
 
 function loadNotificationsFromFirebase() {
-    if (!currentUserEmail) return;
+    if (!currentUserEmailEncoded) return;
     
     console.log('📥 Loading notifications for:', currentUserEmail);
     
-    const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+    const notificationsRef = ref(db, `Notifications/${currentUserEmailEncoded}`);
     
     // Remove old listener if exists
     if (notificationsListener) {
@@ -392,12 +404,12 @@ function filterNotifications(filter) {
 }
 
 async function markAsRead(id) {
-    if (!currentUserEmail || !notificationsData) return;
+    if (!currentUserEmailEncoded || !notificationsData) return;
     
     try {
         const notif = notificationsData.find(n => n.id === id);
         if (notif && !notif.read) {
-            const notifRef = ref(db, `Notifications/${currentUserEmail}/${id}`);
+            const notifRef = ref(db, `Notifications/${currentUserEmailEncoded}/${id}`);
             await update(notifRef, { read: true });
             console.log('✅ Marked as read:', id);
         }
@@ -407,13 +419,13 @@ async function markAsRead(id) {
 }
 
 async function markAllAsRead() {
-    if (!currentUserEmail || !notificationsData) return;
+    if (!currentUserEmailEncoded || !notificationsData) return;
     
     try {
         const updates = {};
         notificationsData.forEach(n => {
             if (!n.read) {
-                updates[`Notifications/${currentUserEmail}/${n.id}/read`] = true;
+                updates[`Notifications/${currentUserEmailEncoded}/${n.id}/read`] = true;
             }
         });
         
@@ -427,10 +439,10 @@ async function markAllAsRead() {
 }
 
 async function deleteNotification(id) {
-    if (!currentUserEmail) return;
+    if (!currentUserEmailEncoded) return;
     
     try {
-        const notifRef = ref(db, `Notifications/${currentUserEmail}/${id}`);
+        const notifRef = ref(db, `Notifications/${currentUserEmailEncoded}/${id}`);
         await remove(notifRef);
         console.log('✅ Notification deleted:', id);
     } catch (error) {
@@ -439,11 +451,11 @@ async function deleteNotification(id) {
 }
 
 async function clearAllNotifications() {
-    if (!currentUserEmail) return;
+    if (!currentUserEmailEncoded) return;
     
     if (confirm('すべての通知を削除してもよろしいですか?')) {
         try {
-            const notificationsRef = ref(db, `Notifications/${currentUserEmail}`);
+            const notificationsRef = ref(db, `Notifications/${currentUserEmailEncoded}`);
             await remove(notificationsRef);
             console.log('✅ All notifications cleared');
         } catch (error) {
