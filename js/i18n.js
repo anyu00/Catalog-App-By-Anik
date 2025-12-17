@@ -225,7 +225,7 @@ const translations = {
         'table.remarks': 'Remarks',
         'table.actions': 'Actions',
         'table.date': 'Date',
-        'table.quantity': 'Quantity',
+        'table.quantity': 'Quantity', 
         'table.status': 'Status',
         'table.email': 'Email',
         'table.role': 'Role',
@@ -254,7 +254,7 @@ const translations = {
         'admin.edit_user': 'Edit User',
         'admin.delete_user': 'Delete User',
         'admin.save': 'Save',
-        'admin.cancel': 'Cancel',
+        'admin.cancel': 'Cancel',  
         
         // User Roles
         'role.admin': 'Administrator',

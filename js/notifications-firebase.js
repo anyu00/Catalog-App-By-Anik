@@ -62,7 +62,8 @@ function createNotificationPanel() {
             position:fixed;
             top:60px;
             right:0;
-            width:360px;
+            width:100%;
+            max-width:360px;
             height:calc(100vh - 60px);
             background:#fff;
             border-left:1px solid #e5e7eb;
@@ -81,11 +82,11 @@ function createNotificationPanel() {
                 align-items:center;
                 background:#f9fafb;
             ">
-                <h3 style="margin:0;font-size:18px;font-weight:600;">通知</h3>
-                <div style="display:flex;gap:8px;">
-                    <button id="notifMarkAllRead" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:12px;">すべて既読</button>
-                    <button id="notifClearBtn" class="btn btn-sm btn-outline-danger" style="padding:4px 8px;font-size:12px;color:#dc2626;border-color:#dc2626;">クリア</button>
-                    <button id="notifCloseBtn" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:12px;">×</button>
+                <h3 style="margin:0;font-size:18px;font-weight:600;white-space:nowrap;">通知</h3>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button id="notifMarkAllRead" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:11px;white-space:nowrap;">既読</button>
+                    <button id="notifClearBtn" class="btn btn-sm btn-outline-danger" style="padding:4px 8px;font-size:11px;color:#dc2626;border-color:#dc2626;white-space:nowrap;">クリア</button>
+                    <button id="notifCloseBtn" class="btn btn-sm btn-outline-secondary" style="padding:4px 8px;font-size:11px;width:32px;">×</button>
                 </div>
             </div>
             
@@ -177,6 +178,25 @@ function createNotificationPanel() {
             to {
                 transform: translateX(100%);
                 opacity: 0;
+            }
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 480px) {
+            #notificationCenter {
+                width: 100% !important;
+                max-width: none !important;
+                left: 0 !important;
+                right: 0 !important;
+                border-left: none !important;
+                box-shadow: -2px -2px 8px rgba(0,0,0,0.1) !important;
+            }
+        }
+        
+        /* Tablet responsive */
+        @media (max-width: 768px) {
+            #notificationCenter {
+                max-width: 90vw !important;
             }
         }
     `;
