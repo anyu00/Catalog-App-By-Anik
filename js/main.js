@@ -259,10 +259,21 @@ function getUniqueValues(data, field) {
 
 // ===== UTILITY: Filter by date range =====
 function isInDateRange(timestamp, fromDate, toDate) {
-    const date = new Date(timestamp).getTime();
-    const from = fromDate ? new Date(fromDate).getTime() : 0;
-    const to = toDate ? new Date(toDate).getTime() : Infinity;
-    return date >= from && date <= to;
+    const date = new Date(timestamp);
+    
+    if (fromDate) {
+        const from = new Date(fromDate);
+        if (date < from) return false;
+    }
+    
+    if (toDate) {
+        const to = new Date(toDate);
+        // Include the entire toDate day
+        to.setHours(23, 59, 59, 999);
+        if (date > to) return false;
+    }
+    
+    return true;
 }
 
 // ===== RENDER CATALOG TABLES ACCORDION =====
@@ -1634,6 +1645,10 @@ document.getElementById('analyticsDatePreset').addEventListener('change', functi
         fetchAndRenderAnalytics();
     }
 });
+
+// Add handlers for custom analytics date range
+document.getElementById('analyticsDateStart')?.addEventListener('change', fetchAndRenderAnalytics);
+document.getElementById('analyticsDateEnd')?.addEventListener('change', fetchAndRenderAnalytics);
 
 // ===== MOBILE HAMBURGER TOGGLE =====
 function initMobileToggle() {
