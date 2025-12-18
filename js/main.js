@@ -320,7 +320,7 @@ function renderCatalogTablesAccordion() {
                     totalIssued += qtyIssued;
                     
                     return `<tr data-key="${entry._key}">
-                        <td class="editable" data-field="CatalogName">${entry.CatalogName}</td>
+                        <td data-field="CatalogName" style="font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
                         <td class="editable" data-field="ReceiptDate">${entry.ReceiptDate}</td>
                         <td class="editable" data-field="QuantityReceived">${entry.QuantityReceived}</td>
                         <td class="editable" data-field="DeliveryDate">${entry.DeliveryDate}</td>
@@ -561,7 +561,7 @@ function renderOrderTablesAccordion() {
                             <tbody>
                                 ${entries.map(entry => `
                                     <tr data-key="${entry._key}" style="border-bottom: 1px solid #fef3c7;">
-                                        <td class="editable-order" data-field="CatalogName" style="padding: 12px 16px;">${entry.CatalogName}</td>
+                                        <td data-field="CatalogName" style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
                                         <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 16px;">${entry.OrderQuantity}</td>
                                         <td class="editable-order" data-field="Requester" style="padding: 12px 16px;">${entry.Requester}</td>
                                         <td style="padding: 12px 16px;"><div style='max-width:320px;overflow-x:auto;'>${entry.Message || ''}</div></td>
@@ -685,8 +685,11 @@ $(document).on('click', '.excel-order-table .delete-order-row', async function()
 
 // ===== ADD ROW BUTTONS =====
 $(document).on('click', '.add-catalog-row', function() {
-    const catalogName = prompt('カタログ名を入力してください:');
-    if (!catalogName) return;
+    const catalogName = $(this).data('catalog');
+    if (!catalogName) {
+        alert('カタログ名を取得できません');
+        return;
+    }
     
     const newEntry = {
         CatalogName: catalogName,
@@ -702,7 +705,7 @@ $(document).on('click', '.add-catalog-row', function() {
     
     try {
         push(ref(db, 'Catalogs/'), newEntry).then(() => {
-            logAuditEvent('CREATE_CATALOG', `Added new catalog: ${catalogName}`, currentUser?.email);
+            logAuditEvent('CREATE_CATALOG', `Added new catalog entry: ${catalogName}`, currentUser?.email);
             renderCatalogTablesAccordion();
         });
     } catch (error) {
@@ -712,15 +715,15 @@ $(document).on('click', '.add-catalog-row', function() {
 });
 
 $(document).on('click', '.add-order-row', function() {
-    const catalogName = prompt('カタログ名を入力してください:');
-    if (!catalogName) return;
-    
-    const orderQuantity = prompt('注文数量を入力してください:');
-    if (!orderQuantity || isNaN(orderQuantity)) return;
+    const catalogName = $(this).data('catalog');
+    if (!catalogName) {
+        alert('カタログ名を取得できません');
+        return;
+    }
     
     const newOrder = {
         CatalogName: catalogName,
-        OrderQuantity: parseInt(orderQuantity),
+        OrderQuantity: 1,
         Requester: currentUser?.email || '',
         OrderDate: new Date().toISOString().split('T')[0],
         Message: ''
@@ -732,15 +735,114 @@ $(document).on('click', '.add-order-row', function() {
                 type: 'ORDER',
                 priority: 'normal',
                 title: `New order created: ${catalogName}`,
-                message: `Quantity: ${orderQuantity} - By ${currentUser?.email}`,
+                message: `By ${currentUser?.email}`,
                 timestamp: Date.now()
             });
-            logAuditEvent('CREATE_ORDER', `Added new order for: ${catalogName} (Qty: ${orderQuantity})`, currentUser?.email);
+            logAuditEvent('CREATE_ORDER', `Added new order for: ${catalogName}`, currentUser?.email);
             renderOrderTablesAccordion();
         });
     } catch (error) {
         console.error('Add order error:', error);
         alert('エラーが発生しました: ' + error.message);
+    }
+});
+
+// ===== CELL HIGHLIGHTING FEATURE =====
+const cellHighlights = {}; // Store cell highlights: { "key_field": "colorHex" }
+
+$(document).on('contextmenu', '.editable, .editable-order', function(e) {
+    e.preventDefault();
+    const td = $(this);
+    const key = td.closest('tr').data('key');
+    const field = td.data('field');
+    const cellId = key + '_' + field;
+    
+    const colors = [
+        { name: 'クリア', value: null, color: '#ffffff' },
+        { name: '黄色', value: '#fef08a', color: '#fef08a' },
+        { name: 'ブルー', value: '#bfdbfe', color: '#bfdbfe' },
+        { name: 'グリーン', value: '#bbf7d0', color: '#bbf7d0' },
+        { name: 'ピンク', value: '#fbcfe8', color: '#fbcfe8' },
+        { name: 'オレンジ', value: '#fed7aa', color: '#fed7aa' }
+    ];
+    
+    // Remove existing menu
+    $('.highlight-menu').remove();
+    
+    let menuHtml = '<div style="position: fixed; background: white; border: 1px solid #999; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 10000; min-width: 160px; padding: 4px;" class="highlight-menu">';
+    colors.forEach(c => {
+        menuHtml += `<div style="padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 13px; border-radius: 4px;" class="highlight-option" data-color="${c.value || ''}" onmouseover="this.style.backgroundColor='#f0f0f0';" onmouseout="this.style.backgroundColor='transparent';">
+            <div style="width: 18px; height: 18px; border: 1px solid #ccc; background: ${c.color}; border-radius: 3px;"></div>
+            ${c.name}
+        </div>`;
+    });
+    menuHtml += '</div>';
+    
+    const $menu = $(menuHtml).appendTo('body');
+    $menu.css({
+        left: e.pageX + 'px',
+        top: e.pageY + 'px'
+    });
+    
+    $(document).one('click', function() {
+        $menu.remove();
+    });
+    
+    $menu.find('.highlight-option').on('click', function() {
+        const color = $(this).data('color');
+        cellHighlights[cellId] = color || null;
+        
+        if (color) {
+            td.css('background-color', color);
+        } else {
+            td.css('background-color', '');
+        }
+        
+        localStorage.setItem('cellHighlights', JSON.stringify(cellHighlights));
+        $menu.remove();
+    });
+});
+
+// Restore highlights on render
+function restoreCellHighlights() {
+    Object.keys(cellHighlights).forEach(cellId => {
+        const parts = cellId.lastIndexOf('_');
+        if (parts === -1) return;
+        const key = cellId.substring(0, parts);
+        const field = cellId.substring(parts + 1);
+        const color = cellHighlights[cellId];
+        
+        if (color) {
+            $(`.editable[data-field="${field}"], .editable-order[data-field="${field}"]`).each(function() {
+                if ($(this).closest('tr').data('key') === key) {
+                    $(this).css('background-color', color);
+                }
+            });
+        }
+    });
+}
+
+// Load highlights from localStorage on page load
+function loadCellHighlights() {
+    const saved = localStorage.getItem('cellHighlights');
+    if (saved) {
+        Object.assign(cellHighlights, JSON.parse(saved));
+        restoreCellHighlights();
+    }
+}
+
+// Call on page load
+loadCellHighlights();
+
+// ===== ROW HIGHLIGHTING =====
+$(document).on('click', 'tr', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        $(this).toggleClass('row-highlight');
+        if ($(this).hasClass('row-highlight')) {
+            $(this).css('background-color', '#e0e7ff');
+        } else {
+            $(this).css('background-color', '');
+        }
     }
 });
 
