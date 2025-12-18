@@ -489,12 +489,23 @@ async function loadAndDisplayCatalogNames(container) {
     
     container.innerHTML = '';
     
-    Object.values(names).filter(n => n).sort().forEach(name => {
+    // Convert to array of strings, filter out empty values, and sort
+    const nameList = Object.values(names)
+      .filter(n => n && typeof n === 'string' && n.trim().length > 0)
+      .map(n => String(n).trim())
+      .sort();
+    
+    if (nameList.length === 0) {
+      container.innerHTML = '<p style="color:#999;">カタログ名がありません</p>';
+      return;
+    }
+    
+    nameList.forEach(name => {
       const div = document.createElement('div');
       div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;`;
       
       const nameSpan = document.createElement('span');
-      nameSpan.textContent = name;
+      nameSpan.textContent = String(name);
       nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;';
       
       const deleteBtn = document.createElement('button');
@@ -508,6 +519,7 @@ async function loadAndDisplayCatalogNames(container) {
     });
   } catch (error) {
     console.error('Error loading catalog names:', error);
+    container.innerHTML = '<p style="color:#c33;">エラーが発生しました</p>';
   }
 }
 

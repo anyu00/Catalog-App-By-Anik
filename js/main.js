@@ -32,7 +32,11 @@ async function loadCatalogNamesFromFirebase() {
     try {
         const snapshot = await get(ref(db, 'CatalogNames'));
         if (snapshot.exists()) {
-            const firebaseNames = Object.values(snapshot.val()).filter(n => n && typeof n === 'string');
+            const rawData = snapshot.val();
+            const firebaseNames = Object.values(rawData)
+              .filter(n => n && typeof n === 'string' && n.trim().length > 0)
+              .map(n => String(n).trim());
+            
             // Merge Firebase names with defaults, removing duplicates
             CATALOG_NAMES = [...new Set([...CATALOG_NAMES, ...firebaseNames])].sort();
             console.log('Catalog names loaded from Firebase:', CATALOG_NAMES);
