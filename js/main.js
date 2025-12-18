@@ -1277,12 +1277,32 @@ function fetchAndRenderAnalytics() {
         const catalogData = cSnap.exists() ? cSnap.val() : {};
         get(ref(db, 'Orders/')).then(oSnap => {
             const orderData = oSnap.exists() ? oSnap.val() : {};
-            renderAnalyticsDashboard(catalogData, orderData);
+            
+            // Get date range from UI
+            const preset = document.getElementById('analyticsDatePreset')?.value;
+            let dateFrom = null;
+            let dateTo = null;
+            
+            if (preset === 'custom') {
+                dateFrom = document.getElementById('analyticsDateStart')?.value;
+                dateTo = document.getElementById('analyticsDateEnd')?.value;
+            } else if (preset) {
+                const days = parseInt(preset);
+                dateTo = new Date();
+                dateFrom = new Date(dateTo);
+                dateFrom.setDate(dateFrom.getDate() - days);
+                // Format to YYYY-MM-DD
+                dateFrom = dateFrom.toISOString().split('T')[0];
+                dateTo = dateTo.toISOString().split('T')[0];
+            }
+            
+            console.log('Analytics date range:', { dateFrom, dateTo });
+            renderAnalyticsDashboard(catalogData, orderData, dateFrom, dateTo);
         });
     });
 }
 
-function renderAnalyticsDashboard(catalogData, orderData) {
+function renderAnalyticsDashboard(catalogData, orderData, dateFrom = null, dateTo = null) {
     const selection = getAnalyticsSelection();
     const container = document.getElementById('analyticsCards');
     container.innerHTML = '';
@@ -1337,11 +1357,11 @@ function renderAnalyticsDashboard(catalogData, orderData) {
             } else if (card.key === 'lowStockItems') {
                 renderLowStockItems(catalogData);
             } else if (card.key === 'fastMovingItems') {
-                renderFastMovingItems(orderData);
+                renderFastMovingItems(orderData, dateFrom, dateTo);
             } else if (card.key === 'stockTrend') {
-                renderStockTrend(catalogData, orderData);
+                renderStockTrend(catalogData, orderData, dateFrom, dateTo);
             } else if (card.key === 'requesterRankings') {
-                renderRequesterRankings(orderData);
+                renderRequesterRankings(orderData, dateFrom, dateTo);
             } else if (card.key === 'distributionAnalysis') {
                 renderDistributionAnalysis(catalogData);
             }
@@ -1395,15 +1415,25 @@ function renderLowStockItems(catalogData) {
 }
 
 // Fast Moving Items - Shows items with high demand in last 30 days
-function renderFastMovingItems(orderData) {
+function renderFastMovingItems(orderData, dateFrom = null, dateTo = null) {
     const fastMovingDefinition = analyticsSettings.globalFastMovingDefinition;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Use custom date range if provided, otherwise use 30 days
+    let rangeStart, rangeEnd;
+    if (dateFrom && dateTo) {
+        rangeStart = new Date(dateFrom);
+        rangeEnd = new Date(dateTo);
+        rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+        rangeEnd = new Date();
+        rangeStart = new Date();
+        rangeStart.setDate(rangeStart.getDate() - 30);
+    }
     
     const itemDemand = {};
     Object.values(orderData).forEach(order => {
         const orderDate = new Date(order.OrderDate || new Date());
-        if (orderDate >= thirtyDaysAgo) {
+        if (orderDate >= rangeStart && orderDate <= rangeEnd) {
             const catalogName = order.CatalogName;
             itemDemand[catalogName] = (itemDemand[catalogName] || 0) + Number(order.OrderQuantity || 0);
         }
@@ -1417,7 +1447,7 @@ function renderFastMovingItems(orderData) {
     const container = document.getElementById('analytics-fastMovingItems');
     
     if (fastMoving.length === 0) {
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">過去30日間で販売数が多いアイテムはありません</div>';
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">選択期間で販売数が多いアイテムはありません</div>';
         return;
     }
     
@@ -1451,15 +1481,26 @@ function renderFastMovingItems(orderData) {
 }
 
 // Stock Trend - Shows inventory changes over time
-function renderStockTrend(catalogData, orderData) {
+function renderStockTrend(catalogData, orderData, dateFrom = null, dateTo = null) {
     const container = document.getElementById('analytics-stockTrend');
     
-    // Calculate daily stock levels for last 30 days
-    const dailyStock = {};
-    const today = new Date();
+    // Determine date range
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+        startDate = new Date(dateFrom);
+        endDate = new Date(dateTo);
+    } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+    }
     
-    for (let i = 30; i >= 0; i--) {
-        const date = new Date(today);
+    // Calculate daily stock levels for the date range
+    const dailyStock = {};
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    for (let i = daysDiff; i >= 0; i--) {
+        const date = new Date(endDate);
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
         
@@ -1470,7 +1511,7 @@ function renderStockTrend(catalogData, orderData) {
         
         // Adjust for orders before this date (approximation)
         Object.values(orderData).forEach(order => {
-            const orderDate = new Date(order.OrderDate || today);
+            const orderDate = new Date(order.OrderDate || endDate);
             if (orderDate < date) {
                 totalStock += Number(order.OrderQuantity || 0);
             }
@@ -1513,11 +1554,26 @@ function renderStockTrend(catalogData, orderData) {
 }
 
 // Requester Rankings - Shows top requesters
-function renderRequesterRankings(orderData) {
+function renderRequesterRankings(orderData, dateFrom = null, dateTo = null) {
+    // Determine date range
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+        startDate = new Date(dateFrom);
+        endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+    } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+    }
+    
     const requesterCount = {};
     Object.values(orderData).forEach(order => {
-        const requester = order.Requester || '未指定';
-        requesterCount[requester] = (requesterCount[requester] || 0) + 1;
+        const orderDate = new Date(order.OrderDate || new Date());
+        if (orderDate >= startDate && orderDate <= endDate) {
+            const requester = order.Requester || '未指定';
+            requesterCount[requester] = (requesterCount[requester] || 0) + 1;
+        }
     });
     
     const rankings = Object.entries(requesterCount)
