@@ -266,13 +266,13 @@ Basics/
 2. System calls `logoutUser()`
 3. Firebase clears session
 4. Redirects to `login.html`
-5. User must login again to access app
+5. User must login again to access app   
 
 ---
 
 ## ✅ Testing Checklist
 
-Before moving to Phase 2, verify:
+Before moving to Phase 2, verify:    
 
 - [ ] Login works with valid credentials
 - [ ] Login fails with invalid credentials  
