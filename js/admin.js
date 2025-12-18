@@ -71,6 +71,25 @@ export function initAdminPanel() {
   if (saveGlobalBtn) saveGlobalBtn.addEventListener('click', saveGlobalAnalyticsSettings);
   if (savePerItemBtn) savePerItemBtn.addEventListener('click', savePerItemAnalyticsSettings);
 
+  // Catalog Names Management
+  const addCatalogNameBtn = document.getElementById('addCatalogNameBtn');
+  const newCatalogNameInput = document.getElementById('newCatalogNameInput');
+  const catalogNamesListContainer = document.getElementById('catalogNamesListContainer');
+  
+  if (addCatalogNameBtn) {
+    addCatalogNameBtn.addEventListener('click', () => handleAddCatalogName(newCatalogNameInput, catalogNamesListContainer));
+  }
+  if (newCatalogNameInput) {
+    newCatalogNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleAddCatalogName(newCatalogNameInput, catalogNamesListContainer);
+      }
+    });
+  }
+  
+  // Load and display catalog names
+  loadAndDisplayCatalogNames(catalogNamesListContainer);
+
   // Initial load
   fetchAndRenderUsers();
 }
@@ -457,6 +476,100 @@ function showNotification(message, type = 'info') {
   `;
   document.body.appendChild(notification);
   setTimeout(() => notification.remove(), 4000);
+}
+
+// ===== CATALOG NAMES MANAGEMENT =====
+
+async function loadAndDisplayCatalogNames(container) {
+  if (!container) return;
+  
+  try {
+    const snapshot = await get(ref(db, 'CatalogNames'));
+    const names = snapshot.exists() ? snapshot.val() : {};
+    
+    container.innerHTML = '';
+    
+    Object.values(names).filter(n => n).sort().forEach(name => {
+      const div = document.createElement('div');
+      div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;`;
+      
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = name;
+      nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;';
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '削除';
+      deleteBtn.style.cssText = 'padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
+      deleteBtn.addEventListener('click', () => handleDeleteCatalogName(name, container));
+      
+      div.appendChild(nameSpan);
+      div.appendChild(deleteBtn);
+      container.appendChild(div);
+    });
+  } catch (error) {
+    console.error('Error loading catalog names:', error);
+  }
+}
+
+async function handleAddCatalogName(input, container) {
+  const catalogName = input.value.trim();
+  
+  if (!catalogName) {
+    showNotification('カタログ名を入力してください', 'error');
+    return;
+  }
+  
+  try {
+    // Check if name already exists
+    const snapshot = await get(ref(db, 'CatalogNames'));
+    const names = snapshot.exists() ? snapshot.val() : {};
+    
+    if (Object.values(names).includes(catalogName)) {
+      showNotification('このカタログ名は既に存在します', 'error');
+      return;
+    }
+    
+    // Add new catalog name
+    const newKey = `name_${Date.now()}`;
+    await set(ref(db, `CatalogNames/${newKey}`), catalogName);
+    
+    input.value = '';
+    await loadAndDisplayCatalogNames(container);
+    showNotification('カタログ名を追加しました', 'success');
+    
+    // Reload catalog names in main app
+    await new Promise(resolve => setTimeout(resolve, 500));
+    window.location.reload();
+  } catch (error) {
+    console.error('Error adding catalog name:', error);
+    showNotification('エラーが発生しました: ' + error.message, 'error');
+  }
+}
+
+async function handleDeleteCatalogName(name, container) {
+  if (!confirm(`"${name}" を削除してもよろしいですか？`)) return;
+  
+  try {
+    const snapshot = await get(ref(db, 'CatalogNames'));
+    const names = snapshot.exists() ? snapshot.val() : {};
+    
+    for (const [key, value] of Object.entries(names)) {
+      if (value === name) {
+        await set(ref(db, `CatalogNames/${key}`), null);
+        break;
+      }
+    }
+    
+    await loadAndDisplayCatalogNames(container);
+    showNotification('カタログ名を削除しました', 'success');
+    
+    // Reload catalog names in main app
+    await new Promise(resolve => setTimeout(resolve, 500));
+    window.location.reload();
+  } catch (error) {
+    console.error('Error deleting catalog name:', error);
+    showNotification('削除に失敗しました', 'error');
+  }
 }
 
 // Auto-init when this module is loaded (if admin tab exists)

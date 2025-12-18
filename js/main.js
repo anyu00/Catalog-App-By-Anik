@@ -13,8 +13,8 @@ import { ref, set, get, update, remove, onValue, push } from "https://www.gstati
 let currentUser = null;
 let userPermissions = null;
 
-// ===== CATALOG NAMES (shared across forms) =====
-const CATALOG_NAMES = [                      
+// ===== CATALOG NAMES (loaded dynamically from Firebase) =====
+let CATALOG_NAMES = [                      
     "⼯作機械⽤油圧機器", "プラスチック加⼯機械⽤油圧機器", "A3HGシリーズ⾼圧可変ピストンポンプ",
     "A3HMシリーズ高圧可変ピストンポンプ", "The ASR series Ultimate hydraulic control system",
     "ASRシリーズACサーボモータ駆動ポンプ", "ロジック弁", "インライン形プレフィル弁",
@@ -26,6 +26,23 @@ const CATALOG_NAMES = [
     "HE-YAパック", "標準油圧ユニット", "省エネコントローラオートチューニング機能付き",
     "コンタミキット", "YB-32/50/65/80M ⾃動マルチコンパクタ"
 ];
+
+// ===== LOAD CATALOG NAMES FROM FIREBASE =====
+async function loadCatalogNamesFromFirebase() {
+    try {
+        const snapshot = await get(ref(db, 'CatalogNames'));
+        if (snapshot.exists()) {
+            const names = snapshot.val();
+            CATALOG_NAMES = Object.values(names).filter(n => n && typeof n === 'string').sort();
+            console.log('Catalog names loaded from Firebase:', CATALOG_NAMES);
+            initializeCatalogSelects();
+        }
+    } catch (error) {
+        console.warn('Could not load catalog names from Firebase:', error);
+        // Fall back to default CATALOG_NAMES
+        initializeCatalogSelects();
+    }
+}
 
 // ===== INITIALIZE CATALOG SELECTS =====
 function initializeCatalogSelects() {
@@ -1865,6 +1882,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load analytics settings
         await loadAnalyticsSettings();
+
+        // Load catalog names from Firebase
+        await loadCatalogNamesFromFirebase();
 
         // Initialize notification system
         initNotificationSystem();
