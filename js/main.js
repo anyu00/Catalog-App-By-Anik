@@ -364,6 +364,9 @@ function renderCatalogTablesAccordion() {
                                 ${rowsHtml}
                             </tbody>
                         </table>
+                        <div style="padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 8px;">
+                            <button class="btn btn-success btn-sm add-catalog-row" data-catalog="${catName}">➕ 新規行を追加</button>
+                        </div>
                     </div>
                 `;
                 
@@ -567,6 +570,9 @@ function renderOrderTablesAccordion() {
                                 `).join('')}
                             </tbody>
                         </table>
+                        <div style="padding: 12px 16px; background: #fffbeb; border-top: 1px solid #fbbf24; display: flex; gap: 8px;">
+                            <button class="btn btn-success btn-sm add-order-row" data-catalog="${catName}">➕ 新規注文を追加</button>
+                        </div>
                     </div>
                 `;
                 
@@ -633,6 +639,34 @@ $(document).on('click', '.excel-table .delete-row', async function() {
     }
 });
 
+$(document).on('click', '.excel-order-table .editable-order', function() {
+    if ($(this).find('input').length) return;
+    const td = $(this);
+    const oldValue = td.text();
+    const field = td.data('field');
+    const key = td.closest('tr').data('key');
+    const input = $('<input type="text" class="form-control form-control-sm">').val(oldValue);
+    td.empty().append(input);
+    input.focus();
+    
+    function saveEdit() {
+        const newValue = input.val();
+        if (newValue !== oldValue) {
+            update(ref(db, 'Orders/' + key), { [field]: newValue }).then(() => {
+                td.text(newValue).addClass('cell-updated');
+                setTimeout(() => td.removeClass('cell-updated'), 800);
+            });
+        } else {
+            td.text(oldValue);
+        }
+    }
+    
+    input.on('keydown', function(e) {
+        if (e.key === 'Enter') saveEdit();
+        else if (e.key === 'Escape') td.text(oldValue);
+    }).on('blur', saveEdit);
+});
+
 $(document).on('click', '.excel-order-table .delete-order-row', async function() {
     const tr = $(this).closest('tr');
     const key = tr.data('key');
@@ -646,6 +680,67 @@ $(document).on('click', '.excel-order-table .delete-order-row', async function()
         } catch (error) {
             console.error('Delete error:', error);
         }
+    }
+});
+
+// ===== ADD ROW BUTTONS =====
+$(document).on('click', '.add-catalog-row', function() {
+    const catalogName = prompt('カタログ名を入力してください:');
+    if (!catalogName) return;
+    
+    const newEntry = {
+        CatalogName: catalogName,
+        ReceiptDate: new Date().toISOString().split('T')[0],
+        QuantityReceived: 0,
+        DeliveryDate: '',
+        IssueQuantity: 0,
+        StockQuantity: 0,
+        DistributionDestination: '',
+        Requester: currentUser?.email || '',
+        Remarks: ''
+    };
+    
+    try {
+        push(ref(db, 'Catalogs/'), newEntry).then(() => {
+            logAuditEvent('CREATE_CATALOG', `Added new catalog: ${catalogName}`, currentUser?.email);
+            renderCatalogTablesAccordion();
+        });
+    } catch (error) {
+        console.error('Add catalog error:', error);
+        alert('エラーが発生しました: ' + error.message);
+    }
+});
+
+$(document).on('click', '.add-order-row', function() {
+    const catalogName = prompt('カタログ名を入力してください:');
+    if (!catalogName) return;
+    
+    const orderQuantity = prompt('注文数量を入力してください:');
+    if (!orderQuantity || isNaN(orderQuantity)) return;
+    
+    const newOrder = {
+        CatalogName: catalogName,
+        OrderQuantity: parseInt(orderQuantity),
+        Requester: currentUser?.email || '',
+        OrderDate: new Date().toISOString().split('T')[0],
+        Message: ''
+    };
+    
+    try {
+        push(ref(db, 'Orders/'), newOrder).then((result) => {
+            addNotification({
+                type: 'ORDER',
+                priority: 'normal',
+                title: `New order created: ${catalogName}`,
+                message: `Quantity: ${orderQuantity} - By ${currentUser?.email}`,
+                timestamp: Date.now()
+            });
+            logAuditEvent('CREATE_ORDER', `Added new order for: ${catalogName} (Qty: ${orderQuantity})`, currentUser?.email);
+            renderOrderTablesAccordion();
+        });
+    } catch (error) {
+        console.error('Add order error:', error);
+        alert('エラーが発生しました: ' + error.message);
     }
 });
 

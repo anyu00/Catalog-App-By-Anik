@@ -66,7 +66,7 @@ function createNotificationPanel() {
             max-width:360px;
             height:calc(100vh - 60px);
             background:#fff;
-            border-left:1px solid #e5e7eb;
+            border-basically left:1px solid #e5e7eb;
             box-shadow:-2px 0 8px rgba(0,0,0,0.1);
             z-index:9999;
             display:none;
