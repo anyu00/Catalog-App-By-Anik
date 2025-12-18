@@ -32,9 +32,19 @@ async function loadCatalogNamesFromFirebase() {
     try {
         const snapshot = await get(ref(db, 'CatalogNames'));
         if (snapshot.exists()) {
-            const names = snapshot.val();
-            CATALOG_NAMES = Object.values(names).filter(n => n && typeof n === 'string').sort();
+            const firebaseNames = Object.values(snapshot.val()).filter(n => n && typeof n === 'string');
+            // Merge Firebase names with defaults, removing duplicates
+            CATALOG_NAMES = [...new Set([...CATALOG_NAMES, ...firebaseNames])].sort();
             console.log('Catalog names loaded from Firebase:', CATALOG_NAMES);
+            initializeCatalogSelects();
+        } else {
+            // Initialize Firebase with default names if empty
+            const defaultsObj = {};
+            CATALOG_NAMES.forEach((name, idx) => {
+                defaultsObj[`default_${idx}`] = name;
+            });
+            await set(ref(db, 'CatalogNames'), defaultsObj);
+            console.log('Initialized Firebase with default catalog names');
             initializeCatalogSelects();
         }
     } catch (error) {
