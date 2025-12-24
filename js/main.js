@@ -354,7 +354,16 @@ async function submitPlaceOrder() {
         
         alert("注文を登録しました");
         closePlaceOrderModal();
+        
+        // Wait a moment for Firebase to sync, then update Order Entries display
+        await new Promise(resolve => setTimeout(resolve, 500));
         renderOrderTablesAccordion();
+        
+        // Automatically switch to Order Entries tab to show the new order
+        const orderEntriesTab = document.querySelector('[data-tab="orderEntries"]');
+        if (orderEntriesTab) {
+            orderEntriesTab.click();
+        }
     } catch (error) {
         console.error('Order submission error:', error);
         alert("エラー: " + error.message);
