@@ -93,6 +93,9 @@ function initTabSwitching() {
                 setTimeout(() => initCatalogSearch(), 100);
             }
             if (tabName === 'orderEntries') renderOrderTablesAccordion();
+            if (tabName === 'placeOrder') {
+                loadPlaceOrderProducts();
+            }
             if (tabName === 'analytics') {
                 document.getElementById('analyticsDateRangeCard').style.display = 'block';
                 fetchAndRenderAnalytics();
@@ -201,43 +204,178 @@ function initCatalogForm() {
     });
 }
 
-// ===== ORDER FORM =====
-function initOrderForm() {
-    document.getElementById('OrderBtn').addEventListener('click', async function() {
-        const form = document.getElementById('orderForm');
-        const data = {
-            CatalogName: form.OrderCatalogName.value,
-            OrderQuantity: Number(form.OrderQuantity.value),
-            Requester: form.OrderRequester.value,
-            Message: document.getElementById('OrderMessage').innerHTML,
-            OrderDate: new Date().toISOString().split('T')[0]
-        };
+// ===== PLACE ORDER - PRODUCT GRID (AMAZON-STYLE) =====
+let catalogItemsData = {}; // Store catalog items for ordering
+let currentOrderItemKey = null; // Track current item being ordered
+
+async function loadPlaceOrderProducts() {
+    try {
+        const snapshot = await get(ref(db, 'CatalogNames'));
+        if (snapshot.exists()) {
+            catalogItemsData = snapshot.val();
+            renderPlaceOrderProductGrid();
+        }
+    } catch (error) {
+        console.error('Error loading catalog items:', error);
+    }
+}
+
+function renderPlaceOrderProductGrid() {
+    const grid = document.getElementById('placeOrderProductGrid');
+    const noResults = document.getElementById('placeOrderNoResults');
+    const searchTerm = (document.getElementById('placeOrderSearchInput')?.value || '').toLowerCase();
+    
+    grid.innerHTML = '';
+    let itemCount = 0;
+    
+    Object.entries(catalogItemsData).forEach(([key, item]) => {
+        if (!item) return;
         
-        if (!data.CatalogName || !data.OrderQuantity || !data.Requester) {
-            alert('必須項目を入力してください');
+        const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
+        const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+        
+        // Filter by search
+        if (searchTerm && !catalogName.toLowerCase().includes(searchTerm)) {
             return;
         }
         
-        try {
-            await set(ref(db, "Orders/" + data.CatalogName + "_" + Date.now()), data);
-            await logAuditEvent('CREATE_ORDER', `Order: ${data.CatalogName} × ${data.OrderQuantity}`, currentUser?.email);
-            
-            // Add notification
-            addNotification({
-                type: 'order',
-                priority: 'info',
-                title: '📝 新しい注文が作成されました',
-                message: `${data.Requester}さんが${data.CatalogName}を${data.OrderQuantity}個注文しました`
-            });
-            
-            alert("注文を登録しました");
-            form.reset();
-            document.getElementById('OrderMessage').innerHTML = '';
-            renderOrderTablesAccordion();
-        } catch (error) {
-            alert("エラー: " + error);
-        }
+        itemCount++;
+        const card = document.createElement('div');
+        card.style.cssText = 'cursor:pointer; border:1px solid #ddd; border-radius:8px; padding:12px; background:#fff; transition:all 0.3s ease; text-align:center;';
+        card.onmouseover = () => { card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
+        card.onmouseout = () => { card.style.boxShadow = 'none'; };
+        
+        const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjcwIiB5PSI3MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5Ob0ltYWdlPC90ZXh0Pjwvc3ZnPg==';
+        
+        card.innerHTML = `
+            <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
+            <p style="font-size:0.9rem; font-weight:600; margin:8px 0 0 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
+        `;
+        
+        card.addEventListener('click', () => openPlaceOrderModal(key));
+        grid.appendChild(card);
     });
+    
+    noResults.style.display = itemCount === 0 ? 'block' : 'none';
+}
+
+function openPlaceOrderModal(itemKey) {
+    const item = catalogItemsData[itemKey];
+    if (!item) return;
+    
+    currentOrderItemKey = itemKey;
+    const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || itemKey);
+    const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+    
+    document.getElementById('placeOrderModalTitle').textContent = catalogName;
+    document.getElementById('placeOrderModalName').textContent = catalogName;
+    document.getElementById('placeOrderModalImage').src = imageUrl;
+    document.getElementById('placeOrderModalStock').textContent = '在庫確認中...';
+    document.getElementById('placeOrderModalQty').value = 1;
+    document.getElementById('placeOrderModalRequester').value = '';
+    document.getElementById('placeOrderModalMessage').value = '';
+    
+    // Get current stock from Catalogs
+    get(ref(db, `Catalogs/${itemKey}`)).then(snapshot => {
+        if (snapshot.exists()) {
+            const catalogData = snapshot.val();
+            const quantity = catalogData.Quantity || 0;
+            const status = quantity > 0 ? `在庫あり: ${quantity}個` : '在庫切れ';
+            document.getElementById('placeOrderModalStock').textContent = status;
+        } else {
+            document.getElementById('placeOrderModalStock').textContent = '在庫情報取得できません';
+        }
+    }).catch(err => {
+        console.error('Error fetching stock:', err);
+        document.getElementById('placeOrderModalStock').textContent = '在庫情報取得できません';
+    });
+    
+    // Show modal and backdrop
+    document.getElementById('placeOrderModalBackdrop').style.display = 'block';
+    document.getElementById('placeOrderModal').style.display = 'block';
+}
+
+function closePlaceOrderModal() {
+    document.getElementById('placeOrderModal').style.display = 'none';
+    document.getElementById('placeOrderModalBackdrop').style.display = 'none';
+    currentOrderItemKey = null;
+}
+
+function increaseOrderQty() {
+    const input = document.getElementById('placeOrderModalQty');
+    input.value = Math.max(1, parseInt(input.value) + 1);
+}
+
+function decreaseOrderQty() {
+    const input = document.getElementById('placeOrderModalQty');
+    input.value = Math.max(1, parseInt(input.value) - 1);
+}
+
+async function submitPlaceOrder() {
+    if (!currentOrderItemKey) {
+        alert('エラー: アイテムが選択されていません');
+        return;
+    }
+    
+    const item = catalogItemsData[currentOrderItemKey];
+    const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || currentOrderItemKey);
+    const quantity = parseInt(document.getElementById('placeOrderModalQty').value);
+    const requester = document.getElementById('placeOrderModalRequester').value.trim();
+    const message = document.getElementById('placeOrderModalMessage').value.trim();
+    
+    if (!requester) {
+        alert('依頼者を入力してください');
+        return;
+    }
+    
+    if (quantity < 1) {
+        alert('注文数量を入力してください');
+        return;
+    }
+    
+    try {
+        const data = {
+            CatalogName: catalogName,
+            OrderQuantity: quantity,
+            Requester: requester,
+            Message: message,
+            OrderDate: new Date().toISOString().split('T')[0]
+        };
+        
+        await set(ref(db, "Orders/" + catalogName + "_" + Date.now()), data);
+        await logAuditEvent('CREATE_ORDER', `Order: ${catalogName} × ${quantity}`, currentUser?.email);
+        
+        addNotification({
+            type: 'order',
+            priority: 'info',
+            title: '📝 新しい注文が作成されました',
+            message: `${requester}さんが${catalogName}を${quantity}個注文しました`
+        });
+        
+        alert("注文を登録しました");
+        closePlaceOrderModal();
+        renderOrderTablesAccordion();
+    } catch (error) {
+        console.error('Order submission error:', error);
+        alert("エラー: " + error.message);
+    }
+}
+
+// ===== ORDER FORM =====
+function initOrderForm() {
+    // New product grid handles orders
+    const placeOrderSearch = document.getElementById('placeOrderSearchInput');
+    if (placeOrderSearch) {
+        placeOrderSearch.addEventListener('input', () => {
+            renderPlaceOrderProductGrid();
+        });
+    }
+    
+    // Close modal on backdrop click
+    const backdrop = document.getElementById('placeOrderModalBackdrop');
+    if (backdrop) {
+        backdrop.addEventListener('click', closePlaceOrderModal);
+    }
 }
 
 // ===== SORTING & FILTERING STATE =====

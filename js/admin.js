@@ -584,10 +584,105 @@ async function handleDeleteCatalogName(name, container) {
   }
 }
 
+// ===== CATALOG IMAGE MANAGEMENT =====
+async function loadCatalogImageSettings() {
+  const container = document.getElementById('catalogImageSettingsContainer');
+  if (!container) return;
+  
+  try {
+    const snapshot = await get(ref(db, 'CatalogNames'));
+    if (!snapshot.exists()) {
+      container.innerHTML = '<p style="color:#999;">カタログアイテムがまだありません</p>';
+      return;
+    }
+    
+    const items = snapshot.val();
+    let html = '';
+    
+    Object.entries(items).forEach(([key, item]) => {
+      if (!item) return;
+      
+      const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
+      const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+      const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+      
+      html += `
+        <div style="background:#f9f9f9; padding:12px; border-radius:6px; border:1px solid #eee;">
+          <label style="font-weight:600; display:block; margin-bottom:8px; font-size:0.95rem;">${catalogName}</label>
+          <input type="text" id="img_${safeKey}" class="form-control" placeholder="画像URL（例：https://example.com/image.jpg）" value="${imageUrl}" style="margin-bottom:8px;">
+          <small style="color:#999;">外部URLを入力してください。jpg, png, gifなどをサポート</small>
+        </div>
+      `;
+    });
+    
+    container.innerHTML = html;
+  } catch (error) {
+    console.error('Error loading catalog image settings:', error);
+    container.innerHTML = '<p style="color:#d9534f;">設定の読み込みに失敗しました</p>';
+  }
+}
+
+async function saveCatalogImages() {
+  const container = document.getElementById('catalogImageSettingsContainer');
+  const saveBtn = document.getElementById('saveCatalogImagesBtn');
+  
+  try {
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+    
+    const snapshot = await get(ref(db, 'CatalogNames'));
+    if (!snapshot.exists()) return;
+    
+    const items = snapshot.val();
+    const updates = {};
+    
+    Object.entries(items).forEach(([key, item]) => {
+      if (!item) return;
+      
+      const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
+      const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const input = document.getElementById(`img_${safeKey}`);
+      
+      if (input) {
+        const imageUrl = input.value.trim();
+        // Store as object with name and image
+        updates[`CatalogNames/${key}`] = {
+          name: catalogName,
+          image: imageUrl
+        };
+      }
+    });
+    
+    await update(ref(db), updates);
+    showNotification('画像設定を保存しました', 'success');
+    
+  } catch (error) {
+    console.error('Error saving catalog images:', error);
+    showNotification('保存に失敗しました: ' + error.message, 'error');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '画像設定を保存';
+  }
+}
+
 // Auto-init when this module is loaded (if admin tab exists)
 document.addEventListener('DOMContentLoaded', () => {
   const adminTab = document.getElementById('tab-adminPanel');
   if (adminTab) {
     initAdminPanel();
+    
+    // Add image management button handlers
+    const saveImagesBtn = document.getElementById('saveCatalogImagesBtn');
+    if (saveImagesBtn) {
+      saveImagesBtn.addEventListener('click', saveCatalogImages);
+    }
+    
+    // Load image settings when admin settings tab is shown
+    const adminTabSettings = document.getElementById('adminTabSettings');
+    if (adminTabSettings) {
+      adminTabSettings.addEventListener('click', loadCatalogImageSettings);
+      // Also load on first visit
+      loadCatalogImageSettings();
+    }
   }
 });

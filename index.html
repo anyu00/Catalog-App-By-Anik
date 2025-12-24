@@ -146,34 +146,70 @@
                 
                 <!-- TAB: Place Order -->
                 <div class="glass-card tab-section" id="tab-placeOrder" style="display:none;">
-                    <h2>注文する</h2>
-                    <form id="orderForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="OrderCatalogName">カタログ名</label>
-                                <select id="OrderCatalogName" class="form-control" required></select>
+                    <h2 style="margin-bottom:20px;">注文する</h2>
+                    
+                    <!-- Search Bar -->
+                    <div style="margin-bottom:20px;">
+                        <input type="text" id="placeOrderSearchInput" class="form-control" placeholder="カタログを検索..." style="max-width:400px;">
+                    </div>
+
+                    <!-- Product Grid -->
+                    <div id="placeOrderProductGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
+                        <!-- Products will be loaded here -->
+                    </div>
+
+                    <!-- No Results Message -->
+                    <div id="placeOrderNoResults" style="display:none; text-align:center; color:#666; padding:40px;">
+                        <p>カタログアイテムが見つかりません</p>
+                    </div>
+                </div>
+
+                <!-- Order Modal (placed outside tab sections) -->
+                <div id="placeOrderModalBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
+                <div id="placeOrderModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:1050; width:90%; max-width:700px; max-height:90vh; overflow-y:auto;">
+                    <div style="padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                        <h4 id="placeOrderModalTitle" style="margin:0;">Product</h4>
+                        <button type="button" style="background:none; border:none; font-size:24px; cursor:pointer; color:#999;" onclick="closePlaceOrderModal()">&times;</button>
+                    </div>
+                    <div style="padding:20px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                            <!-- Image -->
+                            <div style="text-align:center;">
+                                <img id="placeOrderModalImage" src="" style="max-width:100%; max-height:300px; border-radius:8px; background:#f0f0f0;">
                             </div>
-                            <div class="form-group">
-                                <label for="OrderQuantity">注文数量</label>
-                                <input id="OrderQuantity" class="form-control" type="number" min="1" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="OrderRequester">依頼者</label>
-                                <input id="OrderRequester" class="form-control" type="text" required>
+                            <!-- Form -->
+                            <div>
+                                <div style="margin-bottom:20px;">
+                                    <h6 style="margin-bottom:8px; font-weight:600;">商品名</h6>
+                                    <p id="placeOrderModalName" style="margin:0; font-size:1.1rem; font-weight:500;"></p>
+                                </div>
+                                <div style="margin-bottom:20px;">
+                                    <h6 style="margin-bottom:8px; font-weight:600;">在庫状況</h6>
+                                    <p id="placeOrderModalStock" style="margin:0;"></p>
+                                </div>
+                                <div style="margin-bottom:20px;">
+                                    <label style="font-weight:600; display:block; margin-bottom:8px;">注文数量</label>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="decreaseOrderQty()">−</button>
+                                        <input id="placeOrderModalQty" type="number" class="form-control" value="1" min="1" style="text-align:center; width:80px;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="increaseOrderQty()">+</button>
+                                    </div>
+                                </div>
+                                <div style="margin-bottom:20px;">
+                                    <label style="font-weight:600; display:block; margin-bottom:8px;">依頼者</label>
+                                    <input id="placeOrderModalRequester" type="text" class="form-control" placeholder="あなたの名前">
+                                </div>
+                                <div style="margin-bottom:20px;">
+                                    <label style="font-weight:600; display:block; margin-bottom:8px;">メモ (オプション)</label>
+                                    <textarea id="placeOrderModalMessage" class="form-control" rows="3" placeholder="特別な指示があれば..."></textarea>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group" style="width:100%;margin-top:12px;">
-                            <label for="OrderMessage">注文メッセージ</label>
-                            <div id="orderMessageToolbar" style="margin-bottom:6px;">
-                                <button type="button" class="btn btn-light btn-sm" onclick="formatOrderMsg('bold')"><b>B</b></button>
-                                <button type="button" class="btn btn-light btn-sm" onclick="formatOrderMsg('italic')"><i>I</i></button>
-                                <button type="button" class="btn btn-light btn-sm" onclick="formatOrderMsg('underline')"><u>U</u></button>
-                            </div>
-                            <div id="OrderMessage" contenteditable="true" style="min-height:90px;border:1.5px solid #e0eafc;border-radius:10px;padding:10px;background:#fff;font-size:1rem;outline:none;white-space:pre-wrap;overflow:auto;"></div>
-                        </div>
-                        <button type="button" class="btn btn-primary btn-lg btn-block" id="OrderBtn">注文する</button>
-                    </form>
-                    <div class="message text-center" id="orderMessage"></div>
+                    </div>
+                    <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary" onclick="closePlaceOrderModal()">キャンセル</button>
+                        <button type="button" class="btn btn-primary btn-lg" id="placeOrderSubmitBtn" onclick="submitPlaceOrder()">注文する</button>
+                    </div>
                 </div>
                 
                 <!-- TAB: Catalog Entries -->
@@ -344,6 +380,15 @@
                             <div id="catalogNamesListContainer" style="display:grid; gap:8px;">
                                 <!-- Will be populated by JS -->
                             </div>
+                        </div>
+
+                        <h4 style="margin-top:32px;">📷 カタログ画像の管理</h4>
+                        <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #eee;">
+                            <p style="color:#666; font-size:0.9rem; margin-bottom:16px;">各カタログアイテムの画像URLを管理します（外部URLを使用）</p>
+                            <div id="catalogImageSettingsContainer" style="display:grid; gap:12px; max-height:600px; overflow-y:auto;">
+                                <!-- Will be populated by JS -->
+                            </div>
+                            <button class="btn btn-primary" id="saveCatalogImagesBtn" style="margin-top:16px;">画像設定を保存</button>
                         </div>
                     </div>
                 </div>
