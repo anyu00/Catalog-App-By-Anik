@@ -361,6 +361,13 @@ async function submitPlaceOrder() {
     }
 }
 
+// ===== MAKE PLACE ORDER FUNCTIONS GLOBAL =====
+window.openPlaceOrderModal = openPlaceOrderModal;
+window.closePlaceOrderModal = closePlaceOrderModal;
+window.increaseOrderQty = increaseOrderQty;
+window.decreaseOrderQty = decreaseOrderQty;
+window.submitPlaceOrder = submitPlaceOrder;
+
 // ===== ORDER FORM =====
 function initOrderForm() {
     // New product grid handles orders
