@@ -206,18 +206,62 @@ function initCatalogForm() {
 
 // ===== PLACE ORDER - PRODUCT GRID (AMAZON-STYLE) =====
 let catalogItemsData = {}; // Store catalog items for ordering
+let catalogStockData = {}; // Store calculated stock for each catalog
 let currentOrderItemKey = null; // Track current item being ordered
 
 async function loadPlaceOrderProducts() {
     try {
-        const snapshot = await get(ref(db, 'CatalogNames'));
-        if (snapshot.exists()) {
-            catalogItemsData = snapshot.val();
-            renderPlaceOrderProductGrid();
+        // Load catalog names/items
+        const catalogNamesSnapshot = await get(ref(db, 'CatalogNames'));
+        if (catalogNamesSnapshot.exists()) {
+            catalogItemsData = catalogNamesSnapshot.val();
         }
+        
+        // Load catalog entries and calculate stock
+        const catalogSnapshot = await get(ref(db, 'Catalogs'));
+        if (catalogSnapshot.exists()) {
+            const catalogData = catalogSnapshot.val();
+            calculateStockPerCatalog(catalogData);
+        }
+        
+        renderPlaceOrderProductGrid();
     } catch (error) {
         console.error('Error loading catalog items:', error);
     }
+}
+
+function calculateStockPerCatalog(catalogData) {
+    // Group entries by catalog name and calculate current stock
+    const catalogsByName = {};
+    
+    Object.entries(catalogData).forEach(([key, entry]) => {
+        if (!entry || !entry.CatalogName) return;
+        
+        const name = entry.CatalogName;
+        if (!catalogsByName[name]) catalogsByName[name] = [];
+        catalogsByName[name].push({
+            ...entry,
+            QuantityReceived: Number(entry.QuantityReceived || 0),
+            IssueQuantity: Number(entry.IssueQuantity || 0),
+            ReceiptDate: entry.ReceiptDate || ''
+        });
+    });
+    
+    // Calculate stock for each catalog
+    Object.entries(catalogsByName).forEach(([name, entries]) => {
+        // Sort by receipt date
+        entries.sort((a, b) => new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01'));
+        
+        // Calculate running stock
+        let currentStock = 0;
+        entries.forEach((entry, i) => {
+            const received = entry.QuantityReceived || 0;
+            const issued = entry.IssueQuantity || 0;
+            currentStock = currentStock + received - issued;
+        });
+        
+        catalogStockData[name] = currentStock;
+    });
 }
 
 function renderPlaceOrderProductGrid() {
@@ -227,7 +271,6 @@ function renderPlaceOrderProductGrid() {
     
     grid.innerHTML = '';
     let itemCount = 0;
-    
     Object.entries(catalogItemsData).forEach(([key, item]) => {
         if (!item) return;
         
@@ -247,9 +290,15 @@ function renderPlaceOrderProductGrid() {
         
         const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjcwIiB5PSI3MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5Ob0ltYWdlPC90ZXh0Pjwvc3ZnPg==';
         
+        // Get current stock for this catalog
+        const currentStock = catalogStockData[catalogName] || 0;
+        const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '在庫切れ';
+        const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
+        
         card.innerHTML = `
             <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
-            <p style="font-size:0.9rem; font-weight:600; margin:8px 0 0 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
+            <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
+            <p style="font-size:0.85rem; font-weight:600; margin:0; color:${stockColor};">${stockStatus}</p>
         `;
         
         card.addEventListener('click', () => openPlaceOrderModal(key));
@@ -270,25 +319,14 @@ function openPlaceOrderModal(itemKey) {
     document.getElementById('placeOrderModalTitle').textContent = catalogName;
     document.getElementById('placeOrderModalName').textContent = catalogName;
     document.getElementById('placeOrderModalImage').src = imageUrl;
-    document.getElementById('placeOrderModalStock').textContent = '在庫確認中...';
     document.getElementById('placeOrderModalQty').value = 1;
     document.getElementById('placeOrderModalRequester').value = '';
     document.getElementById('placeOrderModalMessage').value = '';
     
-    // Get current stock from Catalogs
-    get(ref(db, `Catalogs/${itemKey}`)).then(snapshot => {
-        if (snapshot.exists()) {
-            const catalogData = snapshot.val();
-            const quantity = catalogData.Quantity || 0;
-            const status = quantity > 0 ? `在庫あり: ${quantity}個` : '在庫切れ';
-            document.getElementById('placeOrderModalStock').textContent = status;
-        } else {
-            document.getElementById('placeOrderModalStock').textContent = '在庫情報取得できません';
-        }
-    }).catch(err => {
-        console.error('Error fetching stock:', err);
-        document.getElementById('placeOrderModalStock').textContent = '在庫情報取得できません';
-    });
+    // Display current stock from calculated data
+    const currentStock = catalogStockData[catalogName] || 0;
+    const stockStatus = currentStock > 0 ? `在庫あり: ${currentStock}個` : '在庫切れ';
+    document.getElementById('placeOrderModalStock').textContent = stockStatus;
     
     // Show modal and backdrop
     document.getElementById('placeOrderModalBackdrop').style.display = 'block';
