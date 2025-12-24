@@ -846,3 +846,63 @@ body {
         justify-content: space-between;
     }
 }
+/* ===== PLACE ORDER ANIMATIONS ===== */
+@keyframes pop-scale {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    100% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+}
+
+@keyframes success-burst {
+    0% { transform: scale(0) rotate(0deg); opacity: 1; }
+    100% { transform: scale(1.5) rotate(360deg); opacity: 0; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+@keyframes slide-up {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.quantity-pop {
+    animation: pop-scale 0.4s ease-out;
+}
+
+.qty-button-click {
+    animation: bounce 0.5s ease-out;
+}
+
+.success-pulse {
+    animation: pulse-glow 0.6s ease-out;
+}
+
+.order-submit-btn-anim {
+    animation: pop-scale 0.3s ease-out;
+}
+
+.success-burst-particle {
+    position: fixed;
+    pointer-events: none;
+    font-size: 2rem;
+}
+
+.success-confetti {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2000;
+}

@@ -204,6 +204,92 @@ function initCatalogForm() {
     });
 }
 
+// ===== SOUND & HAPTIC FEEDBACK FUNCTIONS =====
+function playSound(type = 'click') {
+    // Create sound using Web Audio API
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioContext.currentTime;
+    
+    if (type === 'click') {
+        // Short beep sound
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.value = 800;
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'success') {
+        // Success sound - rising pitch
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'error') {
+        // Error sound - descending pitch
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }
+}
+
+function triggerHaptic(pattern = 'light') {
+    // Vibration API support check
+    if (!navigator.vibrate && !navigator.webkitVibrate) return;
+    
+    const vibrate = navigator.vibrate || navigator.webkitVibrate;
+    
+    if (pattern === 'light') {
+        vibrate.call(navigator, 20);
+    } else if (pattern === 'medium') {
+        vibrate.call(navigator, [30, 30, 30]);
+    } else if (pattern === 'success') {
+        vibrate.call(navigator, [50, 100, 50, 100, 50]);
+    }
+}
+
+function createSuccessAnimation(button) {
+    // Add scale animation
+    button.classList.add('order-submit-btn-anim');
+    
+    // Create burst particles (emojis)
+    const emojis = ['🎉', '✨', '🎊', '⭐', '🚀'];
+    for (let i = 0; i < 10; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'success-burst-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * (window.innerHeight / 2);
+        particle.style.left = x + 'px';
+        particle.style.top = y + 'px';
+        particle.style.animation = 'success-burst 0.8s ease-out forwards';
+        particle.style.animationDelay = (i * 0.05) + 's';
+        
+        document.body.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 1000);
+    }
+    
+    // Remove animation class
+    setTimeout(() => button.classList.remove('order-submit-btn-anim'), 400);
+}
+
 // ===== PLACE ORDER - PRODUCT GRID (AMAZON-STYLE) =====
 let catalogItemsData = {}; // Store catalog items for ordering
 let catalogStockData = {}; // Store calculated stock for each catalog
@@ -342,11 +428,23 @@ function closePlaceOrderModal() {
 function increaseOrderQty() {
     const input = document.getElementById('placeOrderModalQty');
     input.value = Math.max(1, parseInt(input.value) + 1);
+    
+    // Animations and feedback
+    input.classList.add('quantity-pop');
+    playSound('click');
+    triggerHaptic('light');
+    setTimeout(() => input.classList.remove('quantity-pop'), 400);
 }
 
 function decreaseOrderQty() {
     const input = document.getElementById('placeOrderModalQty');
     input.value = Math.max(1, parseInt(input.value) - 1);
+    
+    // Animations and feedback
+    input.classList.add('quantity-pop');
+    playSound('click');
+    triggerHaptic('light');
+    setTimeout(() => input.classList.remove('quantity-pop'), 400);
 }
 
 async function submitPlaceOrder() {
@@ -372,6 +470,12 @@ async function submitPlaceOrder() {
     }
     
     try {
+        // Trigger success animation and sounds BEFORE submitting
+        const submitBtn = document.getElementById('placeOrderSubmitBtn');
+        createSuccessAnimation(submitBtn);
+        playSound('success');
+        triggerHaptic('success');
+        
         const data = {
             CatalogName: catalogName,
             OrderQuantity: quantity,
