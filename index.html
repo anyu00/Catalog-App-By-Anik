@@ -146,29 +146,69 @@
                 
                 <!-- TAB: Place Order -->
                 <div class="glass-card tab-section" id="tab-placeOrder" style="display:none;">
-                    <h2 style="margin-bottom:20px;">注文する</h2>
+                    <h2 style="margin-bottom:20px;">🛒 注文する</h2>
                     
-                    <!-- Search Bar -->
-                    <div style="margin-bottom:20px;">
-                        <input type="text" id="placeOrderSearchInput" class="form-control" placeholder="カタログを検索..." style="max-width:400px;">
-                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px; min-height: 500px;">
+                        <!-- Left: Product Catalog -->
+                        <div>
+                            <!-- Search Bar -->
+                            <div style="margin-bottom:20px;">
+                                <input type="text" id="placeOrderSearchInput" class="form-control" placeholder="カタログを検索..." style="max-width:400px;">
+                            </div>
 
-                    <!-- Product Grid -->
-                    <div id="placeOrderProductGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
-                        <!-- Products will be loaded here -->
-                    </div>
+                            <!-- Product Grid -->
+                            <div id="placeOrderProductGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px; margin-bottom:20px;">
+                                <!-- Products will be loaded here -->
+                            </div>
 
-                    <!-- No Results Message -->
-                    <div id="placeOrderNoResults" style="display:none; text-align:center; color:#666; padding:40px;">
-                        <p>カタログアイテムが見つかりません</p>
+                            <!-- No Results Message -->
+                            <div id="placeOrderNoResults" style="display:none; text-align:center; color:#666; padding:40px;">
+                                <p>カタログアイテムが見つかりません</p>
+                            </div>
+                        </div>
+
+                        <!-- Right: Shopping Cart Sidebar -->
+                        <div style="background:#fff; border-radius:12px; padding:16px; border:1px solid #eee; display:flex; flex-direction:column; max-height:600px; position:sticky; top:80px; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                            <h4 style="margin-top:0; margin-bottom:16px; display:flex; align-items:center; gap:8px; color:#333;">
+                                🛒 ショッピングカート
+                                <span id="cartBadge" style="background:#2563eb; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600;">0</span>
+                            </h4>
+
+                            <!-- Cart Items List -->
+                            <div id="cartItemsList" style="flex:1; overflow-y:auto; margin-bottom:16px; border:1px solid #eee; border-radius:8px; padding:8px; background:#f9f9f9; min-height:200px;">
+                                <p style="text-align:center; color:#999; padding:20px; margin:0;">カートは空です</p>
+                            </div>
+
+                            <!-- Cart Summary -->
+                            <div style="border-top:1px solid #eee; padding-top:12px; margin-bottom:12px; font-size:0.9rem;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px; color:#555;">
+                                    <span>合計アイテム:</span>
+                                    <strong id="cartTotalItems" style="color:#2563eb;">0</strong>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; color:#555;">
+                                    <span>合計数量:</span>
+                                    <strong id="cartTotalQty" style="color:#2563eb;">0</strong>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button id="cartCheckoutBtn" class="btn btn-success btn-block" style="margin:0;" onclick="checkoutCart()" disabled>
+                                    <i class="fa-solid fa-check"></i> 一括注文
+                                </button>
+                                <button id="cartClearBtn" class="btn btn-outline-danger btn-block" style="margin:0;" onclick="clearCart()">
+                                    <i class="fa-solid fa-trash"></i> カートをクリア
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Order Modal (placed outside tab sections) -->
+                <!-- Order Modal (for adding to cart) -->
                 <div id="placeOrderModalBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1040;"></div>
                 <div id="placeOrderModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); z-index:1050; width:90%; max-width:700px; max-height:90vh; overflow-y:auto;">
                     <div style="padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                        <h4 id="placeOrderModalTitle" style="margin:0;">Product</h4>
+                        <h4 id="placeOrderModalTitle" style="margin:0;">商品をカートに追加</h4>
                         <button type="button" style="background:none; border:none; font-size:24px; cursor:pointer; color:#999;" onclick="closePlaceOrderModal()">&times;</button>
                     </div>
                     <div style="padding:20px;">
@@ -208,7 +248,7 @@
                     </div>
                     <div style="padding:20px; border-top:1px solid #eee; display:flex; gap:8px; justify-content:flex-end;">
                         <button type="button" class="btn btn-secondary" onclick="closePlaceOrderModal()">キャンセル</button>
-                        <button type="button" class="btn btn-primary btn-lg" id="placeOrderSubmitBtn" onclick="submitPlaceOrder()">注文する</button>
+                        <button type="button" class="btn btn-primary btn-lg" id="placeOrderSubmitBtn" onclick="submitPlaceOrder()">カートに追加</button>
                     </div>
                 </div>
                 

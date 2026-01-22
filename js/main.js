@@ -295,6 +295,201 @@ let catalogItemsData = {}; // Store catalog items for ordering
 let catalogStockData = {}; // Store calculated stock for each catalog
 let currentOrderItemKey = null; // Track current item being ordered
 
+// ===== SHOPPING CART STATE =====
+let shoppingCart = []; // Array of cart items
+
+/**
+ * Add item to shopping cart
+ */
+function addToCart(catalogName, quantity, requester, message, itemKey) {
+    // Check if item already in cart with same requester
+    const existingIndex = shoppingCart.findIndex(item => 
+        item.catalogName === catalogName && item.requester === requester
+    );
+    
+    if (existingIndex >= 0) {
+        // Update quantity if same item and requester
+        shoppingCart[existingIndex].quantity += parseInt(quantity);
+    } else {
+        // Add new item to cart
+        shoppingCart.push({
+            catalogName,
+            quantity: parseInt(quantity),
+            requester: requester || '未指定',
+            message: message || '',
+            itemKey,
+            addedAt: new Date().toISOString()
+        });
+    }
+    
+    updateCartUI();
+    playSound('success');
+    triggerHaptic('light');
+}
+
+/**
+ * Remove item from cart by index
+ */
+function removeFromCart(index) {
+    if (index >= 0 && index < shoppingCart.length) {
+        shoppingCart.splice(index, 1);
+        updateCartUI();
+        playSound('click');
+    }
+}
+
+/**
+ * Update cart item quantity
+ */
+function updateCartQty(index, newQty) {
+    newQty = parseInt(newQty);
+    if (newQty > 0 && index >= 0 && index < shoppingCart.length) {
+        shoppingCart[index].quantity = newQty;
+        updateCartUI();
+    }
+}
+
+/**
+ * Clear entire shopping cart
+ */
+function clearCart() {
+    if (shoppingCart.length === 0) {
+        alert('カートは空です');
+        return;
+    }
+    
+    if (confirm('本当にカートをクリアしますか？')) {
+        shoppingCart = [];
+        updateCartUI();
+        playSound('click');
+    }
+}
+
+/**
+ * Update cart UI display
+ */
+function updateCartUI() {
+    const cartBadge = document.getElementById('cartBadge');
+    const cartList = document.getElementById('cartItemsList');
+    const totalItems = document.getElementById('cartTotalItems');
+    const totalQty = document.getElementById('cartTotalQty');
+    const checkoutBtn = document.getElementById('cartCheckoutBtn');
+    
+    // Update badge
+    cartBadge.textContent = shoppingCart.length;
+    
+    // Update totals
+    totalItems.textContent = shoppingCart.length;
+    const totalQtyValue = shoppingCart.reduce((sum, item) => sum + item.quantity, 0);
+    totalQty.textContent = totalQtyValue;
+    
+    // Update cart items display
+    if (shoppingCart.length === 0) {
+        cartList.innerHTML = '<p style="text-align:center; color:#999; padding:20px; margin:0;">カートは空です</p>';
+        checkoutBtn.disabled = true;
+    } else {
+        cartList.innerHTML = shoppingCart.map((item, index) => `
+            <div style="background:#fff; padding:10px; margin-bottom:8px; border-radius:6px; border-left:3px solid #2563eb; font-size:0.85rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:600; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.9rem;">
+                            ${item.catalogName}
+                        </div>
+                        <div style="color:#666; font-size:0.8rem; margin-top:2px;">
+                            依頼: ${item.requester}
+                        </div>
+                    </div>
+                    <button style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:600; font-size:14px; padding:0; width:20px; height:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0;" onclick="removeFromCart(${index})" title="削除">×</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:4px; margin-bottom:4px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:2px 4px; font-size:11px;" onclick="updateCartQty(${index}, ${Math.max(1, item.quantity - 1)})">−</button>
+                    <input type="number" value="${item.quantity}" style="width:40px; text-align:center; padding:3px; border:1px solid #ddd; border-radius:4px; font-size:0.8rem;" onchange="updateCartQty(${index}, parseInt(this.value) || 1)" min="1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" style="padding:2px 4px; font-size:11px;" onclick="updateCartQty(${index}, ${item.quantity + 1})">+</button>
+                    <span style="font-weight:600; color:#2563eb; flex:1; text-align:right; font-size:0.9rem;">${item.quantity}個</span>
+                </div>
+                ${item.message ? `<div style="font-size:0.75rem; color:#666; margin-top:4px; padding-top:4px; border-top:1px solid #eee;">📝 ${item.message.substring(0, 30)}${item.message.length > 30 ? '...' : ''}</div>` : ''}
+            </div>
+        `).join('');
+        checkoutBtn.disabled = false;
+    }
+}
+
+/**
+ * Checkout - submit all cart items as orders
+ */
+async function checkoutCart() {
+    if (shoppingCart.length === 0) {
+        alert('カートは空です');
+        return;
+    }
+    
+    try {
+        const checkoutBtn = document.getElementById('cartCheckoutBtn');
+        const originalText = checkoutBtn.innerHTML;
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 処理中...';
+        
+        // Submit all orders
+        const orderIds = [];
+        for (const item of shoppingCart) {
+            const orderId = item.catalogName + "_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+            const orderData = {
+                CatalogName: item.catalogName,
+                OrderQuantity: item.quantity,
+                Requester: item.requester,
+                Message: item.message,
+                OrderDate: new Date().toISOString().split('T')[0]
+            };
+            
+            await set(ref(db, "Orders/" + orderId), orderData);
+            orderIds.push(orderId);
+        }
+        
+        // Log audit
+        await logAuditEvent(
+            'CHECKOUT_ORDERS',
+            `Batch checkout: ${shoppingCart.length} orders, ${shoppingCart.reduce((s, i) => s + i.quantity, 0)} items`,
+            currentUser?.email
+        );
+        
+        // Success feedback
+        createSuccessAnimation(checkoutBtn);
+        playSound('success');
+        triggerHaptic('success');
+        
+        addNotification({
+            type: 'order',
+            priority: 'info',
+            title: '📦 一括注文が完了しました',
+            message: `${shoppingCart.length}件の注文が登録されました`
+        });
+        
+        alert(`✅ ${shoppingCart.length}件の注文を一括登録しました！`);
+        
+        // Clear cart
+        shoppingCart = [];
+        updateCartUI();
+        
+        // Refresh orders and switch tab
+        await new Promise(resolve => setTimeout(resolve, 500));
+        if (window.renderOrderTablesAccordion) window.renderOrderTablesAccordion();
+        
+        const orderTab = document.querySelector('[data-tab="orderEntries"]');
+        if (orderTab) orderTab.click();
+        
+        // Restore button
+        checkoutBtn.disabled = false;
+        checkoutBtn.innerHTML = originalText;
+        
+    } catch (error) {
+        console.error('Checkout error:', error);
+        alert('エラー: ' + error.message);
+        const checkoutBtn = document.getElementById('cartCheckoutBtn');
+        checkoutBtn.disabled = false;
+        checkoutBtn.innerHTML = '<i class="fa-solid fa-check"></i> 一括注文';
+    }
+}
+
 async function loadPlaceOrderProducts() {
     try {
         // Load catalog names/items
@@ -470,45 +665,24 @@ async function submitPlaceOrder() {
     }
     
     try {
-        // Trigger success animation and sounds BEFORE submitting
+        // Add to cart instead of submitting directly
+        addToCart(catalogName, quantity, requester, message, currentOrderItemKey);
+        
+        // Update button feedback
         const submitBtn = document.getElementById('placeOrderSubmitBtn');
-        createSuccessAnimation(submitBtn);
-        playSound('success');
-        triggerHaptic('success');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> カートに追加しました！';
         
-        const data = {
-            CatalogName: catalogName,
-            OrderQuantity: quantity,
-            Requester: requester,
-            Message: message,
-            OrderDate: new Date().toISOString().split('T')[0]
-        };
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+        }, 1500);
         
-        await set(ref(db, "Orders/" + catalogName + "_" + Date.now()), data);
-        await logAuditEvent('CREATE_ORDER', `Order: ${catalogName} × ${quantity}`, currentUser?.email);
-        
-        addNotification({
-            type: 'order',
-            priority: 'info',
-            title: '📝 新しい注文が作成されました',
-            message: `${requester}さんが${catalogName}を${quantity}個注文しました`
-        });
-        
-        alert("注文を登録しました");
+        alert(`✅ "${catalogName}" × ${quantity}個をカートに追加しました！`);
         closePlaceOrderModal();
         
-        // Wait a moment for Firebase to sync, then update Order Entries display
-        await new Promise(resolve => setTimeout(resolve, 500));
-        renderOrderTablesAccordion();
-        
-        // Automatically switch to Order Entries tab to show the new order
-        const orderEntriesTab = document.querySelector('[data-tab="orderEntries"]');
-        if (orderEntriesTab) {
-            orderEntriesTab.click();
-        }
     } catch (error) {
-        console.error('Order submission error:', error);
-        alert("エラー: " + error.message);
+        console.error('Add to cart error:', error);
+        alert('エラー: ' + error.message);
     }
 }
 
@@ -518,6 +692,12 @@ window.closePlaceOrderModal = closePlaceOrderModal;
 window.increaseOrderQty = increaseOrderQty;
 window.decreaseOrderQty = decreaseOrderQty;
 window.submitPlaceOrder = submitPlaceOrder;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.updateCartQty = updateCartQty;
+window.clearCart = clearCart;
+window.checkoutCart = checkoutCart;
+window.updateCartUI = updateCartUI;
 
 // ===== ORDER FORM =====
 function initOrderForm() {
