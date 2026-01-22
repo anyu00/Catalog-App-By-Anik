@@ -82,7 +82,7 @@ When you click "Select" on a user:
 
 ---
 
-## 🔐 Current CRUD Operations
+## 🔐 Current CRUD Operations   
 
 ### **✅ CREATE - Add New User**
 
@@ -208,7 +208,7 @@ All user accounts are displayed in the Users List table. Click "Select" to see:
 
 ---
 
-## 📝 Example: Create a Manager Account
+## 📝 Example: Create a Manager Account (examples of the sections:::hashed)
 
 Let's create a "manager@company.com" account with moderate permissions:
 
@@ -244,7 +244,7 @@ Let's create a "manager@company.com" account with moderate permissions:
 
 ## 🔄 Permission Matrix
 
-This is what you see when editing a user:
+This is what you see when editing a user: (user varification )
 
 ```
 Feature                Permissions
@@ -264,7 +264,7 @@ Each feature can have independent CRUD permissions.
 
 ---
 
-## 🔑 Admin vs User Roles
+## 🔑 Admin vs User Roles   8 
 
 ### **Admin (`role: "admin")`**
 - Full CRUD on all tabs
@@ -278,7 +278,7 @@ Each feature can have independent CRUD permissions.
 - Cannot see admin panel (tab hidden)
 - Can only view own profile
 - Cannot manage other users
-- Can view limited audit logs
+- Can view limited audit logs  
 
 ---
 
