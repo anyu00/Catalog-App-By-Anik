@@ -120,7 +120,7 @@ All user accounts are displayed in the Users List table. Click "Select" to see:
 - Current role
 - Active status
 - All permissions (create/read/update/delete for each feature)
-
+seems rented
 ---
 
 ### **✅ UPDATE - Edit User Account**
@@ -194,7 +194,7 @@ All user accounts are displayed in the Users List table. Click "Select" to see:
 **Admin Role** (Full Access):
 - ✅ All 9 tabs with all CRUD permissions
 - ✅ Can manage users
-- ✅ Can view all data
+- ✅ Can view all data (Data has to be viewed: in the case of added parts, 3 different)
 
 **User Role** (Limited Access):
 - ✅ Place Order - create/read/update/delete
