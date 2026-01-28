@@ -30,30 +30,20 @@ let CATALOG_NAMES = [
 // ===== LOAD CATALOG NAMES FROM FIREBASE =====
 async function loadCatalogNamesFromFirebase() {
     try {
-        const snapshot = await get(ref(db, 'CatalogNames'));
-        if (snapshot.exists()) {
-            const rawData = snapshot.val();
-            const firebaseNames = Object.values(rawData)
-              .filter(n => n && typeof n === 'string' && n.trim().length > 0)
-              .map(n => String(n).trim());
-            
-            // Merge Firebase names with defaults, removing duplicates
-            CATALOG_NAMES = [...new Set([...CATALOG_NAMES, ...firebaseNames])].sort();
-            console.log('Catalog names loaded from Firebase:', CATALOG_NAMES);
-            initializeCatalogSelects();
-        } else {
-            // Initialize Firebase with default names if empty
-            const defaultsObj = {};
-            CATALOG_NAMES.forEach((name, idx) => {
-                defaultsObj[`default_${idx}`] = name;
-            });
-            await set(ref(db, 'CatalogNames'), defaultsObj);
-            console.log('Initialized Firebase with default catalog names');
-            initializeCatalogSelects();
-        }
+        // Build object with ONLY the 24 official catalogs
+        const defaultsObj = {};
+        CATALOG_NAMES.forEach((name, idx) => {
+            defaultsObj[`default_${idx}`] = name;
+        });
+        
+        // Overwrite Firebase with only these 24 catalogs
+        await set(ref(db, 'CatalogNames'), defaultsObj);
+        
+        console.log('Catalog names enforced in Firebase (24 official catalogs):', CATALOG_NAMES);
+        initializeCatalogSelects();
     } catch (error) {
-        console.warn('Could not load catalog names from Firebase:', error);
-        // Fall back to default CATALOG_NAMES
+        console.warn('Could not enforce catalog names in Firebase:', error);
+        // Fall back to using CATALOG_NAMES directly
         initializeCatalogSelects();
     }
 }
