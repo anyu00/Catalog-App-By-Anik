@@ -669,8 +669,13 @@ async function loadCatalogImageSettings() {
 }
 
 async function saveCatalogImages() {
-  const container = document.getElementById('catalogImageSettingsContainer');
+  console.log('=== saveCatalogImages CALLED ===');
   const saveBtn = document.getElementById('saveCatalogImagesBtn');
+  
+  if (!saveBtn) {
+    console.log('Save button not found!');
+    return;
+  }
   
   try {
     saveBtn.disabled = true;
@@ -693,30 +698,38 @@ async function saveCatalogImages() {
       const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
       const input = document.getElementById(`img_${safeKey}`);
       
+      console.log(`Checking input: img_${safeKey}`, input ? 'FOUND' : 'NOT FOUND');
+      
       if (input) {
         let imageUrl = input.value.trim();
-        console.log(`Before extraction (${catalogName}):`, imageUrl);
-        // Extract URL from HTML or plain URL
-        imageUrl = extractImageUrl(imageUrl);
-        console.log(`After extraction (${catalogName}):`, imageUrl);
-        // Store as object with name and image
-        updates[`CatalogNames/${key}`] = {
-          name: catalogName,
-          image: imageUrl
-        };
-        updateCount++;
+        console.log(`Input value for ${catalogName}:`, imageUrl);
+        
+        if (imageUrl) {
+          // Extract URL from HTML or plain URL
+          imageUrl = extractImageUrl(imageUrl);
+          console.log(`After extraction (${catalogName}):`, imageUrl);
+          // Store as object with name and image
+          updates[`CatalogNames/${key}`] = {
+            name: catalogName,
+            image: imageUrl
+          };
+          updateCount++;
+        }
       }
     });
     
     console.log(`Total updates: ${updateCount}`, updates);
     
     if (updateCount === 0) {
-      showNotification('更新するデータがありません', 'warning');
+      showNotification('画像URLを入力してください', 'warning');
+      saveBtn.disabled = false;
+      saveBtn.textContent = '画像設定を保存';
       return;
     }
     
+    console.log('Sending update to Firebase...');
     await update(ref(db), updates);
-    console.log('Firebase update successful');
+    console.log('Firebase update successful!');
     showNotification('画像設定を保存しました', 'success');
     
   } catch (error) {
