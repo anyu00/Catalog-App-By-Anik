@@ -124,6 +124,26 @@ async function loadAnalyticsSettingsUI() {
     const globalHighInput = document.getElementById('globalHighStockInput');
     const globalFastInput = document.getElementById('globalFastMovingInput');
     
+    // Check if elements exist before using them
+    if (!globalLowInput || !globalHighInput || !globalFastInput) {
+      console.log('Analytics settings UI elements not found');
+      return;
+    }
+    
+    // Load analytics settings from Firebase
+    const settingsRef = ref(db, 'AnalyticsSettings');
+    const settingsSnapshot = await get(settingsRef);
+    
+    let analyticsSettings = {
+      globalLowStockThreshold: 5,
+      globalHighStockThreshold: 50,
+      globalFastMovingDefinition: 10
+    };
+    
+    if (settingsSnapshot.exists()) {
+      analyticsSettings = { ...analyticsSettings, ...settingsSnapshot.val() };
+    }
+    
     globalLowInput.value = analyticsSettings.globalLowStockThreshold;
     globalHighInput.value = analyticsSettings.globalHighStockThreshold;
     globalFastInput.value = analyticsSettings.globalFastMovingDefinition;
@@ -655,10 +675,14 @@ async function saveCatalogImages() {
     saveBtn.textContent = '保存中...';
     
     const snapshot = await get(ref(db, 'CatalogNames'));
-    if (!snapshot.exists()) return;
+    if (!snapshot.exists()) {
+      console.log('No CatalogNames in Firebase');
+      return;
+    }
     
     const items = snapshot.val();
     const updates = {};
+    let updateCount = 0;
     
     Object.entries(items).forEach(([key, item]) => {
       if (!item) return;
@@ -669,17 +693,28 @@ async function saveCatalogImages() {
       
       if (input) {
         let imageUrl = input.value.trim();
+        console.log(`Before extraction (${catalogName}):`, imageUrl);
         // Extract URL from HTML or plain URL
         imageUrl = extractImageUrl(imageUrl);
+        console.log(`After extraction (${catalogName}):`, imageUrl);
         // Store as object with name and image
         updates[`CatalogNames/${key}`] = {
           name: catalogName,
           image: imageUrl
         };
+        updateCount++;
       }
     });
     
+    console.log(`Total updates: ${updateCount}`, updates);
+    
+    if (updateCount === 0) {
+      showNotification('更新するデータがありません', 'warning');
+      return;
+    }
+    
     await update(ref(db), updates);
+    console.log('Firebase update successful');
     showNotification('画像設定を保存しました', 'success');
     
   } catch (error) {
