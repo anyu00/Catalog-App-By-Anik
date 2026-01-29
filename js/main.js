@@ -509,12 +509,20 @@ async function checkoutCart() {
     }
 }
 
+let catalogImages = {}; // Store catalog images
+
 async function loadPlaceOrderProducts() {
     try {
         // Load catalog names/items
         const catalogNamesSnapshot = await get(ref(db, 'CatalogNames'));
         if (catalogNamesSnapshot.exists()) {
             catalogItemsData = catalogNamesSnapshot.val();
+        }
+        
+        // Load catalog images
+        const imagesSnapshot = await get(ref(db, 'CatalogImages'));
+        if (imagesSnapshot.exists()) {
+            catalogImages = imagesSnapshot.val();
         }
         
         // Load catalog entries and calculate stock
@@ -575,7 +583,8 @@ function renderPlaceOrderProductGrid() {
         if (!item) return;
         
         const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
-        let imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+        // Get image from catalogImages using the key
+        let imageUrl = catalogImages[key] || '';
         
         // Extract image URL from HTML or plain URL
         imageUrl = extractImageUrl(imageUrl);
@@ -617,7 +626,8 @@ function openPlaceOrderModal(itemKey) {
     
     currentOrderItemKey = itemKey;
     const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || itemKey);
-    let imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+    // Get image from catalogImages using the key
+    let imageUrl = catalogImages[itemKey] || '';
     
     // Extract image URL from HTML or plain URL
     imageUrl = extractImageUrl(imageUrl);

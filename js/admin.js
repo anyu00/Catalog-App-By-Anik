@@ -642,14 +642,18 @@ async function loadCatalogImageSettings() {
       return;
     }
     
+    // Load catalog images from separate CatalogImages node
+    const imagesSnapshot = await get(ref(db, 'CatalogImages'));
+    const images = imagesSnapshot.exists() ? imagesSnapshot.val() : {};
+    
     const items = snapshot.val();
     let html = '';
     
     Object.entries(items).forEach(([key, item]) => {
       if (!item) return;
       
-      const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
-      const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+      const catalogName = item; // CatalogNames are just strings
+      const imageUrl = images[key] || ''; // Get image from CatalogImages
       const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
       
       html += `
@@ -688,13 +692,13 @@ async function saveCatalogImages() {
     }
     
     const items = snapshot.val();
-    const updates = {};
+    const catalogImages = {}; // Separate storage for images
     let updateCount = 0;
     
     Object.entries(items).forEach(([key, item]) => {
       if (!item) return;
       
-      const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
+      const catalogName = typeof item === 'string' ? item : item; // CatalogNames are strings
       const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
       const input = document.getElementById(`img_${safeKey}`);
       
@@ -708,17 +712,14 @@ async function saveCatalogImages() {
           // Extract URL from HTML or plain URL
           imageUrl = extractImageUrl(imageUrl);
           console.log(`After extraction (${catalogName}):`, imageUrl);
-          // Store as object with name and image
-          updates[`CatalogNames/${key}`] = {
-            name: catalogName,
-            image: imageUrl
-          };
+          // Store images in separate CatalogImages node
+          catalogImages[key] = imageUrl;
           updateCount++;
         }
       }
     });
     
-    console.log(`Total updates: ${updateCount}`, updates);
+    console.log(`Total updates: ${updateCount}`, catalogImages);
     
     if (updateCount === 0) {
       showNotification('画像URLを入力してください', 'warning');
@@ -727,8 +728,8 @@ async function saveCatalogImages() {
       return;
     }
     
-    console.log('Sending update to Firebase...');
-    await update(ref(db), updates);
+    console.log('Sending update to Firebase at /CatalogImages/...');
+    await set(ref(db, 'CatalogImages'), catalogImages);
     console.log('Firebase update successful!');
     showNotification('画像設定を保存しました', 'success');
     
