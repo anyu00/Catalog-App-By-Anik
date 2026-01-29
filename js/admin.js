@@ -8,6 +8,30 @@ import { functionsClient } from './firebase-config.js';
 import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js';
 import { getUserPermissions, getFormattedPermissions, updateUserPermissions, getDefaultUserPermissions, getAdminPermissions } from './permissions.js';
 
+// Extract image URL from HTML or plain URL (supports imgbb format)
+function extractImageUrl(input) {
+    if (!input) return '';
+    
+    // Plain URL
+    if (input.trim().startsWith('http')) {
+        return input.trim();
+    }
+    
+    // HTML img tag
+    const imgMatch = input.match(/src=["']([^"']+)["']/);
+    if (imgMatch && imgMatch[1]) {
+        return imgMatch[1].trim();
+    }
+    
+    // HTML anchor tag
+    const hrefMatch = input.match(/href=["']([^"']+)["']/);
+    if (hrefMatch && hrefMatch[1]) {
+        return hrefMatch[1].trim();
+    }
+    
+    return input.trim();
+}
+
 let currentSelectedUid = null;
 
 export function initAdminPanel() {
@@ -644,7 +668,9 @@ async function saveCatalogImages() {
       const input = document.getElementById(`img_${safeKey}`);
       
       if (input) {
-        const imageUrl = input.value.trim();
+        let imageUrl = input.value.trim();
+        // Extract URL from HTML or plain URL
+        imageUrl = extractImageUrl(imageUrl);
         // Store as object with name and image
         updates[`CatalogNames/${key}`] = {
           name: catalogName,
