@@ -44,31 +44,30 @@ let userPermissions = null;
 
 // ===== CATALOG NAMES (loaded dynamically from Firebase) =====
 let CATALOG_NAMES = [                      
-    "⼯作機械⽤油圧機器", "プラスチック加⼯機械⽤油圧機器", "A3HGシリーズ⾼圧可変ピストンポンプ",
-    "A3HMシリーズ高圧可変ピストンポンプ", "The ASR series Ultimate hydraulic control system",
-    "ASRシリーズACサーボモータ駆動ポンプ", "ロジック弁", "インライン形プレフィル弁",
-    "センタDINコネクタ形電磁弁", "リニューアルアンプ搭載Gシリーズ可変ショックレス形電磁切換弁",
-    "EHシリーズ⽐例電磁式制御機器", "比例電磁式レデューシングモジュラー弁　EMRP-01",
-    "アンプ搭載形比例電磁式方向・流量制御弁", "比例電磁式方向・流量制御弁",
-    "高速リニアサーボ弁シリーズ", "ダブルモータ直動形リニアサーボ弁",
-    "ポジションセンシング油圧シリンダ", "CHW形油圧シリンダ", "ミニ油圧シリンダ",
-    "HE-YAパック", "標準油圧ユニット", "省エネコントローラオートチューニング機能付き",
-    "コンタミキット", "YB-32/50/65/80M ⾃動マルチコンパクタ"
+    // Cabinet (Behind)
+    "JL-1027", "JL-0127", "JC-20001-5", "JC-5021-7", "JS-10003", "JS-100-2E", "JS-100-2F", 
+    "Dairy", "手帳", "JS 10001-3A", "JC-5020-8", "JA-30002", "JC-1026", "JA-30003", "JC-10010-9a",
+    // Cabinet (C-6)
+    "JL-5026-1A", "JL-5028", "JC-5030-2", "Automatic Shavings Compactor", "JL-5039", "JL-5028-1", 
+    "JC-5020-8A", "JC-5022-4B",
+    // Cabinet (C-5)
+    "JS-10001-3", "ES-100-2", "JC-10003-6", "JC-0815", "JC-0612-3", "JL-0615", "JC-1905-1", 
+    "JC-1320-4", "EC-10004-5", "JC-1012-2B", "EC-0612-1"
 ];
 
 // ===== LOAD CATALOG NAMES FROM FIREBASE =====
 async function loadCatalogNamesFromFirebase() {
     try {
-        // Build object with ONLY the 24 official catalogs
+        // Build object with ONLY the official catalogs from CATALOG_NAMES
         const defaultsObj = {};
         CATALOG_NAMES.forEach((name, idx) => {
             defaultsObj[`default_${idx}`] = name;
         });
         
-        // Overwrite Firebase with only these 24 catalogs
+        // Overwrite Firebase with only official catalogs
         await set(ref(db, 'CatalogNames'), defaultsObj);
         
-        console.log('Catalog names enforced in Firebase (24 official catalogs):', CATALOG_NAMES);
+        console.log(`Catalog names enforced in Firebase (${CATALOG_NAMES.length} official catalogs):`, CATALOG_NAMES);
         initializeCatalogSelects();
     } catch (error) {
         console.warn('Could not enforce catalog names in Firebase:', error);
