@@ -110,7 +110,10 @@ function initTabSwitching() {
                 renderCatalogTablesAccordion();
                 setTimeout(() => initCatalogSearch(), 100);
             }
-            if (tabName === 'orderEntries') renderOrderTablesAccordion();
+            if (tabName === 'orderEntries') {
+                setupOrderViewToggle();
+                renderOrderTablesAccordion();
+            }
             if (tabName === 'placeOrder') {
                 loadPlaceOrderProducts();
             }
@@ -156,7 +159,10 @@ function initTabSwitching() {
                     renderCatalogTablesAccordion();
                     setTimeout(() => initCatalogSearch(), 100);
                 }
-                if (tab === 'orderEntries') renderOrderTablesAccordion();
+                if (tab === 'orderEntries') {
+                    setupOrderViewToggle();
+                    renderOrderTablesAccordion();
+                }
                 if (tab === 'analytics') {
                     document.getElementById('analyticsDateRangeCard').style.display = 'block';
                     fetchAndRenderAnalytics();
@@ -449,6 +455,7 @@ async function checkoutCart() {
         
         // Submit all orders
         const orderIds = [];
+        const now = new Date();
         for (const item of shoppingCart) {
             const orderId = item.catalogName + "_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
             const orderData = {
@@ -456,7 +463,9 @@ async function checkoutCart() {
                 OrderQuantity: item.quantity,
                 Requester: item.requester,
                 Message: item.message,
-                OrderDate: new Date().toISOString().split('T')[0]
+                OrderDate: now.toISOString().split('T')[0],
+                CreatedAt: now.toISOString(),
+                Fulfilled: false
             };
             
             await set(ref(db, "Orders/" + orderId), orderData);
@@ -1142,6 +1151,168 @@ function renderOrderTablesAccordion() {
                 });
             });
         }
+    });
+}
+
+// ===== RENDER ORDER ENTRIES BY DATE (WITH FULFILLMENT CHECKBOX) =====
+function renderOrdersByDate() {
+    const container = document.getElementById('orderEntriesByDateContainer');
+    container.innerHTML = '';
+    const orderRef = ref(db, 'Orders/');
+    
+    get(orderRef).then((snapshot) => {
+        if (!snapshot.exists()) {
+            container.innerHTML = '<p style="color:#999;">注文がありません</p>';
+            return;
+        }
+        
+        const data = snapshot.val();
+        const ordersByDate = {};
+        
+        // Group orders by date
+        for (const key in data) {
+            const order = data[key];
+            // Extract date from order timestamp or use today
+            let orderDate = 'No Date';
+            if (order.CreatedAt) {
+                orderDate = order.CreatedAt.split('T')[0]; // YYYY-MM-DD format
+            } else if (order.OrderDate) {
+                orderDate = order.OrderDate;
+            }
+            
+            if (!ordersByDate[orderDate]) {
+                ordersByDate[orderDate] = [];
+            }
+            
+            ordersByDate[orderDate].push({
+                ...order,
+                _key: key,
+                _fulfilled: order.Fulfilled === true
+            });
+        }
+        
+        // Sort dates in descending order (newest first)
+        const sortedDates = Object.keys(ordersByDate).sort().reverse();
+        
+        let html = '<div style="display: grid; gap: 20px;">';
+        
+        sortedDates.forEach(date => {
+            const orders = ordersByDate[date];
+            const totalQty = orders.reduce((sum, o) => sum + (o.OrderQuantity || 0), 0);
+            const fulfilledCount = orders.filter(o => o._fulfilled).length;
+            
+            // Format date nicely
+            const dateObj = new Date(date + 'T00:00:00');
+            const formattedDate = dateObj.toLocaleDateString('ja-JP', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'short'
+            });
+            
+            html += `
+                <div style="border: 2px solid #ddd; border-radius: 12px; overflow: hidden; background: white;">
+                    <div style="background: #f3f4f6; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="date-header" data-date="${date}">
+                        <div>
+                            <h3 style="margin: 0; color: #1e293b; font-size: 18px;">${formattedDate}</h3>
+                            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+                                合計: ${orders.length} 件 • 合計数量: ${totalQty} • 完了: ${fulfilledCount}/${orders.length}
+                            </p>
+                        </div>
+                        <div style="font-size: 24px;">
+                            <i class="fas fa-chevron-down date-chevron" style="transition: transform 0.3s;"></i>
+                        </div>
+                    </div>
+                    <div style="padding: 16px; display: none; max-height: 600px; overflow-y: auto;" class="date-orders">
+            `;
+            
+            orders.forEach(order => {
+                const bgColor = order._fulfilled ? '#f0fdf4' : '#fef2f2';
+                const borderColor = order._fulfilled ? '#22c55e' : '#ef4444';
+                const textColor = order._fulfilled ? '#15803d' : '#991b1b';
+                
+                html += `
+                    <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 12px; margin-bottom: 10px; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
+                        <input type="checkbox" class="order-fulfill-checkbox" data-key="${order._key}" ${order._fulfilled ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer;">
+                        <div style="flex: 1;">
+                            <p style="margin: 0; font-weight: 600; color: #1e293b;">${order.CatalogName}</p>
+                            <p style="margin: 4px 0 0 0; color: ${textColor}; font-size: 14px;">
+                                数量: ${order.OrderQuantity} • 依頼者: ${order.Requester || 'N/A'} • メッセージ: ${order.Message || 'なし'}
+                            </p>
+                        </div>
+                        <div style="color: ${textColor}; font-weight: 700; text-align: center; min-width: 60px;">
+                            ${order._fulfilled ? '✅ 完了' : '⏳ 未完了'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Add click handlers for date headers
+        container.querySelectorAll('.date-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const ordersDiv = this.nextElementSibling;
+                const chevron = this.querySelector('.date-chevron');
+                const isHidden = ordersDiv.style.display === 'none';
+                ordersDiv.style.display = isHidden ? 'block' : 'none';
+                chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
+        });
+        
+        // Add handlers for fulfillment checkboxes
+        container.querySelectorAll('.order-fulfill-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', async function() {
+                const orderKey = this.dataset.key;
+                const isFulfilled = this.checked;
+                
+                try {
+                    await update(ref(db, `Orders/${orderKey}`), {
+                        Fulfilled: isFulfilled,
+                        FulfilledAt: isFulfilled ? new Date().toISOString() : null
+                    });
+                    
+                    // Re-render to update colors
+                    renderOrdersByDate();
+                } catch (error) {
+                    console.error('Error updating fulfillment status:', error);
+                    alert('更新に失敗しました');
+                }
+            });
+        });
+    });
+}
+
+// ===== SETUP VIEW TOGGLE BUTTONS =====
+function setupOrderViewToggle() {
+    const viewByCatalogBtn = document.getElementById('viewByCatalogBtn');
+    const viewByDateBtn = document.getElementById('viewByDateBtn');
+    const catalogAccordion = document.getElementById('orderEntriesAccordion');
+    const dateContainer = document.getElementById('orderEntriesByDateContainer');
+    
+    if (!viewByCatalogBtn || !viewByDateBtn) return;
+    
+    viewByCatalogBtn.addEventListener('click', () => {
+        catalogAccordion.style.display = 'block';
+        dateContainer.style.display = 'none';
+        viewByCatalogBtn.style.background = '#3b82f6';
+        viewByDateBtn.style.background = '#6b7280';
+        renderOrderTablesAccordion();
+    });
+    
+    viewByDateBtn.addEventListener('click', () => {
+        catalogAccordion.style.display = 'none';
+        dateContainer.style.display = 'block';
+        viewByCatalogBtn.style.background = '#6b7280';
+        viewByDateBtn.style.background = '#3b82f6';
+        renderOrdersByDate();
     });
 }
 
