@@ -155,10 +155,12 @@ async function loadAnalyticsSettingsUI() {
     
     const catalogNames = [...new Set(Object.values(catalogs).map(cat => cat.CatalogName))].sort();
     const container = document.getElementById('perItemOverridesContainer');
+    if (!container) return; // Element doesn't exist
+    
     container.innerHTML = '';
     
     catalogNames.forEach(catalogName => {
-      const override = analyticsSettings.perItemOverrides[catalogName] || {};
+      const override = (analyticsSettings.perItemOverrides && analyticsSettings.perItemOverrides[catalogName]) || {};
       const div = document.createElement('div');
       div.style.cssText = 'padding:12px;background:#f9fafb;border-radius:6px;border:1px solid #e5e7eb;';
       div.innerHTML = `
