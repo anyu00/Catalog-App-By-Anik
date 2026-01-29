@@ -9,6 +9,35 @@ import { getUserPermissions, canUserAction, getUserAccessiblePages, isAdmin } fr
 import { initAdminPanel } from './admin.js';
 import { ref, set, get, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
+// ===== UTILITY FUNCTIONS =====
+/**
+ * Extract image URL from HTML or plain URL
+ * Handles both plain URLs and HTML img tags (e.g., from imgbb HTML full linked format)
+ */
+function extractImageUrl(input) {
+    if (!input) return '';
+    
+    // If it's already a plain URL (starts with http)
+    if (input.trim().startsWith('http')) {
+        return input.trim();
+    }
+    
+    // Try to extract from HTML img tag
+    const imgMatch = input.match(/src=["']([^"']+)["']/);
+    if (imgMatch && imgMatch[1]) {
+        return imgMatch[1].trim();
+    }
+    
+    // Try to extract from href in anchor tag
+    const hrefMatch = input.match(/href=["']([^"']+)["']/);
+    if (hrefMatch && hrefMatch[1]) {
+        return hrefMatch[1].trim();
+    }
+    
+    // Return as-is if no extraction worked
+    return input.trim();
+}
+
 // ===== GLOBAL STATE =====
 let currentUser = null;
 let userPermissions = null;
@@ -546,7 +575,10 @@ function renderPlaceOrderProductGrid() {
         if (!item) return;
         
         const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
-        const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+        let imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+        
+        // Extract image URL from HTML or plain URL
+        imageUrl = extractImageUrl(imageUrl);
         
         // Filter by search
         if (searchTerm && !catalogName.toLowerCase().includes(searchTerm)) {
@@ -585,7 +617,10 @@ function openPlaceOrderModal(itemKey) {
     
     currentOrderItemKey = itemKey;
     const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || itemKey);
-    const imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+    let imageUrl = typeof item === 'object' ? (item.image || item.imageUrl || '') : '';
+    
+    // Extract image URL from HTML or plain URL
+    imageUrl = extractImageUrl(imageUrl);
     
     document.getElementById('placeOrderModalTitle').textContent = catalogName;
     document.getElementById('placeOrderModalName').textContent = catalogName;
