@@ -129,3 +129,132 @@ exports.deactivateUserSecure = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', 'Failed to deactivate user: ' + (error.message || error));
   }
 });
+
+// ===== SAVE FCM TOKEN FOR PUSH NOTIFICATIONS =====
+exports.saveFCMToken = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Request has no valid auth context.');
+  }
+
+  const { token } = data || {};
+  if (!token) {
+    throw new functions.https.HttpsError('invalid-argument', 'FCM token is required.');
+  }
+
+  try {
+    const uid = context.auth.uid;
+    const email = context.auth.token.email;
+    
+    // Save FCM token in database
+    await db.ref(`AdminTokens/${uid}`).set({
+      fcmToken: token,
+      email: email,
+      savedAt: new Date().toISOString(),
+      deviceInfo: data.deviceInfo || 'unknown'
+    });
+
+    console.log(`FCM token saved for admin: ${email}`);
+    return { success: true, message: 'FCM token saved successfully' };
+  } catch (error) {
+    console.error('saveFCMToken error:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to save FCM token: ' + (error.message || error));
+  }
+});
+
+// ===== LISTEN FOR NEW ORDERS AND SEND PUSH NOTIFICATIONS =====
+exports.notifyAdminsOfNewOrder = functions.database
+  .ref('Orders/{orderId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const newOrder = snapshot.val();
+      
+      // Only notify for actual new orders (skip if Fulfilled field exists on creation)
+      if (!newOrder || !newOrder.CatalogName) {
+        console.log('Invalid order data, skipping notification');
+        return;
+      }
+
+      console.log('New order received:', newOrder);
+
+      // Get all admin FCM tokens
+      const tokensSnapshot = await db.ref('AdminTokens').get();
+      if (!tokensSnapshot.exists()) {
+        console.log('No admin tokens found');
+        return;
+      }
+
+      const adminTokens = tokensSnapshot.val();
+      const tokens = Object.values(adminTokens).map(t => t.fcmToken).filter(t => t);
+
+      if (tokens.length === 0) {
+        console.log('No valid FCM tokens found');
+        return;
+      }
+
+      // Prepare notification payload
+      const message = {
+        notification: {
+          title: '📦 新しい注文が来ました!',
+          body: `${newOrder.CatalogName} - 数量: ${newOrder.OrderQuantity}`,
+          icon: '/manifest-icon.png'
+        },
+        data: {
+          catalogName: newOrder.CatalogName,
+          orderQuantity: String(newOrder.OrderQuantity),
+          requester: newOrder.Requester || 'Unknown',
+          message: newOrder.Message || '',
+          orderDate: newOrder.OrderDate || '',
+          click_action: 'FLUTTER_NOTIFICATION_CLICK'
+        },
+        webpush: {
+          notification: {
+            title: '📦 新しい注文が来ました!',
+            body: `${newOrder.CatalogName} - 数量: ${newOrder.OrderQuantity} (依頼者: ${newOrder.Requester || 'N/A'})`,
+            icon: '/manifest-icon.png',
+            badge: '/manifest-badge.png',
+            sound: '/notification-sound.mp3',
+            tag: 'new-order',
+            requireInteraction: true
+          },
+          fcmOptions: {
+            link: '/index.html?tab=orderEntries'
+          }
+        }
+      };
+
+      // Send to all admin tokens
+      const responses = await Promise.all(
+        tokens.map(token =>
+          admin.messaging().send({
+            ...message,
+            token: token
+          }).catch(error => {
+            console.error(`Failed to send to token ${token}:`, error);
+            // If token is invalid, remove it
+            if (error.code === 'messaging/invalid-registration-token' || 
+                error.code === 'messaging/registration-token-not-registered') {
+              return db.ref(`AdminTokens`).get().then(snap => {
+                if (snap.exists()) {
+                  const tokens = snap.val();
+                  for (const [key, val] of Object.entries(tokens)) {
+                    if (val.fcmToken === token) {
+                      return db.ref(`AdminTokens/${key}`).remove();
+                    }
+                  }
+                }
+              });
+            }
+            return null;
+          })
+        )
+      );
+
+      const successCount = responses.filter(r => r !== null && r !== undefined).length;
+      console.log(`Notification sent to ${successCount} admins`);
+
+      return { notificationsSent: successCount };
+    } catch (error) {
+      console.error('notifyAdminsOfNewOrder error:', error);
+    }
+  });
+
