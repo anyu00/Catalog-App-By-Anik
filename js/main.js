@@ -79,27 +79,22 @@ async function loadCatalogNamesFromFirebase() {
 // ===== FIREBASE CLOUD MESSAGING (FCM) SETUP =====
 async function initializeFCM() {
     try {
-        // Check if notifications are supported and permitted
+        // Check if notifications are supported
         if (!('serviceWorker' in navigator) || !('Notification' in window)) {
             console.log('Notifications not supported in this browser');
             return;
         }
 
-        // Register service worker for FCM
-        try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js', {
-                scope: '/'
-            });
-            console.log('Service Worker registered:', registration);
-        } catch (error) {
-            console.warn('Service Worker registration failed:', error);
+        // Check if browser is online
+        if (!navigator.onLine) {
+            console.log('Browser is offline, skipping FCM');
             return;
         }
 
         // Request notification permission if not already granted
         if (Notification.permission === 'default') {
             const permission = await Notification.requestPermission();
-            console.log('Notification permission:', permission);
+            console.log('Notification permission requested:', permission);
             
             if (permission !== 'granted') {
                 console.log('Notifications not permitted by user');
@@ -107,57 +102,82 @@ async function initializeFCM() {
             }
         }
 
-        // Only initialize messaging if permission is granted
         if (Notification.permission === 'granted') {
-            await initMessaging();
+            // Register service worker
+            try {
+                const registration = await navigator.serviceWorker.register('/service-worker.js', {
+                    scope: '/'
+                });
+                console.log('Service Worker registered successfully:', registration);
+                
+                // Now initialize messaging
+                await initializeMessagingAfterSWRegistration();
+            } catch (swError) {
+                console.warn('Service Worker registration failed, trying alternative path...');
+                // Try with index.html path
+                try {
+                    const registration = await navigator.serviceWorker.register('service-worker.js', {
+                        scope: './'
+                    });
+                    console.log('Service Worker registered with alternative path');
+                    await initializeMessagingAfterSWRegistration();
+                } catch (altError) {
+                    console.error('Service Worker registration failed on both paths:', altError);
+                }
+            }
         }
     } catch (error) {
         console.error('FCM initialization error:', error);
     }
 }
 
-async function initMessaging() {
+async function initializeMessagingAfterSWRegistration() {
     try {
-        // Import Firebase Messaging
         const { getMessaging, getToken, onMessage } = await import(
             'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js'
         );
         
         const messaging = getMessaging();
+        console.log('Firebase Messaging initialized');
         
-        // Get FCM token
-        const token = await getToken(messaging, {
-            vapidKey: 'BPi52r-qOAfK0wfZHX1xzM9q8d8N5pQ3X4yZ9vK2mL5sN6oP7qR8sT9uV0wX1yZ2aA3bB4cC5dD6eE7fF8gG9hH0iI1jJ2kK3lL4mM'
-        });
-        
-        if (token) {
-            console.log('FCM Token:', token);
-            await saveFCMToken(token);
-            
-            // Listen for foreground messages
-            onMessage(messaging, (payload) => {
-                console.log('Message received in foreground:', payload);
-                
-                // Show browser notification
-                if (payload.notification) {
-                    new Notification(payload.notification.title, {
-                        body: payload.notification.body,
-                        icon: payload.notification.icon || '/manifest-icon.png',
-                        badge: payload.notification.badge || '/manifest-badge.png',
-                        tag: 'new-order',
-                        requireInteraction: true
-                    });
-                }
-                
-                // Add in-app notification
-                if (payload.notification) {
-                    addNotification(
-                        payload.notification.title,
-                        payload.notification.body,
-                        'info'
-                    );
-                }
+        // Get FCM token - use empty VAPID key (optional for web)
+        try {
+            const token = await getToken(messaging, {
+                vapidKey: 'BPi52r-qOAfK0wfZHX1xzM9q8d8N5pQ3X4yZ9vK2mL5sN6oP7qR8sT9uV0wX1yZ2aA3bB4cC5dD6eE7fF8gG9hH0iI1jJ2kK3lL4mM'
+            }).catch(async (err) => {
+                console.log('VAPID key issue, trying without VAPID:', err.code);
+                // Try without VAPID (might work for simple notifications)
+                return await getToken(messaging);
             });
+            
+            if (token) {
+                console.log('FCM Token obtained:', token.substring(0, 50) + '...');
+                await saveFCMToken(token);
+                
+                // Listen for foreground messages
+                onMessage(messaging, (payload) => {
+                    console.log('Message received in foreground:', payload);
+                    
+                    // Show notification
+                    if (payload.notification) {
+                        const title = payload.notification.title || '新しい通知';
+                        const options = {
+                            body: payload.notification.body || '',
+                            icon: '/manifest-icon.png',
+                            badge: '/manifest-badge.png',
+                            tag: 'new-order',
+                            requireInteraction: true
+                        };
+                        
+                        new Notification(title, options);
+                        addNotification(title, options.body, 'info');
+                    }
+                });
+            } else {
+                console.log('No FCM token obtained');
+            }
+        } catch (tokenError) {
+            console.error('Token generation error:', tokenError);
         }
     } catch (error) {
         console.error('Messaging initialization error:', error);
@@ -166,7 +186,6 @@ async function initMessaging() {
 
 async function saveFCMToken(token) {
     try {
-        // Get the callable function
         const { httpsCallable } = await import(
             'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js'
         );
@@ -176,12 +195,13 @@ async function saveFCMToken(token) {
         
         const result = await saveFCMTokenFn({
             token: token,
-            deviceInfo: `${navigator.userAgent.substring(0, 50)}...`
+            deviceInfo: navigator.userAgent.substring(0, 80)
         });
         
-        console.log('FCM token saved:', result.data.message);
+        console.log('FCM token saved to Firebase:', result.data);
+        addNotification('通知設定完了', 'プッシュ通知が有効になりました', 'success');
     } catch (error) {
-        console.error('Error saving FCM token:', error);
+        console.warn('Could not save FCM token (may still work):', error);
     }
 }
 
