@@ -115,25 +115,36 @@ async function initializeFCM() {
         if (Notification.permission === 'granted') {
             console.log('✓ Notification permission granted');
             
-            // Register service worker
+            // Register service worker with correct GitHub Pages path
             try {
                 console.log('🔧 Registering Service Worker...');
-                const registration = await navigator.serviceWorker.register('/service-worker.js');
+                
+                // Determine the correct base path for GitHub Pages
+                const currentPath = window.location.pathname;
+                console.log('📍 Current path:', currentPath);
+                
+                let swPath, scope;
+                
+                // Check if we're in the repo subdirectory
+                if (currentPath.includes('/Catalog-App-By-Anik/')) {
+                    // GitHub Pages subdirectory deployment
+                    swPath = '/Catalog-App-By-Anik/service-worker.js';
+                    scope = '/Catalog-App-By-Anik/';
+                } else {
+                    // Local or root deployment
+                    swPath = '/service-worker.js';
+                    scope = '/';
+                }
+                
+                console.log('📝 SW Path:', swPath, '| Scope:', scope);
+                
+                const registration = await navigator.serviceWorker.register(swPath, { scope });
                 console.log('✓ Service Worker registered:', registration.scope);
                 
                 // Get FCM token
                 await getFCMToken();
             } catch (error) {
                 console.error('❌ Service Worker registration failed:', error);
-                // Try alternative path
-                try {
-                    console.log('🔧 Trying alternative registration path...');
-                    const registration = await navigator.serviceWorker.register('service-worker.js');
-                    console.log('✓ Service Worker registered (alt path):', registration.scope);
-                    await getFCMToken();
-                } catch (altError) {
-                    console.error('❌ Alternative registration also failed:', altError);
-                }
             }
         } else {
             console.log('⚠️ Notifications permission:', Notification.permission);
