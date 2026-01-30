@@ -79,108 +79,93 @@ async function loadCatalogNamesFromFirebase() {
 // ===== FIREBASE CLOUD MESSAGING (FCM) SETUP =====
 async function initializeFCM() {
     try {
+        console.log('=== FCM Initialization Started ===');
+        
         // Check if notifications are supported
-        if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-            console.log('Notifications not supported in this browser');
+        if (!('serviceWorker' in navigator)) {
+            console.log('❌ Service Workers not supported');
+            return;
+        }
+        
+        if (!('Notification' in window)) {
+            console.log('❌ Notifications not supported');
             return;
         }
 
         // Check if browser is online
         if (!navigator.onLine) {
-            console.log('Browser is offline, skipping FCM');
+            console.log('❌ Browser is offline');
             return;
         }
 
-        // Request notification permission if not already granted
+        console.log('✓ Browser supports notifications');
+
+        // Request notification permission
         if (Notification.permission === 'default') {
+            console.log('📱 Requesting notification permission...');
             const permission = await Notification.requestPermission();
-            console.log('Notification permission requested:', permission);
+            console.log('📱 Permission result:', permission);
             
             if (permission !== 'granted') {
-                console.log('Notifications not permitted by user');
+                console.log('❌ User denied notification permission');
                 return;
             }
         }
 
         if (Notification.permission === 'granted') {
+            console.log('✓ Notification permission granted');
+            
             // Register service worker
             try {
-                const registration = await navigator.serviceWorker.register('/service-worker.js', {
-                    scope: '/'
-                });
-                console.log('Service Worker registered successfully:', registration);
+                console.log('🔧 Registering Service Worker...');
+                const registration = await navigator.serviceWorker.register('/service-worker.js');
+                console.log('✓ Service Worker registered:', registration.scope);
                 
-                // Now initialize messaging
-                await initializeMessagingAfterSWRegistration();
-            } catch (swError) {
-                console.warn('Service Worker registration failed, trying alternative path...');
-                // Try with index.html path
+                // Get FCM token
+                await getFCMToken();
+            } catch (error) {
+                console.error('❌ Service Worker registration failed:', error);
+                // Try alternative path
                 try {
-                    const registration = await navigator.serviceWorker.register('service-worker.js', {
-                        scope: './'
-                    });
-                    console.log('Service Worker registered with alternative path');
-                    await initializeMessagingAfterSWRegistration();
+                    console.log('🔧 Trying alternative registration path...');
+                    const registration = await navigator.serviceWorker.register('service-worker.js');
+                    console.log('✓ Service Worker registered (alt path):', registration.scope);
+                    await getFCMToken();
                 } catch (altError) {
-                    console.error('Service Worker registration failed on both paths:', altError);
+                    console.error('❌ Alternative registration also failed:', altError);
                 }
             }
+        } else {
+            console.log('⚠️ Notifications permission:', Notification.permission);
         }
     } catch (error) {
-        console.error('FCM initialization error:', error);
+        console.error('❌ FCM initialization error:', error);
     }
 }
 
-async function initializeMessagingAfterSWRegistration() {
+async function getFCMToken() {
     try {
-        const { getMessaging, getToken, onMessage } = await import(
+        console.log('🔑 Getting FCM token...');
+        
+        const { getMessaging, getToken } = await import(
             'https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js'
         );
         
         const messaging = getMessaging();
-        console.log('Firebase Messaging initialized');
         
-        // Get FCM token - use empty VAPID key (optional for web)
-        try {
-            const token = await getToken(messaging, {
-                vapidKey: 'BPi52r-qOAfK0wfZHX1xzM9q8d8N5pQ3X4yZ9vK2mL5sN6oP7qR8sT9uV0wX1yZ2aA3bB4cC5dD6eE7fF8gG9hH0iI1jJ2kK3lL4mM'
-            }).catch(async (err) => {
-                console.log('VAPID key issue, trying without VAPID:', err.code);
-                // Try without VAPID (might work for simple notifications)
-                return await getToken(messaging);
-            });
-            
-            if (token) {
-                console.log('FCM Token obtained:', token.substring(0, 50) + '...');
-                await saveFCMToken(token);
-                
-                // Listen for foreground messages
-                onMessage(messaging, (payload) => {
-                    console.log('Message received in foreground:', payload);
-                    
-                    // Show notification
-                    if (payload.notification) {
-                        const title = payload.notification.title || '新しい通知';
-                        const options = {
-                            body: payload.notification.body || '',
-                            icon: '/manifest-icon.png',
-                            badge: '/manifest-badge.png',
-                            tag: 'new-order',
-                            requireInteraction: true
-                        };
-                        
-                        new Notification(title, options);
-                        addNotification(title, options.body, 'info');
-                    }
-                });
-            } else {
-                console.log('No FCM token obtained');
-            }
-        } catch (tokenError) {
-            console.error('Token generation error:', tokenError);
+        // Get token with VAPID key
+        const token = await getToken(messaging, {
+            vapidKey: 'BPi52r-qOAfK0wfZHX1xzM9q8d8N5pQ3X4yZ9vK2mL5sN6oP7qR8sT9uV0wX1yZ2aA3bB4cC5dD6eE7fF8gG9hH0iI1jJ2kK3lL4mM'
+        });
+        
+        if (token) {
+            console.log('✓ FCM Token obtained:', token.substring(0, 50) + '...');
+            await saveFCMToken(token);
+        } else {
+            console.log('⚠️ No FCM token generated');
         }
     } catch (error) {
-        console.error('Messaging initialization error:', error);
+        console.error('❌ Token generation error:', error);
     }
 }
 
@@ -198,10 +183,10 @@ async function saveFCMToken(token) {
             deviceInfo: navigator.userAgent.substring(0, 80)
         });
         
-        console.log('FCM token saved to Firebase:', result.data);
+        console.log('✓ FCM token saved to Firebase:', result.data);
         addNotification('通知設定完了', 'プッシュ通知が有効になりました', 'success');
     } catch (error) {
-        console.warn('Could not save FCM token (may still work):', error);
+        console.warn('⚠️ Could not save FCM token (notifications may still work via SW):', error);
     }
 }
 
