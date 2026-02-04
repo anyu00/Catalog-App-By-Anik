@@ -23,7 +23,9 @@ const translations = {
         'form.issue_quantity': '発行数量',
         'form.stock_quantity': '在庫数量',
         'form.distribution': '配布先',
-        'form.requester': '依頼者',
+        'form.requester_department': '部署名',
+        'form.requester': '発注者',
+        'form.requester_address': '住所',
         'form.remarks': '備考',
         'form.placeholder_select': '--選択してください--',
         'form.placeholder_text': 'テキストを入力...',
@@ -34,7 +36,9 @@ const translations = {
         'order.title': '注文する',
         'order.catalog_name': 'カタログ名',
         'order.order_quantity': '注文数量',
-        'order.requester': '依頼者',
+        'order.requester_department': '部署名',
+        'order.requester': '発注者',
+        'order.requester_address': '住所',
         'order.message': '注文メッセージ',
         
         // Buttons
@@ -71,7 +75,9 @@ const translations = {
         'table.issue_quantity': '発行数量',
         'table.stock_quantity': '在庫数量',
         'table.distribution': '配布先',
-        'table.requester': '依頼者',
+        'table.requester_department': '部署名',
+        'table.requester': '発注者',
+        'table.requester_address': '住所',
         'table.remarks': '備考',
         'table.actions': 'アクション',
         'table.date': '日付',
@@ -123,7 +129,7 @@ const translations = {
         'filter.date_from': '開始日',
         'filter.date_to': '終了日',
         'filter.catalog': 'カタログでフィルタ',
-        'filter.requester': '依頼者でフィルタ',
+        'filter.requester': '発注者でフィルタ',
         
         // Analytics
         'analytics.title': 'アナリティクス',

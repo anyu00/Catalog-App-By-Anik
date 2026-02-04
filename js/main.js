@@ -328,7 +328,9 @@ function initCatalogForm() {
             IssueQuantity: Number(form.IssueQuantity.value),
             StockQuantity: Number(form.StockQuantity.value),
             DistributionDestination: form.DistributionDestination.value,
+            RequesterDepartment: form.RequesterDepartment.value,
             Requester: form.Requester.value,
+            RequesterAddress: form.RequesterAddress.value,
             Remarks: form.Remarks.value,
         };
         
@@ -450,21 +452,25 @@ let shoppingCart = []; // Array of cart items
 /**
  * Add item to shopping cart
  */
-function addToCart(catalogName, quantity, requester, message, itemKey) {
-    // Check if item already in cart with same requester
+function addToCart(catalogName, quantity, department, requester, address, message, itemKey) {
+    // Check if item already in cart with same requester and department
     const existingIndex = shoppingCart.findIndex(item => 
-        item.catalogName === catalogName && item.requester === requester
+        item.catalogName === catalogName && 
+        item.requester === requester &&
+        item.department === department
     );
     
     if (existingIndex >= 0) {
-        // Update quantity if same item and requester
+        // Update quantity if same item, requester and department
         shoppingCart[existingIndex].quantity += parseInt(quantity);
     } else {
         // Add new item to cart
         shoppingCart.push({
             catalogName,
             quantity: parseInt(quantity),
+            department: department || '未指定',
             requester: requester || '未指定',
+            address: address || '',
             message: message || '',
             itemKey,
             addedAt: new Date().toISOString()
@@ -545,7 +551,8 @@ function updateCartUI() {
                             ${item.catalogName}
                         </div>
                         <div style="color:#666; font-size:0.8rem; margin-top:2px;">
-                            依頼: ${item.requester}
+                            部署: ${item.department} | 発注: ${item.requester}
+                            ${item.address ? `| 住所: ${item.address}` : ''}
                         </div>
                     </div>
                     <button style="background:none; border:none; color:#dc2626; cursor:pointer; font-weight:600; font-size:14px; padding:0; width:20px; height:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0;" onclick="removeFromCart(${index})" title="削除">×</button>
@@ -586,7 +593,9 @@ async function checkoutCart() {
             const orderData = {
                 CatalogName: item.catalogName,
                 OrderQuantity: item.quantity,
+                RequesterDepartment: item.department,
                 Requester: item.requester,
+                RequesterAddress: item.address,
                 Message: item.message,
                 OrderDate: now.toISOString().split('T')[0],
                 CreatedAt: now.toISOString(),
@@ -769,7 +778,9 @@ function openPlaceOrderModal(itemKey) {
     document.getElementById('placeOrderModalName').textContent = catalogName;
     document.getElementById('placeOrderModalImage').src = imageUrl;
     document.getElementById('placeOrderModalQty').value = 1;
+    document.getElementById('placeOrderModalDepartment').value = '';
     document.getElementById('placeOrderModalRequester').value = '';
+    document.getElementById('placeOrderModalAddress').value = '';
     document.getElementById('placeOrderModalMessage').value = '';
     
     // Display current stock from calculated data
@@ -819,11 +830,13 @@ async function submitPlaceOrder() {
     const item = catalogItemsData[currentOrderItemKey];
     const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || currentOrderItemKey);
     const quantity = parseInt(document.getElementById('placeOrderModalQty').value);
+    const department = document.getElementById('placeOrderModalDepartment').value.trim();
     const requester = document.getElementById('placeOrderModalRequester').value.trim();
+    const address = document.getElementById('placeOrderModalAddress').value.trim();
     const message = document.getElementById('placeOrderModalMessage').value.trim();
     
     if (!requester) {
-        alert('依頼者を入力してください');
+        alert('発注者を入力してください');
         return;
     }
     
@@ -833,8 +846,8 @@ async function submitPlaceOrder() {
     }
     
     try {
-        // Add to cart instead of submitting directly
-        addToCart(catalogName, quantity, requester, message, currentOrderItemKey);
+        // Add to cart with new fields
+        addToCart(catalogName, quantity, department, requester, address, message, currentOrderItemKey);
         
         // Update button feedback
         const submitBtn = document.getElementById('placeOrderSubmitBtn');
@@ -1013,7 +1026,9 @@ function renderCatalogTablesAccordion() {
                         <td class="editable" data-field="IssueQuantity">${entry.IssueQuantity}</td>
                         <td><span class="calculated-stock">${stock}</span></td>
                         <td class="editable" data-field="DistributionDestination">${entry.DistributionDestination}</td>
+                        <td class="editable" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
                         <td class="editable" data-field="Requester">${entry.Requester}</td>
+                        <td class="editable" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
                         <td class="editable" data-field="Remarks">${entry.Remarks}</td>
                         <td><button class="btn btn-danger btn-sm delete-row">Delete</button></td>
                     </tr>`;
@@ -1041,7 +1056,9 @@ function renderCatalogTablesAccordion() {
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="IssueQuantity">発行数量 ${catalogSortState.column === 'IssueQuantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫数量</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">依頼者</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署名</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発注者</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">住所</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">備考</th>
                                     <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">操作</th>
                                 </tr>
@@ -1362,7 +1379,7 @@ function renderOrdersByDate() {
                         <div style="flex: 1;">
                             <p style="margin: 0; font-weight: 600; color: #1e293b;">${order.CatalogName}</p>
                             <p style="margin: 4px 0 0 0; color: ${textColor}; font-size: 14px;">
-                                数量: ${order.OrderQuantity} • 依頼者: ${order.Requester || 'N/A'} • メッセージ: ${order.Message || 'なし'}
+                                数量: ${order.OrderQuantity} • 部署: ${order.RequesterDepartment || 'N/A'} • 発注: ${order.Requester || 'N/A'} • 住所: ${order.RequesterAddress || 'N/A'}
                             </p>
                         </div>
                         <div style="color: ${textColor}; font-weight: 700; text-align: center; min-width: 60px;">
@@ -1722,7 +1739,7 @@ document.getElementById('exportCatalogCSV')?.addEventListener('click', async () 
             return;
         }
         const data = snapshot.val();
-        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '依頼者', '備考']];
+        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '部署名', '発注者', '住所', '備考']];
         for (const entry of Object.values(data)) {
             tableData.push([
                 entry.CatalogName,
@@ -1732,7 +1749,9 @@ document.getElementById('exportCatalogCSV')?.addEventListener('click', async () 
                 entry.IssueQuantity,
                 entry.StockQuantity,
                 entry.DistributionDestination,
+                entry.RequesterDepartment || '',
                 entry.Requester,
+                entry.RequesterAddress || '',
                 entry.Remarks
             ]);
         }
@@ -1752,7 +1771,7 @@ document.getElementById('exportCatalogPDF')?.addEventListener('click', async () 
             return;
         }
         const data = snapshot.val();
-        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '依頼者']];
+        const tableData = [['カタログ名', '納入日', '受領数量', '出荷日', '発行数量', '在庫数量', '配布先', '部署名', '発注者', '住所']];
         for (const entry of Object.values(data)) {
             tableData.push([
                 entry.CatalogName,
@@ -1762,7 +1781,9 @@ document.getElementById('exportCatalogPDF')?.addEventListener('click', async () 
                 entry.IssueQuantity,
                 entry.StockQuantity,
                 entry.DistributionDestination,
-                entry.Requester
+                entry.RequesterDepartment || '',
+                entry.Requester,
+                entry.RequesterAddress || ''
             ]);
         }
         exportToPDF('catalog-export.pdf', 'Catalog Entries Report', tableData);
@@ -1781,12 +1802,14 @@ document.getElementById('exportOrderCSV')?.addEventListener('click', async () =>
             return;
         }
         const data = snapshot.val();
-        const tableData = [['カタログ名', '注文数量', '依頼者', 'メッセージ', '注文日']];
+        const tableData = [['カタログ名', '注文数量', '部署名', '発注者', '住所', 'メッセージ', '注文日']];
         for (const entry of Object.values(data)) {
             tableData.push([
                 entry.CatalogName,
                 entry.OrderQuantity,
+                entry.RequesterDepartment || '',
                 entry.Requester,
+                entry.RequesterAddress || '',
                 entry.Message,
                 entry.OrderDate
             ]);
@@ -1889,7 +1912,9 @@ document.getElementById('exportMovementCSV')?.addEventListener('click', async ()
 
 document.getElementById('generateSampleCatalogBtn').addEventListener('click', () => {
     const destinations = ["東京工場", "大阪工場", "名古屋工場"];
+    const departments = ["IT部", "営業部", "企画部"];
     const requesters = ["田中", "佐藤", "鈴木"];
+    const addresses = ["東京都港区", "大阪府大阪市", "愛知県名古屋市"];
     let count = 0;
     
     CATALOG_NAMES.slice(0, 5).forEach((catName, i) => {
@@ -1903,7 +1928,9 @@ document.getElementById('generateSampleCatalogBtn').addEventListener('click', ()
                 IssueQuantity: Math.floor(Math.random() * 50),
                 StockQuantity: 50,
                 DistributionDestination: destinations[i % destinations.length],
+                RequesterDepartment: departments[i % departments.length],
                 Requester: requesters[i % requesters.length],
+                RequesterAddress: addresses[i % addresses.length],
                 Remarks: j === 0 ? "初回入庫" : ""
             };
             set(ref(db, "Catalogs/" + catName + "_" + j + "_" + Date.now()), entry);
@@ -1970,7 +1997,9 @@ function initializeCalendar() {
                                 issueQuantity: entry.IssueQuantity,
                                 stock: entry.StockQuantity,
                                 distributionDestination: entry.DistributionDestination,
+                                requesterDepartment: entry.RequesterDepartment,
                                 requester: entry.Requester,
+                                requesterAddress: entry.RequesterAddress,
                                 remarks: entry.Remarks || 'N/A'
                             }
                         });
@@ -2011,7 +2040,9 @@ function showCalendarEventModal(event) {
     document.getElementById('eventIssueQuantity').textContent = props.issueQuantity || '--';
     document.getElementById('eventStockQty').textContent = props.stock || '--';
     document.getElementById('eventDistributionDestination').textContent = props.distributionDestination || '--';
+    document.getElementById('eventRequesterDepartment').textContent = props.requesterDepartment || '--';
     document.getElementById('eventRequester').textContent = props.requester || '--';
+    document.getElementById('eventRequesterAddress').textContent = props.requesterAddress || '--';
     document.getElementById('eventRemarks').textContent = props.remarks || '--';
     
     modal.style.display = 'flex';

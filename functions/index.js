@@ -181,7 +181,7 @@ exports.notifyAdminsOfNewOrder = functions.database
       if (!tokensSnapshot.exists()) {
         console.log('No admin tokens found');
         return;
-      }
+      } 
 
       const adminTokens = tokensSnapshot.val();
       const tokens = Object.values(adminTokens).map(t => t.fcmToken).filter(t => t);
@@ -201,7 +201,9 @@ exports.notifyAdminsOfNewOrder = functions.database
         data: {
           catalogName: newOrder.CatalogName,
           orderQuantity: String(newOrder.OrderQuantity),
+          requesterDepartment: newOrder.RequesterDepartment || '',
           requester: newOrder.Requester || 'Unknown',
+          requesterAddress: newOrder.RequesterAddress || '',
           message: newOrder.Message || '',
           orderDate: newOrder.OrderDate || '',
           click_action: 'FLUTTER_NOTIFICATION_CLICK'
@@ -209,7 +211,7 @@ exports.notifyAdminsOfNewOrder = functions.database
         webpush: {
           notification: {
             title: '📦 新しい注文が来ました!',
-            body: `${newOrder.CatalogName} - 数量: ${newOrder.OrderQuantity} (依頼者: ${newOrder.Requester || 'N/A'})`,
+            body: `${newOrder.CatalogName} - 数量: ${newOrder.OrderQuantity} (発注: ${newOrder.Requester || 'N/A'})`,
             icon: '/manifest-icon.png',
             badge: '/manifest-badge.png',
             sound: '/notification-sound.mp3',
