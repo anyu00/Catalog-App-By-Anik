@@ -737,7 +737,7 @@ function renderPlaceOrderProductGrid() {
         
         // Get current stock for this catalog
         const currentStock = catalogStockData[catalogName] || 0;
-        const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '在庫切れ';
+        const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '絶版';
         const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
         
         card.innerHTML = `
@@ -774,7 +774,7 @@ function openPlaceOrderModal(itemKey) {
     
     // Display current stock from calculated data
     const currentStock = catalogStockData[catalogName] || 0;
-    const stockStatus = currentStock > 0 ? `在庫あり: ${currentStock}個` : '在庫切れ';
+    const stockStatus = currentStock > 0 ? `在庫あり: ${currentStock}個` : '絶版';
     document.getElementById('placeOrderModalStock').textContent = stockStatus;
     
     // Show modal and backdrop
