@@ -906,3 +906,366 @@ body {
     pointer-events: none;
     z-index: 2000;
 }
+
+/* ===== RESPONSIVE DESIGN - ALL DEVICES ===== */
+
+/* Extra Large Screens (1400px and up) */
+@media (min-width: 1400px) {
+    .glass-main-content {
+        padding: 24px;
+    }
+    
+    .glass-card {
+        padding: 24px;
+    }
+    
+    .form-group {
+        flex: 1 1 240px;
+    }
+}
+
+/* Large Screens (992px to 1399px) - Default/Optimal */
+@media (max-width: 1399px) and (min-width: 992px) {
+    .glass-main-content {
+        padding: 20px;
+    }
+    
+    .glass-card {
+        padding: 20px;
+    }
+    
+    .form-group {
+        flex: 1 1 200px;
+        min-width: 160px;
+    }
+}
+
+/* Tablets & Medium Screens (768px to 991px) */
+@media (max-width: 991px) {
+    .sidebar {
+        display: none;
+    }
+    
+    .glass-main-container {
+        width: 100%;
+    }
+    
+    .glass-main-content {
+        padding: 16px;
+    }
+    
+    .glass-card {
+        padding: 16px;
+    }
+    
+    .glass-topbar {
+        padding: 12px 16px;
+    }
+    
+    .form-group {
+        flex: 1 1 160px;
+        min-width: 140px;
+    }
+    
+    .form-row {
+        gap: 10px;
+    }
+    
+    .glass-table th, .glass-table td {
+        padding: 10px 10px;
+        font-size: 0.95rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Small Tablets & Large Phones (600px to 767px) */
+@media (max-width: 767px) {
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-size: 14px;
+    }
+    
+    .sidebar {
+        display: none !important;
+    }
+    
+    .glass-main-container {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .glass-main-content {
+        padding: 12px;
+        min-height: auto;
+    }
+    
+    .glass-card {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .glass-topbar {
+        padding: 10px 12px;
+        flex-direction: row;
+    }
+    
+    .glass-topbar h1 {
+        font-size: 1.3rem;
+    }
+    
+    h2 {
+        font-size: 1.3rem;
+        margin: 12px 0 8px 0;
+    }
+    
+    h3 {
+        font-size: 1.1rem;
+    }
+    
+    /* Form Layout - Stack on mobile */
+    .form-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-group {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+        margin-bottom: 4px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    
+    .form-control, select {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+        border-radius: 6px;
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 10px 12px;
+        font-size: 13px;
+        width: 100%;
+        margin: 4px 0;
+    }
+    
+    .btn-lg, .btn-block {
+        width: 100%;
+    }
+    
+    /* Tables - Horizontal scroll on small screens */
+    .glass-table {
+        font-size: 12px;
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .glass-table th, .glass-table td {
+        padding: 8px 6px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    
+    /* Accordion sections */
+    .catalog-section, .order-section {
+        margin-bottom: 12px;
+    }
+    
+    .catalog-header, .order-header {
+        padding: 10px 12px !important;
+    }
+    
+    /* Modal adjustments */
+    .calendar-event-modal-content {
+        max-width: 95%;
+        width: 95%;
+    }
+    
+    /* Grid layouts - Single column */
+    [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    [style*="display: grid; gap"] {
+        gap: 8px !important;
+    }
+}
+
+/* Small Phones (less than 600px) */
+@media (max-width: 599px) {
+    body {
+        font-size: 13px;
+    }
+    
+    .sidebar {
+        display: none !important;
+        width: 0;
+    }
+    
+    .glass-main-container {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .glass-main-content {
+        padding: 10px;
+        min-height: 100vh;
+    }
+    
+    .glass-card {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+    }
+    
+    .glass-topbar {
+        padding: 8px 10px;
+    }
+    
+    .glass-topbar h1 {
+        font-size: 1.1rem;
+    }
+    
+    h2 {
+        font-size: 1.1rem;
+        margin: 10px 0 6px 0;
+    }
+    
+    h3 {
+        font-size: 1rem;
+    }
+    
+    /* Form - Fully stacked */
+    .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .form-group {
+        width: 100%;
+        flex: 1 1 100%;
+        margin: 0 0 6px 0;
+    }
+    
+    .form-group label {
+        font-size: 12px;
+        margin-bottom: 3px;
+        display: block;
+    }
+    
+    .form-control, select, input, textarea {
+        width: 100%;
+        padding: 10px;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+    
+    /* Buttons - Full width */
+    .btn {
+        width: 100%;
+        padding: 10px;
+        font-size: 13px;
+        margin: 4px 0;
+        border-radius: 6px;
+    }
+    
+    .btn-block, .btn-lg {
+        width: 100% !important;
+    }
+    
+    /* Disable flex for button groups */
+    button[style*="flex"], .btn-group {
+        width: 100%;
+    }
+    
+    /* Tables - Full width with horizontal scroll */
+    .glass-table {
+        font-size: 11px;
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .glass-table th, .glass-table td {
+        padding: 6px 4px;
+        font-size: 11px;
+        white-space: nowrap;
+        min-width: 50px;
+    }
+    
+    /* Modal */
+    .calendar-event-modal-content, .modal, [style*="modal-content"] {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    /* Modals - Center and fit */
+    [style*="position: fixed"] {
+        width: 100%;
+    }
+    
+    /* Accordion sections */
+    .catalog-section, .order-section {
+        margin-bottom: 10px;
+    }
+    
+    .catalog-header, .order-header {
+        padding: 8px 10px !important;
+        font-size: 12px;
+    }
+    
+    /* Icon sizing */
+    i[style*="font-size"] {
+        font-size: 14px !important;
+    }
+    
+    /* Text truncation */
+    p, span, div {
+        word-break: break-word;
+    }
+}
+
+/* Ultra Small Phones (less than 400px) */
+@media (max-width: 399px) {
+    .form-control, select {
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    .btn {
+        font-size: 12px;
+        padding: 8px;
+    }
+    
+    .glass-topbar h1 {
+        font-size: 1rem;
+    }
+    
+    h2 {
+        font-size: 0.95rem;
+    }
+    
+    .glass-table th, .glass-table td {
+        padding: 4px 2px;
+        font-size: 10px;
+    }
+}
