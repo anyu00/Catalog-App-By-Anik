@@ -224,7 +224,7 @@ exports.notifyAdminsOfNewOrder = functions.database
         }
       };
 
-      // Send to all admin tokens
+      // Send to all admin tokens 
       const responses = await Promise.all(
         tokens.map(token =>
           admin.messaging().send({

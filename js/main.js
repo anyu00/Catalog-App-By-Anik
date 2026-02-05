@@ -1947,16 +1947,22 @@ document.getElementById('generateSampleCatalogBtn').addEventListener('click', ()
 });
 
 document.getElementById('generateSampleOrderBtn').addEventListener('click', () => {
+    const departments = ["IT部", "営業部", "企画部"];
     const requesters = ["田中", "佐藤", "鈴木"];
+    const addresses = ["東京都港区", "大阪府大阪市", "愛知県名古屋市"];
     const now = Date.now();
     CATALOG_NAMES.slice(0, 5).forEach((catName, i) => {
         for (let j = 0; j < 2; j++) {
             const order = {
                 CatalogName: catName,
                 OrderQuantity: Math.floor(Math.random() * 50) + 1,
+                RequesterDepartment: departments[i % departments.length],
                 Requester: requesters[i % requesters.length],
+                RequesterAddress: addresses[i % addresses.length],
                 Message: `注文 ${i + 1}`,
-                OrderDate: '2025-07-01'
+                OrderDate: '2025-07-01',
+                CreatedAt: new Date().toISOString(),
+                Fulfilled: false
             };
             set(ref(db, "Orders/" + catName + "_" + (now + i + j)), order);
         }
