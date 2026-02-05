@@ -1210,7 +1210,7 @@ function renderOrderTablesAccordion() {
             // Add requester filter dropdown at the top
             const filterHtml = `
                 <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-                    <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
+                    <label style="font-weight: 600; color: #1e293b;">フィルター (発注者):</label>
                     <select id="orderRequesterSelect" style="padding: 8px 12px; border: 1px solid #fbbf24; border-radius: 6px; font-size: 14px; background: white;">
                         <option value="">すべて表示</option>
                         ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
@@ -1256,7 +1256,9 @@ function renderOrderTablesAccordion() {
                                 <tr>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">カタログ名</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">注文数量</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">依頼者</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">部署名</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">発注者</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">住所</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">メッセージ</th>
                                     <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">操作</th>
                                 </tr>
@@ -1266,7 +1268,9 @@ function renderOrderTablesAccordion() {
                                     <tr data-key="${entry._key}" style="border-bottom: 1px solid #fef3c7;">
                                         <td data-field="CatalogName" style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
                                         <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 16px;">${entry.OrderQuantity}</td>
+                                        <td class="editable-order" data-field="RequesterDepartment" style="padding: 12px 16px;">${entry.RequesterDepartment || '-'}</td>
                                         <td class="editable-order" data-field="Requester" style="padding: 12px 16px;">${entry.Requester}</td>
+                                        <td class="editable-order" data-field="RequesterAddress" style="padding: 12px 16px;">${entry.RequesterAddress || '-'}</td>
                                         <td style="padding: 12px 16px;"><div style='max-width:320px;overflow-x:auto;'>${entry.Message || ''}</div></td>
                                         <td style="padding: 12px 16px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row">Delete</button></td>
                                     </tr>
