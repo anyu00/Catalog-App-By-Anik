@@ -9,6 +9,35 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%23007bff'>📦</text></svg>" type="image/svg+xml">
     <title>カタログ管理ダッシュボード</title>
     
+    <!-- Auto-redirect to Mobile Version on Mobile Devices -->
+    <script>
+        (function() {
+            // Check if forced to desktop version
+            const forceDesktop = localStorage.getItem('forceDesktopVersion');
+            
+            // Mobile detection function
+            function isMobileDevice() {
+                const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+                
+                // Mobile user agents
+                const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+                const isMobile = mobileRegex.test(userAgent.toLowerCase());
+                
+                // Viewport width check (for responsive designs on desktop)
+                const mobileViewport = window.innerWidth < 768;
+                
+                return isMobile || mobileViewport;
+            }
+            
+            // Redirect to mobile version if on mobile device and not forced to desktop
+            if (isMobileDevice() && !forceDesktop) {
+                // Add query param to differentiate from direct access
+                const mobileUrl = 'mobile.html?redirect=1';
+                window.location.href = mobileUrl;
+            }
+        })();
+    </script>
+    
     <!-- External Fonts & Icon Libraries -->
     <link href="https://fonts.googleapis.com/css?family=Poppins:400,600&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">

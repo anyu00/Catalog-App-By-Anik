@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="google-site-verification" content="legitimate-business-application">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CatalogPro">
+    <meta name="theme-color" content="#007bff">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%23007bff'>📦</text></svg>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23007bff' width='180' height='180'/><text x='90' y='135' font-size='120' fill='%23fff' text-anchor='middle'>📦</text></svg>">
+    <title>カタログ管理 - モバイル</title>
+    
+    <!-- External Fonts & Icon Libraries -->
+    <link href="https://fonts.googleapis.com/css?family=Poppins:400,600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css" rel="stylesheet">
+    
+    <!-- Modular App CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile-nav.css">
+    
+    <!-- Chart & Calendar Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
+</head>
+<body class="mobile-app">
+    <!-- Remove sidebar - only bottom nav -->
+    
+    <!-- MAIN CONTENT (Full width, no sidebar) -->
+    <div class="main-content-shell mobile-full">
+        <!-- Minimal Top Bar -->
+        <div class="glass-topbar mobile-topbar">
+            <div class="mobile-topbar-content">
+                <div style="font-weight:700; color:#2563eb; font-size:1.2rem;">📦 CatalogPro</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="icon-btn" title="Notifications"><i class="fas fa-bell"></i></button>
+                    <button class="icon-btn" title="Switch to Desktop" id="switchDesktop" style="font-size:12px; padding:6px 8px;" title="Open desktop version">🖥️</button>
+                    <button class="icon-btn" title="Logout" id="logoutBtn"><i class="fa-solid fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area (with padding for bottom nav) -->
+        <div class="glass-main-content mobile-main-content">
+            <div class="glass-cards">
+                <!-- TAB: Catalog Management -->
+                <div class="tab-content" id="manageCatalog" style="display: block;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">🗂️ カタログ管理</h2>
+                        <form id="catalogForm" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">カタログ名</label>
+                                <input type="text" id="catalogName" class="form-control" placeholder="e.g., Cabinet Behind" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">受取日付</label>
+                                <input type="date" id="receiptDate" class="form-control" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">数量</label>
+                                <input type="number" id="quantityReceived" class="form-control" placeholder="0" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">配送日</label>
+                                <input type="date" id="deliveryDate" class="form-control" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">出荷数量</label>
+                                <input type="number" id="issueQuantity" class="form-control" placeholder="0" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">在庫数</label>
+                                <input type="number" id="stockQuantity" class="form-control" placeholder="0" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">配送先</label>
+                                <select id="distributionDestination" class="form-control" style="font-size:14px;">
+                                    <option>${i18n('form.select_destination')}</option>
+                                </select>
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">部署名</label>
+                                <input type="text" id="requesterDepartment" class="form-control" placeholder="部署" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">発注者</label>
+                                <input type="text" id="requester" class="form-control" placeholder="発注者名" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">住所</label>
+                                <input type="text" id="requesterAddress" class="form-control" placeholder="住所" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:150px;">
+                                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:4px;">備考</label>
+                                <input type="text" id="remarks" class="form-control" placeholder="備考" style="font-size:14px;">
+                            </div>
+                            <div style="flex:1; min-width:100%; text-align:center;">
+                                <button type="button" id="addCatalogBtn" class="btn btn-primary" style="width:100%; padding:12px; font-size:14px; font-weight:600;">➕ 追加</button>
+                            </div>
+                        </form>
+
+                        <h3 style="margin:24px 0 12px 0;">📋 カタログ一覧</h3>
+                        <div id="catalogList" style="display:grid; gap:12px;"></div>
+                    </div>
+                </div>
+
+                <!-- TAB: Place Order -->
+                <div class="tab-content" id="placeOrder" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">🛒 注文する</h2>
+                        <div id="placeOrderContent">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- TAB: Catalog Entries -->
+                <div class="tab-content" id="catalogEntries" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">📊 カタログエントリ</h2>
+                        <div id="catalogEntriesContent">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- TAB: Order Entries -->
+                <div class="tab-content" id="orderEntries" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">📦 注文エントリ</h2>
+                        <div id="orderEntriesContent">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- TAB: Stock Calendar -->
+                <div class="tab-content" id="stockCalendar" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">📅 カレンダー</h2>
+                        <div id="stockCalendarContent">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- TAB: Audit Log -->
+                <div class="tab-content" id="auditLog" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">📋 監査ログ</h2>
+                        <div id="auditLogContent">Loading...</div>
+                    </div>
+                </div>
+
+                <!-- TAB: Analytics -->
+                <div class="tab-content" id="analytics" style="display: none;">
+                    <div class="glass-card">
+                        <h2 style="margin:0 0 20px 0;">📊 アナリティクス</h2>
+                        <div id="analyticsContent">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <div class="mobile-bottom-nav" id="mobileBottomNav">
+        <button class="mobile-nav-btn active" data-tab="manageCatalog" title="Dashboard">
+            <i class="fa-solid fa-box"></i>
+            <span>管理</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="placeOrder" title="Orders">
+            <i class="fa-solid fa-cart-plus"></i>
+            <span>注文</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="catalogEntries" title="Inventory">
+            <i class="fa-solid fa-list"></i>
+            <span>在庫</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="orderEntries" title="Orders History">
+            <i class="fa-solid fa-file-invoice"></i>
+            <span>履歴</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="stockCalendar" title="Calendar">
+            <i class="fa-solid fa-calendar"></i>
+            <span>カレ</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="auditLog" title="Audit">
+            <i class="fa-solid fa-clipboard"></i>
+            <span>監査</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="analytics" title="Analytics">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>分析</span>
+        </button>
+    </div>
+
+    <!-- Service Worker Registration & PWA -->
+    <script>
+        // Switch to Desktop Version
+        document.getElementById('switchDesktop')?.addEventListener('click', () => {
+            localStorage.setItem('forceDesktopVersion', 'true');
+            window.location.href = 'index.html';
+        });
+        
+        // Register service worker for push notifications
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed:', err));
+        }
+
+        // Tab navigation for mobile bottom nav
+        document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = btn.getAttribute('data-tab');
+                
+                // Hide all tabs
+                document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+                document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+                
+                // Show selected tab
+                const tab = document.getElementById(tabName);
+                if (tab) {
+                    tab.style.display = 'block';
+                    btn.classList.add('active');
+                    
+                    // Scroll to top
+                    document.querySelector('.glass-main-content').scrollTop = 0;
+                }
+            });
+        });
+    </script>
+
+    <!-- Main App Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/firebase-utils.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/notifications-firebase.js"></script>
+    <script src="js/toast.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
