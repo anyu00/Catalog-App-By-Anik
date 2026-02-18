@@ -2,11 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#007bff">
+    <meta name="description" content="カタログ管理と注文システム">
     <meta name="google-site-verification" content="legitimate-business-application">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="cache-control" content="no-cache, no-store, must-revalidate">
+    
+    <!-- Apple Mobile Web App meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="カタログ管理">
+    
+    <!-- Icons -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%23007bff'>📦</text></svg>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23007bff' width='180' height='180' rx='40'/><text x='90' y='135' font-size='90' fill='%23fff' text-anchor='middle'>📦</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    
     <title>カタログ管理ダッシュボード</title>
     
     <!-- External Fonts & Icon Libraries -->
@@ -606,6 +618,31 @@
     
     <!-- Main App Module (contains all logic) -->
     <script type="module" src="js/main.js?v=2025121801"></script>
+    
+    <!-- Register Service Worker for PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered successfully:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+        }
+        
+        // Prevent pinch zoom and double-tap zoom on mobile for app-like experience
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1 && event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Handle iOS standalone app behavior
+        if (window.navigator.standalone === true) {
+            console.log('Running as standalone app on iOS');
+        }
+    </script>
 </body>
 </html>
 

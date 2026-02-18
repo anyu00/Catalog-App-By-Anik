@@ -1,0 +1,66 @@
+{
+  "name": "カタログ管理ダッシュボード",
+  "short_name": "カタログ管理",
+  "description": "カタログ管理と注文システム",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23007bff' width='192' height='192'/><text x='96' y='140' font-size='100' fill='%23fff' text-anchor='middle'>📦</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23007bff' width='512' height='512'/><text x='256' y='380' font-size='280' fill='%23fff' text-anchor='middle'>📦</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23007bff' width='192' height='192'rx='44'/><text x='96' y='140' font-size='100' fill='%23fff' text-anchor='middle'>📦</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23f8fafc' width='540' height='720'/><rect fill='%23232946' width='540' height='60'/><text x='20' y='40' font-size='20' fill='%23fff'>カタログ管理</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "注文する",
+      "short_name": "注文",
+      "description": "新しい注文を作成する",
+      "url": "/index.html?tab=placeOrder",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2310b981' width='192' height='192'/><text x='96' y='140' font-size='100' fill='%23fff' text-anchor='middle'>🛒</text></svg>",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "カタログエントリ",
+      "short_name": "カタログ",
+      "description": "カタログ一覧を表示",
+      "url": "/index.html?tab=catalogEntries",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%237c3aed' width='192' height='192'/><text x='96' y='140' font-size='100' fill='%23fff' text-anchor='middle'>📋</text></svg>",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

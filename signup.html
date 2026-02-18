@@ -2,10 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#007bff">
   <meta name="description" content="Sign up for Catalog Management System">
   <meta name="google-site-verification" content="legitimate-business-application">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  
+  <!-- Apple Mobile Web App meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sign Up">
+  
+  <!-- Icons & Manifest -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75' fill='%23007bff'>📦</text></svg>" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%23007bff' width='180' height='180' rx='40'/><text x='90' y='135' font-size='90' fill='%23fff' text-anchor='middle'>📦</text></svg>">
+  <link rel="manifest" href="manifest.json">
+  
   <title>Sign Up - Catalog Management System</title>
   
   <!-- Authentication Styling -->
@@ -103,5 +115,18 @@
 
   <!-- Firebase Scripts -->
   <script type="module" src="js/auth-page.js"></script>
+  
+  <!-- Register Service Worker for PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(registration => {
+          console.log('Service Worker registered successfully:', registration);
+        })
+        .catch(error => {
+          console.log('Service Worker registration failed:', error);
+        });
+    }
+  </script>
 </body>
 </html>
