@@ -659,12 +659,13 @@ async function checkoutCart() {
         cartHasChanged = false;
         updateCartUI();
         
-        // Refresh orders and switch tab
+        // Refresh orders in background (but stay on current page for access control)
+        // Some users may only have access to placeOrder page
         await new Promise(resolve => setTimeout(resolve, 500));
         if (window.renderOrderTablesAccordion) window.renderOrderTablesAccordion();
         
-        const orderTab = document.querySelector('[data-tab="orderEntries"]');
-        if (orderTab) orderTab.click();
+        // DO NOT auto-switch tabs - stay on placeOrder page
+        // Customers may only have access to this page depending on their role
         
         // Restore button
         checkoutBtn.disabled = false;
@@ -1052,12 +1053,12 @@ function showOrderConfirmationCelebration(itemCount) {
     `;
     document.body.appendChild(message);
     
-    // Clean up after animation
+    // Keep celebration visible longer (5 seconds) so customer can appreciate it
     setTimeout(() => {
         celebration.remove();
         message.remove();
         document.querySelectorAll('[style*="confettiFall"]').forEach(el => el.remove());
-    }, 3000);
+    }, 5000);
 }
 
 /**
