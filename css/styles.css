@@ -286,8 +286,20 @@ body {
     font-size: 1.3rem;
     display: none;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.hamburger:hover {
+    background: #f1f5f9;
+}
+
+.hamburger:active {
+    transform: scale(0.95);
 }
 
 .glass-main-content {
@@ -845,6 +857,9 @@ body {
     .glass-topbar {
         justify-content: space-between;
     }
+    .hamburger {
+        display: none !important;
+    }
 }
 /* ===== PLACE ORDER ANIMATIONS ===== */
 @keyframes pop-scale {
@@ -1024,6 +1039,186 @@ body {
     /* Prevent iOS Safari from zooming on input focus */
     input, select, textarea {
         font-size: 16px !important;
+    }
+    
+    /* Fix glass-topbar for mobile - simplify layout */
+    .glass-topbar {
+        padding: 10px 12px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+        overflow-x: hidden;
+    }
+    
+    .glass-topbar > div {
+        width: 100%;
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    /* Hide desktop navigation buttons on mobile */
+    .glass-topbar .nav-link-btn.topnav-btn {
+        display: none !important;
+    }
+    
+    /* CatalogPro logo row - keep logo and hamburger */
+    .glass-topbar > div > div:first-child {
+        width: 100%;
+        justify-content: space-between !important;
+        align-items: center;
+        flex-direction: row !important;
+    }
+    
+    /* User info section - horizontal layout, compact */
+    .glass-topbar > div > div:last-child {
+        width: 100%;
+        justify-content: space-between !important;
+        flex-wrap: wrap;
+        gap: 6px !important;
+    }
+    
+    /* Show hamburger menu on mobile */
+    .hamburger {
+        display: flex !important;
+        font-size: 22px;
+        padding: 10px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    /* User avatar and info - compact on mobile */
+    .user-display {
+        gap: 6px !important;
+        flex: 1;
+    }
+    
+    .user-display img {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .user-info-inline {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .user-email-inline {
+        font-size: 12px !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100px;
+    }
+    
+    .user-role-inline {
+        font-size: 10px !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Language toggle - compact */
+    .glass-topbar div[style*="padding:6px 12px"] {
+        padding: 4px 8px !important;
+        gap: 4px !important;
+    }
+    
+    .glass-topbar button[id^="lang"] {
+        font-size: 10px !important;
+        padding: 3px 6px !important;
+    }
+    
+    /* Icon buttons - touch friendly */
+    .icon-btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 8px;
+        font-size: 16px;
+    }
+    
+    /* Hide notification bell on mobile to save space */
+    .glass-topbar .icon-btn[title="Notifications"] {
+        display: none !important;
+    }
+    
+    /* Fix glass-topbar for mobile */
+    .glass-topbar {
+        padding: 12px 16px !important;
+        flex-wrap: wrap;
+        gap: 8px;
+        overflow-x: hidden;
+    }
+    
+    .glass-topbar > div {
+        width: 100%;
+        flex-direction: column;
+        gap: 12px !important;
+    }
+    
+    /* Hide desktop navigation buttons on mobile */
+    .glass-topbar .nav-link-btn.topnav-btn {
+        display: none !important;
+    }
+    
+    /* CatalogPro logo - center on mobile */
+    .glass-topbar > div > div:first-child {
+        width: 100%;
+        justify-content: space-between !important;
+        align-items: center;
+    }
+    
+    /* User info section - stack vertically */
+    .glass-topbar > div > div:last-child {
+        width: 100%;
+        justify-content: space-between !important;
+        flex-wrap: wrap;
+    }
+    
+    /* Show hamburger menu on mobile */
+    .hamburger {
+        display: flex !important;
+        font-size: 24px;
+        padding: 8px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    
+    /* User avatar and info - compact on mobile */
+    .user-display {
+        gap: 8px !important;
+    }
+    
+    .user-display img {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    .user-info-inline,
+    .user-email-inline,
+    .user-role-inline {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 120px;
+    }
+    
+    /* Language toggle - compact */
+    .glass-topbar [style*="display:flex; gap:6px"] {
+        padding: 4px 8px !important;
+    }
+    
+    .glass-topbar button[id^="lang"] {
+        font-size: 11px !important;
+        padding: 2px 6px !important;
+    }
+    
+    /* Icon buttons - touch friendly */
+    .icon-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        font-size: 18px;
     }
     
     /* Hide the sidebar on mobile by default, show as overlay */
