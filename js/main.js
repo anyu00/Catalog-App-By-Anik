@@ -41,6 +41,7 @@ function extractImageUrl(input) {
 // ===== GLOBAL STATE =====
 let currentUser = null;
 let userPermissions = null;
+let cartHasChanged = false; // Track if cart has items for beforeunload
 
 // ===== CATALOG NAMES (loaded dynamically from Firebase) =====
 let CATALOG_NAMES = [                      
@@ -460,6 +461,8 @@ function addToCart(catalogName, quantity, department, requester, address, messag
         item.department === department
     );
     
+    const isFirstItem = shoppingCart.length === 0;
+    
     if (existingIndex >= 0) {
         // Update quantity if same item, requester and department
         shoppingCart[existingIndex].quantity += parseInt(quantity);
@@ -477,9 +480,27 @@ function addToCart(catalogName, quantity, department, requester, address, messag
         });
     }
     
+    // Mark that cart has changed
+    cartHasChanged = true;
+    
     updateCartUI();
     playSound('success');
     triggerHaptic('light');
+    
+    // Show toast notification
+    showAddToCartToast(catalogName, quantity);
+    
+    // Auto-open cart sidebar on first item
+    if (isFirstItem) {
+        setTimeout(() => {
+            const cartLink = document.querySelector('[data-tab="placeOrder"]');
+            if (cartLink) {
+                cartLink.click();
+            }
+            // Show helpful message
+            showCheckoutPrompt();
+        }, 300);
+    }
 }
 
 /**
@@ -542,6 +563,7 @@ function updateCartUI() {
     if (shoppingCart.length === 0) {
         cartList.innerHTML = '<p style="text-align:center; color:#999; padding:20px; margin:0;">カートは空です</p>';
         checkoutBtn.disabled = true;
+        checkoutBtn.classList.remove('cart-pulse'); // Remove pulse animation
     } else {
         cartList.innerHTML = shoppingCart.map((item, index) => `
             <div style="background:#fff; padding:10px; margin-bottom:8px; border-radius:6px; border-left:3px solid #2563eb; font-size:0.85rem;">
@@ -567,6 +589,7 @@ function updateCartUI() {
             </div>
         `).join('');
         checkoutBtn.disabled = false;
+        checkoutBtn.classList.add('cart-pulse'); // Add pulse animation to draw attention
     }
 }
 
@@ -625,10 +648,15 @@ async function checkoutCart() {
             message: `${shoppingCart.length}件の注文が登録されました`
         });
         
+        // Show celebration animation
+        showOrderConfirmationCelebration(shoppingCart.length);
+        
         alert(`✅ ${shoppingCart.length}件の注文を一括登録しました！`);
         
-        // Clear cart
+        // Clear cart and reset tracking
+        const itemsCount = shoppingCart.length;
         shoppingCart = [];
+        cartHasChanged = false;
         updateCartUI();
         
         // Refresh orders and switch tab
@@ -865,6 +893,184 @@ async function submitPlaceOrder() {
         console.error('Add to cart error:', error);
         alert('エラー: ' + error.message);
     }
+}
+
+// ===== SMART CHECKOUT FEATURES =====
+
+/**
+ * Show toast notification when item added to cart
+ */
+function showAddToCartToast(catalogName, quantity) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 999;
+        animation: slideInRight 0.3s ease-out;
+        max-width: 280px;
+    `;
+    toast.innerHTML = `
+        ✅ <strong>${catalogName}</strong> ×${quantity}個<br>
+        カートに追加しました！
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.animate([
+            { opacity: '1', transform: 'translateX(0)' },
+            { opacity: '0', transform: 'translateX(300px)' }
+        ], 300).onfinish = () => toast.remove();
+    }, 2000);
+}
+
+/**
+ * Show helpful checkout prompt when first item added
+ */
+function showCheckoutPrompt() {
+    const prompt = document.createElement('div');
+    prompt.style.cssText = `
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        background: white;
+        color: #1e293b;
+        padding: 16px;
+        border-radius: 8px;
+        border: 2px solid #2563eb;
+        box-shadow: 0 10px 25px rgba(37, 99, 235, 0.2);
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 999;
+        animation: slideInDown 0.3s ease-out;
+        max-width: 280px;
+    `;
+    prompt.innerHTML = `
+        <div style="color:#2563eb; margin-bottom:6px;">🛒 カートに追加</div>
+        <div style="color:#666; margin-bottom:8px;">下の「一括注文」ボタンを押して注文を確定してください</div>
+        <button onclick="this.parentElement.style.display='none'" style="background:none; border:none; color:#999; cursor:pointer; font-size:18px; position:absolute; top:5px; right:5px; padding:0; width:24px; height:24px;">✕</button>
+    `;
+    document.body.appendChild(prompt);
+    
+    setTimeout(() => {
+        if (prompt.parentElement) {
+            prompt.animate([
+                { opacity: '1', transform: 'translateY(0)' },
+                { opacity: '0', transform: 'translateY(-300px)' }
+            ], 300).onfinish = () => prompt.remove();
+        }
+    }, 4000);
+}
+
+/**
+ * Show celebration animation when order is placed successfully
+ */
+function showOrderConfirmationCelebration(itemCount) {
+    // Create celebration container
+    const celebration = document.createElement('div');
+    celebration.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 5000;
+        pointer-events: none;
+    `;
+    
+    celebration.innerHTML = `
+        <div style="
+            font-size: 72px;
+            font-weight: 700;
+            color: #10b981;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            animation: celebrateScale 0.6s ease-out;
+            text-align: center;
+        ">✅</div>
+    `;
+    
+    document.body.appendChild(celebration);
+    
+    // Create confetti particles
+    for (let i = 0; i < 30; i++) {
+        const confetti = document.createElement('div');
+        const emoji = ['🎉', '🎊', '✨', '🎈', '🎁'][Math.floor(Math.random() * 5)];
+        confetti.textContent = emoji;
+        confetti.style.cssText = `
+            position: fixed;
+            font-size: ${20 + Math.random() * 20}px;
+            left: 50%;
+            top: 50%;
+            pointer-events: none;
+            z-index: 4999;
+            animation: confettiFall ${2 + Math.random() * 1}s linear forwards;
+            transform-origin: 50% 50%;
+        `;
+        
+        const angle = (Math.PI * 2 * i) / 30;
+        const distance = 100;
+        const tx = Math.cos(angle) * distance;
+        const ty = Math.sin(angle) * distance;
+        
+        confetti.style.setProperty('--tx', tx + 'px');
+        confetti.style.setProperty('--ty', ty + 'px');
+        
+        document.body.appendChild(confetti);
+    }
+    
+    // Success message
+    const message = document.createElement('div');
+    message.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, calc(-50% + 100px));
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+        z-index: 4998;
+        animation: slideUpIn 0.5s ease-out;
+        pointer-events: none;
+    `;
+    
+    message.innerHTML = `
+        <div>🎉 注文が完了しました！</div>
+        <div style="font-size: 14px; margin-top: 8px; opacity: 0.95;">
+            ${itemCount}件の注文を受け付けました
+        </div>
+    `;
+    document.body.appendChild(message);
+    
+    // Clean up after animation
+    setTimeout(() => {
+        celebration.remove();
+        message.remove();
+        document.querySelectorAll('[style*="confettiFall"]').forEach(el => el.remove());
+    }, 3000);
+}
+
+/**
+ * Warn user if leaving page with items in cart
+ */
+function setupCartWarning() {
+    window.addEventListener('beforeunload', (e) => {
+        if (cartHasChanged && shoppingCart.length > 0) {
+            e.preventDefault();
+            e.returnValue = `${shoppingCart.length}件のカート内容があります。本当に離脱しますか？`;
+            return e.returnValue;
+        }
+    });
 }
 
 // ===== MAKE PLACE ORDER FUNCTIONS GLOBAL =====
@@ -2831,6 +3037,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initOrderForm();
         initMobileToggle();
         initAdminPanel();
+        setupCartWarning(); // Warn if leaving with cart items
         updateKPIs();
         setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
         
