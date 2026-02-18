@@ -1053,12 +1053,12 @@ function showOrderConfirmationCelebration(itemCount) {
     `;
     document.body.appendChild(message);
     
-    // Keep celebration visible longer (5 seconds) so customer can appreciate it
+    // Keep celebration visible longer (10 seconds) so customer can fully appreciate it
     setTimeout(() => {
         celebration.remove();
         message.remove();
         document.querySelectorAll('[style*="confettiFall"]').forEach(el => el.remove());
-    }, 5000);
+    }, 10000);
 }
 
 /**
