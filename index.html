@@ -619,6 +619,50 @@
     <!-- Main App Module (contains all logic) -->
     <script type="module" src="js/main.js?v=2025121801"></script>
     
+    <!-- Auto-Update Check: Version Check Every 30 Seconds -->
+    <script>
+        let lastKnownVersion = null;
+        let versionCheckCount = 0;
+        
+        // Initialize version check
+        function initVersionCheck() {
+            // Load initial version
+            fetch('/version.json')
+                .then(response => response.json())
+                .then(data => {
+                    lastKnownVersion = data.version;
+                    console.log('Current app version:', lastKnownVersion);
+                })
+                .catch(error => console.log('Could not load version:', error));
+            
+            // Check for updates every 30 seconds
+            setInterval(() => {
+                fetch('/version.json?t=' + Date.now())
+                    .then(response => response.json())
+                    .then(data => {
+                        versionCheckCount++;
+                        console.log(`[Version Check #${versionCheckCount}] Current: ${lastKnownVersion}, Latest: ${data.version}`);
+                        
+                        if (lastKnownVersion && lastKnownVersion !== data.version) {
+                            console.log('🎉 New version detected! Reloading page...');
+                            // Small delay to ensure all requests complete
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        }
+                    })
+                    .catch(error => console.log('Version check failed:', error));
+            }, 30000); // Check every 30 seconds
+        }
+        
+        // Start version check when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initVersionCheck);
+        } else {
+            initVersionCheck();
+        }
+    </script>
+    
     <!-- Register Service Worker for PWA -->
     <script>
         if ('serviceWorker' in navigator) {
