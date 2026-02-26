@@ -762,11 +762,13 @@ body {
     }
 
     /* Ensure right side container is visible */
+    .glass-topbar .topbar-right-section,
     .glass-topbar > div:last-child {
         display: flex !important;
         flex-shrink: 0;
         width: auto !important;
         gap: 8px;
+        flex-wrap: nowrap !important;
     }
 
     /* Hide extra buttons on mobile */
@@ -777,6 +779,7 @@ body {
     }
 
     /* SHOW HAMBURGER - Most important */
+    #hamburgerToggle,
     .hamburger {
         display: flex !important;
         visibility: visible !important;
@@ -793,6 +796,8 @@ body {
         border-radius: 6px !important;
         flex-shrink: 0 !important;
         z-index: 100 !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .glass-main-content {
