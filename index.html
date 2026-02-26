@@ -172,11 +172,6 @@
                     <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px; min-height: 500px;">
                         <!-- Left: Product Catalog -->
                         <div>
-                            <!-- Location Selection -->
-                            <div id="locationSelectionContainer" style="margin-bottom:20px;">
-                                <!-- Location selection UI will be loaded here -->
-                            </div>
-                            
                             <!-- Search Bar -->
                             <div style="margin-bottom:20px;">
                                 <input type="text" id="placeOrderSearchInput" class="form-control" placeholder="カタログを検索..." style="max-width:400px;">
@@ -269,6 +264,37 @@
                                     <label style="font-weight:600; display:block; margin-bottom:8px;">発注者</label>
                                     <input id="placeOrderModalRequester" type="text" class="form-control" placeholder="あなたの名前">
                                 </div>
+                                
+                                <!-- Location Selection -->
+                                <div style="margin-bottom:20px;">
+                                    <label style="font-weight:600; display:block; margin-bottom:8px;">配送先選択</label>
+                                    <div style="margin-bottom:12px;">
+                                        <label style="display:inline-flex; align-items:center; margin-right:20px; cursor:pointer;">
+                                            <input type="radio" name="addressType" value="location" id="addressTypeLocation" checked onchange="switchAddressType('location')" style="margin-right:6px;">
+                                            <span>事業所から選択</span>
+                                        </label>
+                                        <label style="display:inline-flex; align-items:center; cursor:pointer;">
+                                            <input type="radio" name="addressType" value="custom" id="addressTypeCustom" onchange="switchAddressType('custom')" style="margin-right:6px;">
+                                            <span>カスタム住所</span>
+                                        </label>
+                                    </div>
+                                    
+                                    <!-- Location Dropdown -->
+                                    <div id="locationDropdownContainer" style="margin-bottom:12px;">
+                                        <select id="locationSelect" class="form-control" onchange="updateSelectedAddress()">
+                                            <option value="">事業所を選択...</option>
+                                        </select>
+                                        <div id="locationDetailsPreview" style="margin-top:8px; padding:10px; background:#f8f9fa; border-radius:6px; font-size:0.9rem; color:#666; display:none;">
+                                            <!-- Location details will be shown here -->
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Custom Address Textarea -->
+                                    <div id="customAddressContainer" style="display:none;">
+                                        <textarea id="customAddressInput" class="form-control" rows="3" placeholder="配送先住所を入力してください..." onchange="updateSelectedAddress()"></textarea>
+                                    </div>
+                                </div>
+                                
                                 <div style="margin-bottom:20px;">
                                     <label style="font-weight:600; display:block; margin-bottom:8px;">住所</label>
                                     <input id="placeOrderModalAddress" type="text" class="form-control" placeholder="例: 東京都渋谷区">
