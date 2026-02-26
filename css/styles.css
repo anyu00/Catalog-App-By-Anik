@@ -359,7 +359,7 @@ body {
     margin-bottom: 16px;
 }
 
-/* Tables */
+/* Tables: */
 .glass-table {
     width: 100%;
     border-radius: 12px;
@@ -1128,99 +1128,48 @@ body {
         font-size: 16px !important;
     }
     
-    /* Fix glass-topbar for mobile - simplify layout */
+    /* Mobile Topbar - Simplified */
     .glass-topbar {
-        padding: 10px 12px !important;
-        flex-wrap: wrap;
-        gap: 8px;
-        overflow-x: hidden;
+        padding: 12px 16px !important;
+        flex-direction: row;
+        justify-content: space-between !important;
+        align-items: center;
+        gap: 12px;
     }
     
-    .glass-topbar > div {
-        width: 100%;
-        flex-direction: column !important;
-        gap: 10px !important;
+    .glass-topbar > div:first-child {
+        display: flex !important;
+        align-items: center;
+        gap: 16px;
+        width: auto;
+        flex-direction: row !important;
+        order: 1;
+    }
+    
+    /* App name positioning */
+    .glass-topbar > div:first-child > div:first-child {
+        font-size: 16px !important;
+        white-space: nowrap;
+    }
+    
+    /* Hide nav buttons container on mobile */
+    .glass-topbar > div:first-child > div:nth-child(2) {
+        display: none !important;
+    }
+    
+    /* Hide right side buttons initially, show only hamburger */
+    .glass-topbar > div:last-child {
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        order: 2;
+        width: auto;
+        flex-wrap: nowrap;
     }
     
     /* Hide desktop navigation buttons on mobile */
     .glass-topbar .nav-link-btn.topnav-btn {
         display: none !important;
-    }
-    
-    /* CatalogPro logo row - keep logo and hamburger */
-    .glass-topbar > div > div:first-child {
-        width: 100%;
-        justify-content: space-between !important;
-        align-items: center;
-        flex-direction: row !important;
-    }
-    
-    /* User info section - horizontal layout, compact */
-    .glass-topbar > div > div:last-child {
-        width: 100%;
-        justify-content: space-between !important;
-        flex-wrap: wrap;
-        gap: 6px !important;
-    }
-    
-    /* Show hamburger menu on mobile */
-    .hamburger {
-        display: flex !important;
-        font-size: 22px;
-        padding: 10px;
-        min-width: 44px;
-        min-height: 44px;
-    }
-    
-    /* User avatar and info - compact on mobile */
-    .user-display {
-        gap: 6px !important;
-        flex: 1;
-    }
-    
-    .user-display img {
-        width: 28px !important;
-        height: 28px !important;
-    }
-    
-    .user-info-inline {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    
-    .user-email-inline {
-        font-size: 12px !important;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 100px;
-    }
-    
-    .user-role-inline {
-        font-size: 10px !important;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    /* Language toggle - compact */
-    .glass-topbar div[style*="padding:6px 12px"] {
-        padding: 4px 8px !important;
-        gap: 4px !important;
-    }
-    
-    .glass-topbar button[id^="lang"] {
-        font-size: 10px !important;
-        padding: 3px 6px !important;
-    }
-    
-    /* Icon buttons - touch friendly */
-    .icon-btn {
-        min-width: 40px;
-        min-height: 40px;
-        padding: 8px;
-        font-size: 16px;
     }
     
     /* Hide notification bell on mobile to save space */
@@ -1228,84 +1177,58 @@ body {
         display: none !important;
     }
     
-    /* Fix glass-topbar for mobile */
-    .glass-topbar {
-        padding: 12px 16px !important;
-        flex-wrap: wrap;
-        gap: 8px;
-        overflow-x: hidden;
-    }
-    
-    .glass-topbar > div {
-        width: 100%;
-        flex-direction: column;
-        gap: 12px !important;
-    }
-    
-    /* Hide desktop navigation buttons on mobile */
-    .glass-topbar .nav-link-btn.topnav-btn {
+    /* Hide language toggle on mobile */
+    .glass-topbar div[style*="padding:6px 12px"] {
         display: none !important;
     }
     
-    /* CatalogPro logo - center on mobile */
-    .glass-topbar > div > div:first-child {
-        width: 100%;
-        justify-content: space-between !important;
-        align-items: center;
-    }
-    
-    /* User info section - stack vertically */
-    .glass-topbar > div > div:last-child {
-        width: 100%;
-        justify-content: space-between !important;
-        flex-wrap: wrap;
+    /* Hide user avatar and info on mobile to save space */
+    .user-display {
+        display: none !important;
     }
     
     /* Show hamburger menu on mobile */
     .hamburger {
         display: flex !important;
-        font-size: 24px;
+        font-size: 20px;
+        padding: 8px 12px;
+        min-width: 44px;
+        min-height: 44px;
+        order: 3;
+    }
+    
+    /* Keep logout button but move it to mobile topbar */
+    .glass-topbar .icon-btn[title="Logout"] {
+        min-width: 44px;
+        min-height: 44px;
         padding: 8px;
-        min-width: 44px;
-        min-height: 44px;
-    }
-    
-    /* User avatar and info - compact on mobile */
-    .user-display {
-        gap: 8px !important;
-    }
-    
-    .user-display img {
-        width: 32px !important;
-        height: 32px !important;
-    }
-    
-    .user-info-inline,
-    .user-email-inline,
-    .user-role-inline {
-        font-size: 12px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 120px;
-    }
-    
-    /* Language toggle - compact */
-    .glass-topbar [style*="display:flex; gap:6px"] {
-        padding: 4px 8px !important;
-    }
-    
-    .glass-topbar button[id^="lang"] {
-        font-size: 11px !important;
-        padding: 2px 6px !important;
-    }
-    
-    /* Icon buttons - touch friendly */
-    .icon-btn {
-        min-width: 44px;
-        min-height: 44px;
-        padding: 10px;
         font-size: 18px;
+        order: 4;
+    }
+    
+    /* Main content adjustments for mobile */
+    .glass-main-content {
+        padding: 16px 12px;
+        margin-top: 0;
+    }
+    
+    /* Form elements - touch friendly on mobile */
+    .form-control, select, textarea, input {
+        min-height: 44px;
+        padding: 12px;
+        font-size: 16px;
+    }
+    
+    /* Buttons - touch friendly */
+    button {
+        min-height: 44px;
+        padding: 12px 16px;
+    }
+    
+    .btn-primary, .btn-success, .btn-danger {
+        min-height: 48px;
+        font-size: 14px;
+        font-weight: 600;
     }
     
     /* Hide the sidebar on mobile by default, show as overlay */
@@ -1314,7 +1237,7 @@ body {
         left: 0;
         top: 0;
         height: 100vh;
-        z-index: 1000;
+        z-index: 1050;
         width: 280px;
         transform: translateX(-100%);
         transition: transform 0.3s ease-out;
@@ -1322,181 +1245,83 @@ body {
         overflow-y: auto;
     }
     
-    .sidebar.active {
+    .sidebar.open {
         transform: translateX(0);
     }
     
-    /* Overlay for sidebar */
-    .sidebar-overlay {
-        display: none;
+    /* Mobile overlay for sidebar */
+    .mobile-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1040;
+        display: none !important;
     }
     
-    .sidebar-overlay.active {
-        display: block;
+    .mobile-overlay.show {
+        display: block !important;
     }
     
-    /* Main content takes full width on mobile */
-    .main-content {
-        width: 100%;
-        margin-left: 0;
-        padding: 16px 12px 80px 12px;
+    /* Improve tab/form spacing on mobile */
+    .glass-cards {
+        flex-direction: column;
+        gap: 16px;
     }
     
-    /* Mobile menu button */
-    .mobile-menu-btn {
-        position: fixed;
-        top: 16px;
-        left: 16px;
-        z-index: 998;
-        background: #007bff;
-        border: none;
-        color: white;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
-        padding: 0;
-        min-width: 44px;
+    .glass-card {
+        padding: 16px;
+        margin-bottom: 0;
     }
     
-    .mobile-menu-btn:active {
-        transform: scale(0.95);
-    }
-    
-    /* Touch-friendly button sizes */
-    button {
-        min-height: 44px;
-        min-width: 44px;
-        padding: 12px 16px;
-    }
-    
-    .btn-primary, .btn-secondary, .btn-danger {
-        min-height: 48px;
-        font-size: 16px;
-        border-radius: 8px;
-    }
-    
-    /* Forms optimized for mobile */
-    input, select, textarea {
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        width: 100%;
-    }
-    
-    /* Tab navigation - bottom nav on mobile */
-    .tabs {
-        position: fixed !important;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        z-index: 100;
-        background: white;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        overflow-x: auto;
-        scrollbar-width: none;
-        padding-bottom: env(safe-area-inset-bottom);
-    }
-    
-    .tabs::-webkit-scrollbar {
-        display: none;
-    }
-    
-    .tab {
-        flex: 1;
-        min-width: 60px;
-        padding: 8px 12px;
-        text-align: center;
-        white-space: nowrap;
-        font-size: 12px;
-    }
-    
-    /* Tables on mobile - horizontal scroll */
-    table {
-        font-size: 13px;
-    }
-    
-    table th,
-    table td {
-        padding: 8px 4px;
-    }
-    
-    /* Cards optimized for mobile */
-    .card, .glass-card {
-        margin-bottom: 12px;
-        border-radius: 12px;
-    }
-    
-    /* Sidebar navigation on mobile - stack vertically */
-    .sidebar-nav {
-        gap: 8px;
-        padding: 20px 0;
-    }
-    
-    .sidebar-nav-btn {
-        padding: 16px 24px;
-        font-size: 16px;
-        border-radius: 0;
-    }
-    
-    /* Modals - full height on mobile */
-    .modal-dialog {
-        margin: 20px;
-        max-height: 90vh;
-    }
-    
-    .modal-body {
-        max-height: calc(90vh - 120px);
-        overflow-y: auto;
-    }
-    
-    /* Sidebar user profile - compact on mobile */
-    .sidebar-user-profile {
+    .form-row {
+        flex-direction: column;
         gap: 12px;
-        padding: 12px 16px;
-        margin: 12px 8px;
     }
     
-    .sidebar-user-profile .user-avatar {
-        min-width: 36px;
-        font-size: 1.5rem;
+    .form-group {
+        width: 100%;
+        min-width: 0;
     }
     
-    /* Charts - responsive height */
-    canvas {
-        max-height: 300px;
+    /* Table responsive on mobile */
+    .glass-table {
+        font-size: 14px;
     }
     
-    /* Toast notifications - mobile friendly */
-    .toast, .toast-notification {
-        bottom: 72px;
-        left: 12px;
-        right: 12px;
-        width: auto;
+    .glass-table th, .glass-table td {
+        padding: 12px 8px;
     }
     
-    /* Modal - prevent body scroll when open */
-    body.modal-open {
-        overflow: hidden;
+    /* Modal adjustments for mobile */
+    #placeOrderModal {
+        width: 95% !important;
+        max-width: 100% !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .glass-main-content {
+        padding: 12px 8px;
+    }
+
+    .glass-card {
+        padding: 12px;
+    }
+
+    .glass-topbar {
+        padding: 10px 12px !important;
     }
     
-    /* Dropdown menus - mobile friendly */
-    .dropdown-menu {
-        position: fixed;
-        min-width: 180px;
+    .hamburger {
+        font-size: 18px !important;
+        padding: 6px 10px !important;
+    }
+    
+    .glass-topbar > div:first-child > div:first-child {
+        font-size: 14px !important;
     }
 }
 
