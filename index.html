@@ -618,7 +618,7 @@
                 </div>
             </div>
         </div>
-    </div>   <section header </section>
+    </div>
     
     <!-- Analytics Modal -->
     <div class="modal fade" id="analyticsCustomizeModal" tabindex="-1">
@@ -658,7 +658,7 @@
         // Initialize version check
         function initVersionCheck() {
             // Load initial version
-            fetch('/version.json')
+            fetch('version.json')
                 .then(response => response.json())
                 .then(data => {
                     lastKnownVersion = data.version;
@@ -668,7 +668,7 @@
             
             // Check for updates every 30 seconds
             setInterval(() => {
-                fetch('/version.json?t=' + Date.now())
+                fetch('version.json?t=' + Date.now())
                     .then(response => response.json())
                     .then(data => {
                         versionCheckCount++;
