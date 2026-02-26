@@ -270,7 +270,7 @@ body {
     align-items: center;
     justify-content: flex-end;
     padding: 16px 32px;
-    background: linear-gradient(135deg, #7ccdd8 0%, #3b82f6 50%, #60a5fa 100%);
+    background: linear-gradient(275deg, #d6d6d6 0%, #a1b8e3 50%, #558bce 100%);
     border-bottom: none;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
