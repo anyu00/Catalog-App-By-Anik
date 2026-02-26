@@ -191,18 +191,81 @@ export function updateLastLogin(userId) {
  * @param {string} password - New user password
  * @param {string} displayName - New user display name
  * @param {string} role - User role ('admin' or 'user')
+ * @param {string} locationId - Associated location ID
  * @returns {Promise} User creation promise
  */
-export function createUserAccount(email, password, displayName, role = 'user') {
+export function createUserAccount(email, password, displayName, role = 'user', locationId = null) {
   // This function creates a user but should only be called by admins
   // In a real app, this would be done via a Cloud Function for security
   return createUserWithEmailAndPassword(auth, email, password)
     .then(userCredential => {
       const uid = userCredential.user.uid;
-      return createUserProfile(uid, email, displayName, role).then(() => uid);
+      const profile = {
+        email,
+        displayName,
+        role,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isActive: true
+      };
+      if (locationId) {
+        profile.locationId = locationId;
+      }
+      const userRef = ref(db, `Users/${uid}`);
+      return set(userRef, profile).then(() => uid);
     })
     .catch(error => {
       console.error('Error creating user account:', error.message);
       throw error;
     });
 }
+
+/**
+ * Get user's assigned location
+ * @param {string} userId - Firebase user ID
+ * @returns {Promise} Location ID or null
+ */
+export function getUserLocation(userId) {
+  return getUserProfile(userId)
+    .then(profile => profile?.locationId || null)
+    .catch(error => {
+      console.error('Error getting user location:', error);
+      return null;
+    });
+}
+
+/**
+ * Set user's selected address (location or custom)
+ * @param {string} userId - Firebase user ID
+ * @param {string} addressType - 'location' or 'custom'
+ * @param {string} addressValue - Location ID (if location) or custom address (if custom)
+ * @returns {Promise} Update operation promise
+ */
+export function setUserSelectedAddress(userId, addressType, addressValue) {
+  return updateUserProfile(userId, {
+    selectedAddressType: addressType,
+    selectedAddressValue: addressValue
+  })
+    .catch(error => {
+      console.error('Error setting user address:', error);
+      throw error;
+    });
+}
+
+/**
+ * Get user's selected address
+ * @param {string} userId - Firebase user ID
+ * @returns {Promise} {type: 'location'|'custom', value: string}
+ */
+export function getUserSelectedAddress(userId) {
+  return getUserProfile(userId)
+    .then(profile => ({
+      type: profile?.selectedAddressType || 'location',
+      value: profile?.selectedAddressValue || profile?.locationId || null
+    }))
+    .catch(error => {
+      console.error('Error getting user address:', error);
+      return { type: 'location', value: null };
+    });
+}
+

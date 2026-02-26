@@ -4,9 +4,10 @@
 // ===== IMPORTS =====
 import { db } from './firebase-config.js';
 import { initNotificationSystem, addNotification } from './notifications-firebase.js';
-import { onAuthStateChanged, getCurrentUser, logoutUser, updateLastLogin } from './auth.js';
+import { onAuthStateChanged, getCurrentUser, logoutUser, updateLastLogin, getUserLocation, getUserSelectedAddress, setUserSelectedAddress } from './auth.js';
 import { getUserPermissions, canUserAction, getUserAccessiblePages, isAdmin } from './permissions.js';
 import { initAdminPanel } from './admin.js';
+import { COMPANY_LOCATIONS, getLocationById, getLocationOptions, formatLocationAddress } from './locations.js';
 import { ref, set, get, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 // ===== UTILITY FUNCTIONS =====
@@ -446,6 +447,10 @@ function createSuccessAnimation(button) {
 let catalogItemsData = {}; // Store catalog items for ordering
 let catalogStockData = {}; // Store calculated stock for each catalog
 let currentOrderItemKey = null; // Track current item being ordered
+let userAssignedLocationId = null; // User's assigned location from their account
+let selectedAddressType = 'location'; // 'location' or 'custom'
+let selectedAddressValue = null; // Location ID or custom address string
+
 
 // ===== SHOPPING CART STATE =====
 let shoppingCart = []; // Array of cart items
@@ -476,6 +481,8 @@ function addToCart(catalogName, quantity, department, requester, address, messag
             address: address || '',
             message: message || '',
             itemKey,
+            addressType: selectedAddressType,
+            addressValue: selectedAddressValue,
             addedAt: new Date().toISOString()
         });
     }
@@ -620,6 +627,8 @@ async function checkoutCart() {
                 Requester: item.requester,
                 RequesterAddress: item.address,
                 Message: item.message,
+                AddressType: item.addressType,
+                AddressValue: item.addressValue,
                 OrderDate: now.toISOString().split('T')[0],
                 CreatedAt: now.toISOString(),
                 Fulfilled: false
@@ -684,6 +693,18 @@ let catalogImages = {}; // Store catalog images
 
 async function loadPlaceOrderProducts() {
     try {
+        // Load user's location (if they have one assigned to their account)
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+            userAssignedLocationId = await getUserLocation(currentUser.uid);
+            const userAddress = await getUserSelectedAddress(currentUser.uid);
+            selectedAddressType = userAddress.type;
+            selectedAddressValue = userAddress.value;
+        }
+        
+        // Set up location selection UI
+        setupLocationSelectionUI();
+        
         // Load catalog names/items
         const catalogNamesSnapshot = await get(ref(db, 'CatalogNames'));
         if (catalogNamesSnapshot.exists()) {
@@ -742,6 +763,122 @@ function calculateStockPerCatalog(catalogData) {
         catalogStockData[name] = currentStock;
     });
 }
+
+/**
+ * Set up location selection UI on the Place Order page
+ */
+function setupLocationSelectionUI() {
+    const container = document.getElementById('locationSelectionContainer');
+    if (!container) return;
+    
+    let html = `
+        <div style="background:#f8fafc; padding:16px; border-radius:8px; margin-bottom:20px; border-left:4px solid #2563eb;">
+            <h5 style="margin:0 0 12px 0; color:#1e293b; font-size:14px; font-weight:600;">📍 配送先住所を選択</h5>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="addressType" value="location" ${selectedAddressType === 'location' ? 'checked' : ''} style="cursor:pointer;" onchange="switchAddressType('location')">
+                    <span style="font-size:14px; color:#333;">登録場所から選択</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="radio" name="addressType" value="custom" ${selectedAddressType === 'custom' ? 'checked' : ''} style="cursor:pointer;" onchange="switchAddressType('custom')">
+                    <span style="font-size:14px; color:#333;">カスタム住所を入力</span>
+                </label>
+            </div>
+            
+            <!-- Location Dropdown -->
+            <div id="locationSelectDiv">
+                <select id="locationSelect" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px; background:white; margin-bottom:8px;" onchange="updateSelectedAddress()">
+                    <option value="">-- 場所を選択してください --</option>
+                    ${getLocationOptions().map(opt => `
+                        <option value="${opt.id}" ${selectedAddressValue === opt.id ? 'selected' : ''}>
+                            ${opt.label}
+                        </option>
+                    `).join('')}
+                </select>
+                <div id="locationDetailsDisplay" style="background:#fff; padding:12px; border-radius:6px; border:1px solid #e2e8f0; font-size:13px; color:#666; line-height:1.6; white-space:pre-line;">
+                    ${selectedAddressValue && selectedAddressType === 'location' ? formatLocationDetails(selectedAddressValue) : '場所を選択して詳細を表示します'}
+                </div>
+            </div>
+            
+            <!-- Custom Address Input -->
+            <div id="customAddressDiv" style="display:none;">
+                <textarea id="customAddressInput" placeholder="郵便番号、住所、階数などを入力してください" style="width:100%; padding:10px 12px; border:1px solid #e2e8f0; border-radius:6px; font-size:14px; font-family:inherit; min-height:100px;" onchange="updateSelectedAddress()">${selectedAddressType === 'custom' ? (selectedAddressValue || '') : ''}</textarea>
+                <small style="color:#999; font-size:12px; display:block; margin-top:6px;">💡 例：〒252-1113 神奈川県綾瀬市上土棚中4-4-34 2階</small>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Update UI based on address type
+    updateAddressTypeUI();
+}
+
+/**
+ * Format location details for display
+ */
+function formatLocationDetails(locationId) {
+    const location = getLocationById(locationId);
+    if (!location) return '情報がありません';
+    
+    return `${location.name}
+${location.postalCode} ${location.address}
+TEL: ${location.phone}
+FAX: ${location.fax}`;
+}
+
+/**
+ * Switch between location dropdown and custom address input
+ */
+window.switchAddressType = function(type) {
+    selectedAddressType = type;
+    updateAddressTypeUI();
+    updateSelectedAddress();
+};
+
+/**
+ * Update address type UI visibility
+ */
+function updateAddressTypeUI() {
+    const locationDiv = document.getElementById('locationSelectDiv');
+    const customDiv = document.getElementById('customAddressDiv');
+    
+    if (selectedAddressType === 'location') {
+        locationDiv.style.display = 'block';
+        customDiv.style.display = 'none';
+    } else {
+        locationDiv.style.display = 'none';
+        customDiv.style.display = 'block';
+    }
+}
+
+/**
+ * Update selected address (from dropdown or custom input)
+ */
+window.updateSelectedAddress = function() {
+    if (selectedAddressType === 'location') {
+        const select = document.getElementById('locationSelect');
+        selectedAddressValue = select.value;
+        
+        // Update details display
+        const display = document.getElementById('locationDetailsDisplay');
+        if (selectedAddressValue) {
+            display.textContent = formatLocationDetails(selectedAddressValue);
+        } else {
+            display.textContent = '場所を選択して詳細を表示します';
+        }
+    } else {
+        const textarea = document.getElementById('customAddressInput');
+        selectedAddressValue = textarea.value;
+    }
+    
+    // Save to user profile
+    const currentUser = getCurrentUser();
+    if (currentUser && selectedAddressValue) {
+        setUserSelectedAddress(currentUser.uid, selectedAddressType, selectedAddressValue);
+    }
+};
 
 function renderPlaceOrderProductGrid() {
     const grid = document.getElementById('placeOrderProductGrid');
@@ -809,7 +946,18 @@ function openPlaceOrderModal(itemKey) {
     document.getElementById('placeOrderModalQty').value = 1;
     document.getElementById('placeOrderModalDepartment').value = '';
     document.getElementById('placeOrderModalRequester').value = '';
-    document.getElementById('placeOrderModalAddress').value = '';
+    
+    // Pre-fill address from selected location or custom address
+    let defaultAddress = '';
+    if (selectedAddressType === 'location' && selectedAddressValue) {
+        const location = getLocationById(selectedAddressValue);
+        if (location) {
+            defaultAddress = formatLocationAddress(location);
+        }
+    } else if (selectedAddressType === 'custom' && selectedAddressValue) {
+        defaultAddress = selectedAddressValue;
+    }
+    document.getElementById('placeOrderModalAddress').value = defaultAddress;
     document.getElementById('placeOrderModalMessage').value = '';
     
     // Display current stock from calculated data
