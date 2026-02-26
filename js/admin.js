@@ -535,31 +535,37 @@ async function loadAndDisplayCatalogNames(container) {
     
     container.innerHTML = '';
     
-    // Convert to array of strings, filter out empty values, and sort
-    const nameList = Object.values(names)
-      .filter(n => n && typeof n === 'string' && n.trim().length > 0)
-      .map(n => String(n).trim())
-      .sort();
+    // Convert to array with keys and values
+    const nameList = Object.entries(names)
+      .filter(([k, v]) => v && typeof v === 'string' && v.trim().length > 0)
+      .map(([k, v]) => ({ key: k, name: String(v).trim() }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     
     if (nameList.length === 0) {
       container.innerHTML = '<p style="color:#999;">カタログ名がありません</p>';
       return;
     }
     
-    nameList.forEach(name => {
+    nameList.forEach(({ key, name }) => {
       const div = document.createElement('div');
-      div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;`;
+      div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;`;
       
       const nameSpan = document.createElement('span');
       nameSpan.textContent = String(name);
-      nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;';
+      nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;font-weight:500;';
+      
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '編集';
+      editBtn.style.cssText = 'padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
+      editBtn.addEventListener('click', () => handleEditCatalogName(key, name, container));
       
       const deleteBtn = document.createElement('button');
       deleteBtn.textContent = '削除';
       deleteBtn.style.cssText = 'padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
-      deleteBtn.addEventListener('click', () => handleDeleteCatalogName(name, container));
+      deleteBtn.addEventListener('click', () => handleDeleteCatalogName(key, name, container));
       
       div.appendChild(nameSpan);
+      div.appendChild(editBtn);
       div.appendChild(deleteBtn);
       container.appendChild(div);
     });
@@ -582,7 +588,7 @@ async function handleAddCatalogName(input, container) {
     const snapshot = await get(ref(db, 'CatalogNames'));
     const names = snapshot.exists() ? snapshot.val() : {};
     
-    if (Object.values(names).includes(catalogName)) {
+    if (Object.values(names).some(v => v === catalogName)) {
       showNotification('このカタログ名は既に存在します', 'error');
       return;
     }
@@ -595,35 +601,119 @@ async function handleAddCatalogName(input, container) {
     await loadAndDisplayCatalogNames(container);
     showNotification('カタログ名を追加しました', 'success');
     
-    // Reload catalog names in main app
-    await new Promise(resolve => setTimeout(resolve, 500));
-    window.location.reload();
+    // Trigger real-time update in place order page
+    if (window.renderPlaceOrderProductGrid) {
+      window.renderPlaceOrderProductGrid();
+    }
   } catch (error) {
     console.error('Error adding catalog name:', error);
     showNotification('エラーが発生しました: ' + error.message, 'error');
   }
 }
 
-async function handleDeleteCatalogName(name, container) {
-  if (!confirm(`"${name}" を削除してもよろしいですか？`)) return;
+async function handleEditCatalogName(key, oldName, container) {
+  const newName = prompt('新しいカタログ名を入力:', oldName);
+  
+  if (newName === null || newName.trim() === '') {
+    return;
+  }
+  
+  const trimmedName = newName.trim();
+  if (trimmedName === oldName) {
+    return;
+  }
   
   try {
+    // Check if new name already exists
     const snapshot = await get(ref(db, 'CatalogNames'));
     const names = snapshot.exists() ? snapshot.val() : {};
     
-    for (const [key, value] of Object.entries(names)) {
-      if (value === name) {
-        await set(ref(db, `CatalogNames/${key}`), null);
-        break;
+    if (Object.values(names).some((v, idx) => v === trimmedName)) {
+      showNotification('このカタログ名は既に存在します', 'error');
+      return;
+    }
+    
+    // Update catalog name
+    await set(ref(db, `CatalogNames/${key}`), trimmedName);
+    
+    // Update all catalog entries with the old name (if any exist)
+    const catalogsRef = ref(db, 'Catalogs');
+    const catalogSnapshot = await get(catalogsRef);
+    if (catalogSnapshot.exists()) {
+      const catalogData = catalogSnapshot.val();
+      const updateBatch = {};
+      
+      Object.entries(catalogData).forEach(([entryKey, entry]) => {
+        if (entry && entry.CatalogName === oldName) {
+          updateBatch[entryKey] = { ...entry, CatalogName: trimmedName };
+        }
+      });
+      
+      if (Object.keys(updateBatch).length > 0) {
+        // Update in batches to avoid Firebase size limits
+        const entries = Object.entries(updateBatch);
+        for (let i = 0; i < entries.length; i += 500) {
+          const batch = Object.fromEntries(entries.slice(i, i + 500));
+          await update(catalogsRef, batch);
+        }
       }
     }
     
     await loadAndDisplayCatalogNames(container);
-    showNotification('カタログ名を削除しました', 'success');
+    showNotification('カタログ名を更新しました', 'success');
     
-    // Reload catalog names in main app
-    await new Promise(resolve => setTimeout(resolve, 500));
-    window.location.reload();
+    // Trigger real-time update in place order page
+    if (window.renderPlaceOrderProductGrid) {
+      window.renderPlaceOrderProductGrid();
+    }
+  } catch (error) {
+    console.error('Error editing catalog name:', error);
+    showNotification('編集に失敗しました: ' + error.message, 'error');
+  }
+}
+
+async function handleDeleteCatalogName(key, name, container) {
+  if (!confirm(`「${name}」を削除してもよろしいですか？このカタログに関連するすべてのエントリも削除されます。`)) {
+    return;
+  }
+  
+  try {
+    // Delete from CatalogNames
+    await set(ref(db, `CatalogNames/${key}`), null);
+    
+    // Delete all catalog entries with this name
+    const catalogsRef = ref(db, 'Catalogs');
+    const catalogSnapshot = await get(catalogsRef);
+    if (catalogSnapshot.exists()) {
+      const catalogData = catalogSnapshot.val();
+      const entriesToDelete = [];
+      
+      Object.entries(catalogData).forEach(([entryKey, entry]) => {
+        if (entry && entry.CatalogName === name) {
+          entriesToDelete.push(entryKey);
+        }
+      });
+      
+      // Delete entries in batches
+      for (const entryKey of entriesToDelete) {
+        await set(ref(db, `Catalogs/${entryKey}`), null);
+      }
+    }
+    
+    // Delete image if exists
+    try {
+      await set(ref(db, `CatalogImages/${key}`), null);
+    } catch (e) {
+      // Image might not exist, that's fine
+    }
+    
+    await loadAndDisplayCatalogNames(container);
+    showNotification('カタログを削除しました', 'success');
+    
+    // Trigger real-time update in place order page
+    if (window.renderPlaceOrderProductGrid) {
+      window.renderPlaceOrderProductGrid();
+    }
   } catch (error) {
     console.error('Error deleting catalog name:', error);
     showNotification('削除に失敗しました', 'error');

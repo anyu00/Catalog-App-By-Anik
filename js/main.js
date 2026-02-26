@@ -598,9 +598,27 @@ async function loadPlaceOrderProducts() {
         }
         
         renderPlaceOrderProductGrid();
+        setupCatalogRealTimeListener();
     } catch (error) {
         console.error('Error loading catalog items:', error);
     }
+}
+
+// ===== CATALOG MANAGEMENT CRUD =====
+/**
+ * Setup real-time listener for catalog changes in Firebase
+ */
+function setupCatalogRealTimeListener() {
+    const catalogNamesRef = ref(db, 'CatalogNames');
+    
+    onValue(catalogNamesRef, (snapshot) => {
+        if (snapshot.exists()) {
+            catalogItemsData = snapshot.val();
+            renderPlaceOrderProductGrid();
+        }
+    }, (error) => {
+        console.warn('Error listening to catalog names:', error);
+    });
 }
 
 function calculateStockPerCatalog(catalogData) {
@@ -800,9 +818,17 @@ function renderPlaceOrderProductGrid() {
         
         itemCount++;
         const card = document.createElement('div');
-        card.style.cssText = 'cursor:pointer; border:1px solid #ddd; border-radius:8px; padding:12px; background:#fff; transition:all 0.3s ease; text-align:center;';
-        card.onmouseover = () => { card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; };
-        card.onmouseout = () => { card.style.boxShadow = 'none'; };
+        card.style.cssText = 'position:relative; cursor:pointer; border:1px solid #ddd; border-radius:8px; padding:12px; background:#fff; transition:all 0.3s ease; text-align:center;';
+        card.onmouseover = () => { 
+            card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; 
+            const overlay = card.querySelector('.catalog-card-overlay');
+            if (overlay) overlay.style.display = 'block';
+        };
+        card.onmouseout = () => { 
+            card.style.boxShadow = 'none';
+            const overlay = card.querySelector('.catalog-card-overlay');
+            if (overlay) overlay.style.display = 'none';
+        };
         
         const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjcwIiB5PSI3MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5Ob0ltYWdlPC90ZXh0Pjwvc3ZnPg==';
         
@@ -811,10 +837,19 @@ function renderPlaceOrderProductGrid() {
         const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '絶版';
         const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
         
+        // Check if user is admin
+        const userIsAdmin = userPermissions && userPermissions.role === 'admin';
+        
         card.innerHTML = `
             <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
             <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
             <p style="font-size:0.85rem; font-weight:600; margin:0; color:${stockColor};">${stockStatus}</p>
+            ${userIsAdmin ? `
+                <div class="catalog-card-overlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); border-radius:8px; display:flex; gap:8px; align-items:center; justify-content:center; z-index:10;">
+                    <button onclick="openEditCatalogModal('${key}', '${catalogName.replace(/'/g, "\\'")}'); event.stopPropagation();" style="padding:6px 12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">編集</button>
+                    <button onclick="deleteCatalogFromCard('${key}'); event.stopPropagation();" style="padding:6px 12px; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">削除</button>
+                </div>
+            ` : ''}
         `;
         
         card.addEventListener('click', () => openPlaceOrderModal(key));
@@ -822,6 +857,118 @@ function renderPlaceOrderProductGrid() {
     });
     
     noResults.style.display = itemCount === 0 ? 'block' : 'none';
+}
+
+/**
+ * Delete catalog from product card (for admins)
+ */
+async function deleteCatalogFromCard(catalogKey) {
+    const catalogName = catalogItemsData[catalogKey];
+    if (!catalogName) return;
+    
+    const confirmed = confirm(`本当に「${catalogName}」を削除しますか？このカタログに関連するすべてのエントリも削除されます。`);
+    if (!confirmed) return;
+    
+    try {
+        // Delete from CatalogNames
+        const catalogNamesRef = ref(db, `CatalogNames/${catalogKey}`);
+        await remove(catalogNamesRef);
+        
+        // Delete all catalog entries with this name
+        const catalogsRef = ref(db, 'Catalogs');
+        const snapshot = await get(catalogsRef);
+        if (snapshot.exists()) {
+            const catalogData = snapshot.val();
+            const toDelete = [];
+            
+            Object.entries(catalogData).forEach(([key, entry]) => {
+                if (entry && entry.CatalogName === catalogName) {
+                    toDelete.push(key);
+                }
+            });
+            
+            // Delete in batches
+            for (const key of toDelete) {
+                await remove(ref(db, `Catalogs/${key}`));
+            }
+        }
+        
+        // Delete image if exists
+        try {
+            await remove(ref(db, `CatalogImages/${catalogKey}`));
+        } catch (e) {
+            // Image might not exist, that's fine
+        }
+        
+        showAddToCartToast('カタログが削除されました: ' + catalogName, 1);
+    } catch (error) {
+        console.error('Error deleting catalog:', error);
+        showAddToCartToast('カタログの削除に失敗しました', 0);
+    }
+}
+
+/**
+ * Edit catalog from product card  (for admins)
+ */
+function openEditCatalogModal(catalogKey, catalogName) {
+    const newName = prompt('新しいカタログ名を入力:', catalogName);
+    if (newName === null || newName.trim() === '') {
+        return;
+    }
+    
+    editCatalogNameFromCard(catalogKey, newName);
+}
+
+/**
+ * Edit catalog name from product card (for admins)
+ */
+async function editCatalogNameFromCard(catalogKey, newName) {
+    if (!newName || newName.trim() === '') {
+        showAddToCartToast('カタログ名を入力してください', 0);
+        return;
+    }
+    
+    try {
+        const sanitizedName = newName.trim();
+        const currentName = catalogItemsData[catalogKey];
+        
+        if (!currentName) {
+            showAddToCartToast('カタログが見つかりません', 0);
+            return;
+        }
+        
+        // Check if new name already exists
+        if (sanitizedName !== currentName && Object.values(catalogItemsData).some(v => v === sanitizedName)) {
+            showAddToCartToast('このカタログ名は既に存在します', 0);
+            return;
+        }
+        
+        // Update catalog name
+        await set(ref(db, `CatalogNames/${catalogKey}`), sanitizedName);
+        
+        // Update all catalog entries with the old name
+        const catalogsRef = ref(db, 'Catalogs');
+        const snapshot = await get(catalogsRef);
+        if (snapshot.exists()) {
+            const catalogData = snapshot.val();
+            const updateBatch = {};
+            
+            Object.entries(catalogData).forEach(([entryKey, entry]) => {
+                if (entry && entry.CatalogName === currentName) {
+                    updateBatch[entryKey] = { ...entry, CatalogName: sanitizedName };
+                }
+            });
+            
+            if (Object.keys(updateBatch).length > 0) {
+                await update(catalogsRef, updateBatch);
+            }
+        }
+        
+        showAddToCartToast('カタログが更新されました: ' + sanitizedName, 1);
+    } catch (error) {
+        console.error('Error editing catalog:', error);
+        showAddToCartToast('カタログの更新に失敗しました', 0);
+    }
 }
 
 function openPlaceOrderModal(itemKey) {
