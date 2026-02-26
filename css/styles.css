@@ -281,14 +281,15 @@ body {
     border-radius: 6px;
     background: none;
     border: none;
-    color: rgba(255, 255, 255, 0.85);
+    color: #ffffff;
     cursor: pointer;
     font-size: 14px;
     transition: all 0.3s ease;
-    font-weight: 500;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-.nav-link-btn:hover { background: rgba(255, 255, 255, 0.2); color: #ffffff; }
-.nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+.nav-link-btn:hover { background: rgba(0, 0, 0, 0.1); color: #ffffff; filter: brightness(1.15); }
+.nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); font-weight: 700; }
 
 .hamburger {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
