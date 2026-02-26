@@ -706,6 +706,7 @@ body {
     }
 
     .sidebar {
+        display: flex !important;
         position: fixed;
         left: -280px;
         top: 0;
@@ -743,23 +744,55 @@ body {
     .glass-topbar {
         padding: 12px 16px;
         justify-content: space-between;
-        flex-wrap: wrap;
+        flex-wrap: nowrap !important;
         gap: 8px;
+        overflow: visible !important;
     }
 
     .glass-topbar > div:first-child {
-        width: 100%;
-        justify-content: space-between !important;
+        flex: 1;
+        width: auto !important;
+        justify-content: flex-start !important;
         order: -1;
     }
 
+    /* Hide nav buttons on mobile */
     .glass-topbar > div:first-child > div:nth-child(2) {
         display: none !important;
     }
 
+    /* Ensure right side container is visible */
+    .glass-topbar > div:last-child {
+        display: flex !important;
+        flex-shrink: 0;
+        width: auto !important;
+        gap: 8px;
+    }
+
+    /* Hide extra buttons on mobile */
+    .glass-topbar .icon-btn[title="Notifications"],
+    .glass-topbar div[style*="background:#f1f5f9"],
+    .glass-topbar .user-display {
+        display: none !important;
+    }
+
+    /* SHOW HAMBURGER - Most important */
     .hamburger {
-        display: inline-flex !important;
-        order: 1;
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        font-size: 22px !important;
+        padding: 10px 12px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        color: #ffffff !important;
+        cursor: pointer !important;
+        border-radius: 6px !important;
+        flex-shrink: 0 !important;
+        z-index: 100 !important;
     }
 
     .glass-main-content {
