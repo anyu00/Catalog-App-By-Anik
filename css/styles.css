@@ -292,24 +292,27 @@ body {
 .nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); font-weight: 700; }
 
 .hamburger {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
     color: #ffffff;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     display: none;
     align-items: center;
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    padding: 8px;
+    padding: 10px 12px;
     border-radius: 6px;
     transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    font-weight: 600;
+    min-height: 40px;
+    min-width: 44px;
 }
 
 .hamburger:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
     transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .hamburger:active {
@@ -401,7 +404,7 @@ body {
 .form-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 18px;
+    gap: 18px; 1800p
 }
 
 .form-group {
@@ -740,10 +743,23 @@ body {
     .glass-topbar {
         padding: 12px 16px;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .glass-topbar > div:first-child {
+        width: 100%;
+        justify-content: space-between !important;
+        order: -1;
+    }
+
+    .glass-topbar > div:first-child > div:nth-child(2) {
+        display: none !important;
     }
 
     .hamburger {
-        display: inline-flex;
+        display: inline-flex !important;
+        order: 1;
     }
 
     .glass-main-content {
