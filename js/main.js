@@ -3795,3 +3795,16 @@ async function renderMovementHistory() {
 
 // ===== BULK OPERATIONS =====
 
+// Export functions to global scope for HTML inline event handlers
+window.openEditCatalogModal = openEditCatalogModal;
+window.deleteCatalogFromCard = deleteCatalogFromCard;
+window.editCatalogNameFromCard = editCatalogNameFromCard;
+window.renderPlaceOrderProductGrid = renderPlaceOrderProductGrid;
+window.openPlaceOrderModal = openPlaceOrderModal;
+window.closePlaceOrderModal = closePlaceOrderModal;
+window.increaseOrderQty = increaseOrderQty;
+window.decreaseOrderQty = decreaseOrderQty;
+window.submitPlaceOrder = submitPlaceOrder;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.updateCartUI = updateCartUI;
