@@ -610,18 +610,37 @@ async function loadPlaceOrderProducts() {
  */
 function setupCatalogRealTimeListener() {
     const catalogNamesRef = ref(db, 'CatalogNames');
-    
+    const catalogImagesRef = ref(db, 'CatalogImages');
+    const catalogsRef = ref(db, 'Catalogs');
+
     onValue(catalogNamesRef, (snapshot) => {
-        if (snapshot.exists()) {
-            catalogItemsData = snapshot.val();
-            renderPlaceOrderProductGrid();
-        }
+        catalogItemsData = snapshot.exists() ? snapshot.val() : {};
+        renderPlaceOrderProductGrid();
     }, (error) => {
         console.warn('Error listening to catalog names:', error);
+    });
+
+    onValue(catalogImagesRef, (snapshot) => {
+        catalogImages = snapshot.exists() ? snapshot.val() : {};
+        renderPlaceOrderProductGrid();
+    }, (error) => {
+        console.warn('Error listening to catalog images:', error);
+    });
+
+    onValue(catalogsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            calculateStockPerCatalog(snapshot.val());
+        } else {
+            catalogStockData = {};
+        }
+        renderPlaceOrderProductGrid();
+    }, (error) => {
+        console.warn('Error listening to catalog entries:', error);
     });
 }
 
 function calculateStockPerCatalog(catalogData) {
+    catalogStockData = {};
     // Group entries by catalog name and calculate current stock
     const catalogsByName = {};
     

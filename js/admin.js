@@ -2,7 +2,7 @@
 // Manage Users and Permissions (client-side management of DB records)
 
 import { db } from './firebase-config.js';
-import { ref, get, set, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 import { getUserProfile, updateUserProfile, createUserProfile, createUserAccount, getCurrentUser } from './auth.js';
 import { functionsClient } from './firebase-config.js';
 import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js';
@@ -113,6 +113,7 @@ export function initAdminPanel() {
   
   // Load and display catalog names
   loadAndDisplayCatalogNames(catalogNamesListContainer);
+  setupCatalogNamesListener(catalogNamesListContainer);
 
   // Initial load
   fetchAndRenderUsers();
@@ -526,53 +527,69 @@ function showNotification(message, type = 'info') {
 
 // ===== CATALOG NAMES MANAGEMENT =====
 
+function renderCatalogNamesFromData(container, names) {
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const nameList = Object.entries(names)
+    .filter(([k, v]) => v && typeof v === 'string' && v.trim().length > 0)
+    .map(([k, v]) => ({ key: k, name: String(v).trim() }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (nameList.length === 0) {
+    container.innerHTML = '<p style="color:#999;">カタログ名がありません</p>';
+    return;
+  }
+
+  nameList.forEach(({ key, name }) => {
+    const div = document.createElement('div');
+    div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;`;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = String(name);
+    nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;font-weight:500;';
+
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '編集';
+    editBtn.style.cssText = 'padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
+    editBtn.addEventListener('click', () => handleEditCatalogName(key, name, container));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '削除';
+    deleteBtn.style.cssText = 'padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
+    deleteBtn.addEventListener('click', () => handleDeleteCatalogName(key, name, container));
+
+    div.appendChild(nameSpan);
+    div.appendChild(editBtn);
+    div.appendChild(deleteBtn);
+    container.appendChild(div);
+  });
+}
+
 async function loadAndDisplayCatalogNames(container) {
   if (!container) return;
-  
+
   try {
     const snapshot = await get(ref(db, 'CatalogNames'));
     const names = snapshot.exists() ? snapshot.val() : {};
-    
-    container.innerHTML = '';
-    
-    // Convert to array with keys and values
-    const nameList = Object.entries(names)
-      .filter(([k, v]) => v && typeof v === 'string' && v.trim().length > 0)
-      .map(([k, v]) => ({ key: k, name: String(v).trim() }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    
-    if (nameList.length === 0) {
-      container.innerHTML = '<p style="color:#999;">カタログ名がありません</p>';
-      return;
-    }
-    
-    nameList.forEach(({ key, name }) => {
-      const div = document.createElement('div');
-      div.style.cssText = `padding:10px 12px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;`;
-      
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = String(name);
-      nameSpan.style.cssText = 'flex:1;color:#1e293b;font-size:14px;font-weight:500;';
-      
-      const editBtn = document.createElement('button');
-      editBtn.textContent = '編集';
-      editBtn.style.cssText = 'padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
-      editBtn.addEventListener('click', () => handleEditCatalogName(key, name, container));
-      
-      const deleteBtn = document.createElement('button');
-      deleteBtn.textContent = '削除';
-      deleteBtn.style.cssText = 'padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;';
-      deleteBtn.addEventListener('click', () => handleDeleteCatalogName(key, name, container));
-      
-      div.appendChild(nameSpan);
-      div.appendChild(editBtn);
-      div.appendChild(deleteBtn);
-      container.appendChild(div);
-    });
+    renderCatalogNamesFromData(container, names);
   } catch (error) {
     console.error('Error loading catalog names:', error);
     container.innerHTML = '<p style="color:#c33;">エラーが発生しました</p>';
   }
+}
+
+function setupCatalogNamesListener(container) {
+  if (!container) return;
+
+  const catalogNamesRef = ref(db, 'CatalogNames');
+  onValue(catalogNamesRef, (snapshot) => {
+    const names = snapshot.exists() ? snapshot.val() : {};
+    renderCatalogNamesFromData(container, names);
+  }, (error) => {
+    console.error('Error listening to catalog names:', error);
+  });
 }
 
 async function handleAddCatalogName(input, container) {
