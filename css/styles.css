@@ -27,13 +27,13 @@ body {
     display: none;
     width: 240px;
     min-width: 220px;
-    background: #232946;
+    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
     color: #fff;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     padding: 0;
-    box-shadow: 2px 0 16px rgba(31,38,135,0.08);
+    box-shadow: 2px 0 16px rgba(31,38,135,0.2);
     z-index: 10;
 }
 
@@ -41,9 +41,10 @@ body {
     font-size: 1.6rem;
     font-weight: 700;
     padding: 36px 24px 24px 32px;
-    color: #e0eafc;
+    color: #ffffff;
     letter-spacing: 1px;
-    border-bottom: 1px solid #3b3f5c;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* User Profile Section */
@@ -94,14 +95,14 @@ body {
 .sidebar-nav-btn {
     background: none;
     border: none;
-    color: #e0eafc;
+    color: rgba(255, 255, 255, 0.9);
     text-align: left;
     padding: 14px 32px;
     font-size: 1.08rem;
     font-weight: 500;
     border-radius: 0 24px 24px 0;
     margin-right: 12px;
-    transition: background 0.15s, color 0.15s;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -109,8 +110,9 @@ body {
 }
 
 .sidebar-nav-btn.active, .sidebar-nav-btn:hover {
-    background: #e0eafc;
-    color: #232946;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%);
+    color: #1e40af;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar-actions {
@@ -122,7 +124,7 @@ body {
 }
 
 .sidebar-actions .icon-btn {
-    background: rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
     border: none;
     border-radius: 50%;
     width: 40px;
@@ -131,14 +133,17 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
-    color: #e0eafc;
-    transition: background 0.15s;
+    color: #ffffff;
+    transition: all 0.3s ease;
     cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar-actions .icon-btn:hover {
-    background: #e0eafc;
-    color: #232946;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+    color: #1e40af;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* User Display in Top Bar */
@@ -147,9 +152,10 @@ body {
     align-items: center;
     gap: 12px;
     padding: 8px 12px;
-    background: #f1f5f9;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
 }
 
 .user-info-inline {
@@ -161,18 +167,21 @@ body {
 .user-email-inline {
     font-size: 13px;
     font-weight: 600;
-    color: #1e293b;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .user-role-inline {
     font-size: 11px;
-    color: #ffffff;
-    background: #2563eb;
+    color: #1e40af;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
     padding: 2px 8px;
     border-radius: 4px;
     display: inline-block;
     width: fit-content;
     text-transform: capitalize;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Profile Popover Styling */
@@ -261,8 +270,9 @@ body {
     align-items: center;
     justify-content: flex-end;
     padding: 16px 32px;
-    background: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+    border-bottom: none;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
 /* Option A - Top Nav Buttons */
@@ -271,18 +281,19 @@ body {
     border-radius: 6px;
     background: none;
     border: none;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.85);
     cursor: pointer;
     font-size: 14px;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    font-weight: 500;
 }
-.nav-link-btn:hover { background: #f1f5f9; color: #1e293b; }
-.nav-link-btn.active { background: #2563eb; color: #ffffff; }
+.nav-link-btn:hover { background: rgba(255, 255, 255, 0.2); color: #ffffff; }
+.nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
 
 .hamburger {
-    background: transparent;
-    border: none;
-    color: #232946;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
     font-size: 1.3rem;
     display: none;
     align-items: center;
@@ -291,11 +302,13 @@ body {
     cursor: pointer;
     padding: 8px;
     border-radius: 6px;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
 }
 
 .hamburger:hover {
-    background: #f1f5f9;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.2) 100%);
+    transform: scale(1.05);
 }
 
 .hamburger:active {
@@ -315,21 +328,30 @@ body {
 }
 
 .glass-card {
-    background: #ffffff;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
     padding: 24px;
     margin-bottom: 24px;
     flex: 1 1 350px;
     min-width: 320px;
     max-width: 100%;
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+    transform: translateY(-2px);
 }
 
 .glass-card h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1e293b;
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     margin-bottom: 16px;
 }
 
@@ -403,21 +425,67 @@ body {
 
 /* Buttons */
 .btn-primary {
-    background: #2563eb;
-    border: 1px solid #2563eb;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    border: none;
     border-radius: 8px;
     font-weight: 600;
     font-size: 14px;
     color: #fff;
     padding: 12px 16px;
     cursor: pointer;
-    transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .btn-primary:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-danger, .btn-secondary, .btn-light {
+    cursor: pointer;
+}
+
+/* Topbar Icon Buttons */
+.glass-topbar .icon-btn {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+
+.glass-topbar .icon-btn:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.25) 100%);
+    transform: scale(1.1);
 }
 
 .btn-danger, .btn-secondary, .btn-light {
@@ -436,20 +504,21 @@ body {
 }
 
 .fc .fc-button-primary {
-    background-color: #232946 !important;
-    border-color: #232946 !important;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
+    border: none !important;
     color: white !important;
     font-weight: 500 !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
 }
 
 .fc .fc-button-primary:hover {
-    background-color: #2d3a5c !important;
-    border-color: #2d3a5c !important;
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%) !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4) !important;
 }
 
 .fc .fc-button-primary.fc-button-active {
-    background-color: #0f172a !important;
-    border-color: #0f172a !important;
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%) !important;
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.5) !important;
 }
 
 .fc .fc-col-header-cell {
@@ -531,11 +600,11 @@ body {
 
 /* Professional event colors */
 .fc .fc-event {
-    background: linear-gradient(135deg, #232946 0%, #2d3a5c 100%) !important;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
 }
 
 .fc .fc-event-bg {
-    background: linear-gradient(135deg, #232946 0%, #2d3a5c 100%) !important;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
 }
 
 /* Limit event display and add "more" indicator */
@@ -553,7 +622,7 @@ body {
 }
 
 .fc .fc-daygrid-more-link {
-    background-color: #232946 !important;
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%) !important;
     color: white !important;
     font-weight: 600 !important;
     padding: 6px 8px !important;
@@ -562,6 +631,7 @@ body {
     margin: 2px 2px !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3) !important;
 }
 
 .fc .fc-daygrid-more-link:hover {
