@@ -2830,7 +2830,7 @@ function renderAnalyticsDashboard(catalogData, orderData, dateFrom = null, dateT
                 if (!canvas) {
                     canvas = document.createElement('canvas');
                     canvas.id = ctxId;
-                    container.appendChild(canvas); container.appendchild    
+                    container.appendChild(canvas);
                 }
                 if (window.stockByItemChart) window.stockByItemChart.destroy();
                 window.stockByItemChart = new Chart(canvas, {

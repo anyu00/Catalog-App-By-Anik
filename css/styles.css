@@ -404,7 +404,7 @@ body {
 .form-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 18px; 1800p
+    gap: 18px;
 }
 
 .form-group {
