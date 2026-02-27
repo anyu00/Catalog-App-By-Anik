@@ -208,19 +208,20 @@ function initTabSwitching() {
 // ===== CATALOG FORM =====
 function initCatalogForm() {
     document.getElementById('CatalogName').addEventListener('change', async function() {
-        const catalogRef = ref(db, 'Catalogs/');
-        const snapshot = await get(catalogRef);
+        // Use unified CatalogDB instead of querying Firebase directly
         let lastStock = 0;
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const entries = Object.values(data).filter(e => e.CatalogName === this.value);
-            if (entries.length > 0) {
-                entries.sort((a, b) => new Date((a.ReceiptDate || '1970-01-01')) - new Date((b.ReceiptDate || '1970-01-01')));
-                lastStock = Number(entries[entries.length - 1].StockQuantity) || 0;
+        let hasEntries = false;
+        
+        // Find catalog in CatalogDB and get its current stock
+        Object.entries(CatalogDB).forEach(([key, catalogData]) => {
+            if (catalogData.name === this.value) {
+                lastStock = catalogData.stock || 0;
+                hasEntries = catalogData.entries && catalogData.entries.length > 0;
             }
-        }
+        });
+        
         document.getElementById('StockQuantity').value = lastStock;
-        document.getElementById('StockQuantity').readOnly = entries && entries.length > 0;
+        document.getElementById('StockQuantity').readOnly = hasEntries;
     });
     
     document.getElementById('Insbtn').addEventListener('click', async function() {
@@ -1525,44 +1526,47 @@ function renderCatalogTablesAccordion() {
     const searchBox = document.getElementById('catalogSearchBox');
     if (searchBox) searchBox.value = '';
     
-    const dbRef = ref(db, 'Catalogs/');
-    get(dbRef).then((snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const catalogs = {};
-            
-            // Collect all requesters for filter dropdown
-            let allRequesters = new Set();
-            
-            for (const key in data) {
-                const catName = data[key].CatalogName;
-                if (!catalogs[catName]) catalogs[catName] = [];
-                catalogs[catName].push({ ...data[key], _key: key });
-                if (data[key].Requester) allRequesters.add(data[key].Requester);
-            }
-            
-            // Add requester filter dropdown at the top
-            const filterHtml = `
-                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-                    <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
-                    <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
-                        <option value="">すべて表示</option>
-                        ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-            container.innerHTML = filterHtml;
-            
-            const filterSelect = container.querySelector('#catalogRequesterSelect');
-            if (filterSelect) {
-                filterSelect.value = catalogRequesterFilter || '';
-                filterSelect.addEventListener('change', (e) => {
-                    catalogRequesterFilter = e.target.value;
-                    renderCatalogTablesAccordion();
-                });
-            }
-            
-            Object.keys(catalogs).forEach((catName, idx) => {
+    // Use unified CatalogDB as source of truth
+    const catalogs = {};
+    let allRequesters = new Set();
+    
+    // Build catalog entries from CatalogDB (which is synced from Firebase listeners)
+    Object.entries(CatalogDB).forEach(([key, catalogData]) => {
+        if (!catalogData || !catalogData.entries || catalogData.entries.length === 0) {
+            return; // Skip catalogs with no entries
+        }
+        
+        const catName = catalogData.name;
+        catalogs[catName] = catalogData.entries;
+        
+        // Collect requesters
+        catalogData.entries.forEach(entry => {
+            if (entry.Requester) allRequesters.add(entry.Requester);
+        });
+    });
+    
+    // Add requester filter dropdown at the top
+    const filterHtml = `
+        <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+            <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
+            <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
+                <option value="">すべて表示</option>
+                ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
+            </select>
+        </div>
+    `;
+    container.innerHTML = filterHtml;
+    
+    const filterSelect = container.querySelector('#catalogRequesterSelect');
+    if (filterSelect) {
+        filterSelect.value = catalogRequesterFilter || '';
+        filterSelect.addEventListener('change', (e) => {
+            catalogRequesterFilter = e.target.value;
+            renderCatalogTablesAccordion();
+        });
+    }
+    
+    Object.keys(catalogs).forEach((catName, idx) => {
                 let entries = catalogs[catName].slice();
                 
                 // Apply requester filter
@@ -1695,8 +1699,6 @@ function renderCatalogTablesAccordion() {
                     });
                 });
             });
-        }
-    });
 } 
 
 // ===== SEARCH CATALOG ENTRIES =====
