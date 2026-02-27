@@ -624,9 +624,18 @@ async function handleAddCatalogName(input, container) {
     await loadAndDisplayCatalogNames(container);
     showNotification('カタログ名を追加しました ✓', 'success');
     
-    // Trigger real-time update in place order page
+    // Trigger real-time update in ALL pages
     if (window.renderPlaceOrderProductGrid) {
+      console.log('[ADMIN ADD] Syncing Place Order page');
       window.renderPlaceOrderProductGrid();
+    }
+    if (window.renderCatalogTablesAccordion) {
+      console.log('[ADMIN ADD] Syncing Catalog Entries page');
+      window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+      console.log('[ADMIN ADD] Syncing Order Entries page');
+      window.renderOrderTablesAccordion();
     }
   } catch (error) {
     console.error('[ADD CATALOG] ERROR:', error);
@@ -694,9 +703,18 @@ async function handleEditCatalogName(key, oldName, container) {
     await loadAndDisplayCatalogNames(container);
     showNotification('カタログ名を更新しました ✓', 'success');
     
-    // Trigger real-time update in place order page
+    // Trigger real-time update in ALL pages
     if (window.renderPlaceOrderProductGrid) {
+      console.log('[ADMIN EDIT] Syncing Place Order page');
       window.renderPlaceOrderProductGrid();
+    }
+    if (window.renderCatalogTablesAccordion) {
+      console.log('[ADMIN EDIT] Syncing Catalog Entries page');
+      window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+      console.log('[ADMIN EDIT] Syncing Order Entries page');
+      window.renderOrderTablesAccordion();
     }
   } catch (error) {
     console.error('[EDIT CATALOG] ERROR:', error);
@@ -751,9 +769,18 @@ async function handleDeleteCatalogName(key, name, container) {
     await loadAndDisplayCatalogNames(container);
     showNotification('カタログを削除しました ✓', 'success');
     
-    // Trigger real-time update in place order page
+    // Trigger real-time update in ALL pages
     if (window.renderPlaceOrderProductGrid) {
+      console.log('[ADMIN DELETE] Syncing Place Order page');
       window.renderPlaceOrderProductGrid();
+    }
+    if (window.renderCatalogTablesAccordion) {
+      console.log('[ADMIN DELETE] Syncing Catalog Entries page');
+      window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+      console.log('[ADMIN DELETE] Syncing Order Entries page');
+      window.renderOrderTablesAccordion();
     }
   } catch (error) {
     console.error('[DELETE CATALOG] ERROR:', error);

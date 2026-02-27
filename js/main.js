@@ -629,7 +629,18 @@ function setupCatalogRealTimeListener() {
             .map((name) => name.trim())
             .sort();
         initializeCatalogSelects();
+        
+        // Sync all relevant UI components when catalog names change
+        console.log('[SYNC] Catalog names changed, updating all pages...');
         renderPlaceOrderProductGrid();
+        if (window.renderCatalogTablesAccordion) {
+            console.log('[SYNC] Updating Catalog Entries page');
+            window.renderCatalogTablesAccordion();
+        }
+        if (window.renderOrderTablesAccordion) {
+            console.log('[SYNC] Updating Order Entries page');
+            window.renderOrderTablesAccordion();
+        }
     }, (error) => {
         console.warn('Error listening to catalog names:', error);
     });
@@ -647,7 +658,18 @@ function setupCatalogRealTimeListener() {
         } else {
             catalogStockData = {};
         }
+        
+        // Sync all relevant UI components when catalog entries change
+        console.log('[SYNC] Catalog entries changed, updating all pages...');
         renderPlaceOrderProductGrid();
+        if (window.renderCatalogTablesAccordion) {
+            console.log('[SYNC] Updating Catalog Entries page');
+            window.renderCatalogTablesAccordion();
+        }
+        if (window.renderOrderTablesAccordion) {
+            console.log('[SYNC] Updating Order Entries page');
+            window.renderOrderTablesAccordion();
+        }
     }, (error) => {
         console.warn('Error listening to catalog entries:', error);
     });
@@ -947,6 +969,16 @@ async function deleteCatalogFromCard(catalogKey) {
         console.error('[DELETE CARD] Error message:', error.message);
         showAddToCartToast('削除エラー: ' + error.message, 0);
     }
+    
+    // Sync all pages after delete
+    if (window.renderCatalogTablesAccordion) {
+      console.log('[DELETE CARD] Syncing Catalog Entries page');
+      window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+      console.log('[DELETE CARD] Syncing Order Entries page');
+      window.renderOrderTablesAccordion();
+    }
 }
 
 /**
@@ -1019,6 +1051,16 @@ async function editCatalogNameFromCard(catalogKey, newName) {
         console.error('[EDIT CARD] Error code:', error.code);
         console.error('[EDIT CARD] Error message:', error.message);
         showAddToCartToast('編集エラー: ' + error.message, 0);
+    }
+    
+    // Sync all pages after edit
+    if (window.renderCatalogTablesAccordion) {
+      console.log('[EDIT CARD] Syncing Catalog Entries page');
+      window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+      console.log('[EDIT CARD] Syncing Order Entries page');
+      window.renderOrderTablesAccordion();
     }
 }
 
@@ -3851,6 +3893,8 @@ window.openEditCatalogModal = openEditCatalogModal;
 window.deleteCatalogFromCard = deleteCatalogFromCard;
 window.editCatalogNameFromCard = editCatalogNameFromCard;
 window.renderPlaceOrderProductGrid = renderPlaceOrderProductGrid;
+window.renderCatalogTablesAccordion = renderCatalogTablesAccordion;
+window.renderOrderTablesAccordion = renderOrderTablesAccordion;
 window.openPlaceOrderModal = openPlaceOrderModal;
 window.closePlaceOrderModal = closePlaceOrderModal;
 window.increaseOrderQty = increaseOrderQty;
