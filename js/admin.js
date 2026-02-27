@@ -855,10 +855,12 @@ async function loadCatalogImageSettings() {
     const items = snapshot.val();
     let html = '';
     
-    Object.entries(items).forEach(([key, item]) => {
-      if (!item) return;
-      
-      const catalogName = item; // CatalogNames are just strings
+    // Sort by catalog name for consistency with other lists
+    const sortedItems = Object.entries(items)
+      .filter(([k, v]) => v && typeof v === 'string')
+      .sort((a, b) => a[1].localeCompare(b[1]));
+    
+    sortedItems.forEach(([key, catalogName]) => {
       const imageUrl = images[key] || ''; // Get image from CatalogImages
       const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
       
@@ -876,6 +878,20 @@ async function loadCatalogImageSettings() {
     console.error('Error loading catalog image settings:', error);
     container.innerHTML = '<p style="color:#d9534f;">設定の読み込みに失敗しました</p>';
   }
+}
+
+/**
+ * Setup real-time listener for catalog image settings
+ */
+function setupCatalogImageSettingsListener() {
+  const catalogNamesRef = ref(db, 'CatalogNames');
+  
+  onValue(catalogNamesRef, (snapshot) => {
+    console.log('[IMAGE SETTINGS] CatalogNames changed, reloading image settings');
+    loadCatalogImageSettings();
+  }, (error) => {
+    console.error('[IMAGE SETTINGS] Error listening to catalog names:', error);
+  });
 }
 
 async function saveCatalogImages() {
@@ -966,6 +982,8 @@ document.addEventListener('DOMContentLoaded', () => {
       adminTabSettings.addEventListener('click', loadCatalogImageSettings);
       // Also load on first visit
       loadCatalogImageSettings();
+      // Setup real-time listener for automatic sync
+      setupCatalogImageSettingsListener();
     }
   }
 });
