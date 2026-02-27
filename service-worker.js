@@ -1,15 +1,15 @@
 // Service Worker for PWA + Firebase Cloud Messaging
-// Cache version: Updated for proper GitHub Pages delivery
+// Cache version: Updated for proper GitHub Pages delivery with relative paths
 const CACHE_NAME = 'catalog-app-v1';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/login.html',
-  '/signup.html',
-  '/css/styles.css',
-  '/css/auth.css',
-  '/css/animations.css',
-  '/css/design-system.css'
+  './',
+  './index.html',
+  './login.html',
+  './signup.html',
+  './css/styles.css',
+  './css/auth.css',
+  './css/animations.css',
+  './css/design-system.css'
 ];
 
 console.log('Service Worker loaded');
