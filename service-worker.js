@@ -1,4 +1,5 @@
 // Service Worker for PWA + Firebase Cloud Messaging
+// Cache version: Updated for proper GitHub Pages delivery
 const CACHE_NAME = 'catalog-app-v1';
 const STATIC_ASSETS = [
   '/',
