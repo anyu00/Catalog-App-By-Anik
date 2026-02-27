@@ -694,18 +694,8 @@
         }
     </script>
     
-    <!-- Register Service Worker for PWA -->
+    <!-- Pinch zoom prevention for mobile -->
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(registration => {
-                    console.log('Service Worker registered successfully:', registration);
-                })
-                .catch(error => {
-                    console.log('Service Worker registration failed:', error);
-                });
-        }
-        
         // Prevent pinch zoom on mobile phones only (not tablets/laptops)
         if (window.matchMedia('(max-width: 768px)').matches) {
             document.addEventListener('touchmove', function(event) {
