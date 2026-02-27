@@ -699,6 +699,31 @@ async function handleEditCatalogName(key, oldName, container) {
         console.log('[EDIT CATALOG] Catalog entries updated');
       }
     }
+
+    // Update all orders with the old catalog name
+    const ordersRef = ref(db, 'Orders');
+    const ordersSnapshot = await get(ordersRef);
+    if (ordersSnapshot.exists()) {
+      const ordersData = ordersSnapshot.val();
+      const orderUpdateBatch = {};
+      
+      Object.entries(ordersData).forEach(([orderKey, order]) => {
+        if (order && order.CatalogName === oldName) {
+          orderUpdateBatch[orderKey] = { ...order, CatalogName: trimmedName };
+        }
+      });
+      
+      if (Object.keys(orderUpdateBatch).length > 0) {
+        console.log('[EDIT CATALOG] Updating', Object.keys(orderUpdateBatch).length, 'orders with new catalog name');
+        // Update orders in batches
+        const orderEntries = Object.entries(orderUpdateBatch);
+        for (let i = 0; i < orderEntries.length; i += 500) {
+          const batch = Object.fromEntries(orderEntries.slice(i, i + 500));
+          await update(ordersRef, batch);
+        }
+        console.log('[EDIT CATALOG] Orders updated with new catalog name');
+      }
+    }
     
     await loadAndDisplayCatalogNames(container);
     showNotification('カタログ名を更新しました ✓', 'success');

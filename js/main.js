@@ -1044,6 +1044,26 @@ async function editCatalogNameFromCard(catalogKey, newName) {
                 console.log('[EDIT CARD] Entries updated');
             }
         }
+
+        // Update all orders with the old catalog name
+        const ordersRef = ref(db, 'Orders');
+        const ordersSnapshot = await get(ordersRef);
+        if (ordersSnapshot.exists()) {
+            const ordersData = ordersSnapshot.val();
+            const orderUpdateBatch = {};
+            
+            Object.entries(ordersData).forEach(([orderKey, order]) => {
+                if (order && order.CatalogName === currentName) {
+                    orderUpdateBatch[orderKey] = { ...order, CatalogName: sanitizedName };
+                }
+            });
+            
+            if (Object.keys(orderUpdateBatch).length > 0) {
+                console.log('[EDIT CARD] Updating', Object.keys(orderUpdateBatch).length, 'orders with new catalog name');
+                await update(ordersRef, orderUpdateBatch);
+                console.log('[EDIT CARD] Orders updated with new catalog name');
+            }
+        }
         
         showAddToCartToast('カタログが更新されました ✓: ' + sanitizedName, 1);
     } catch (error) {
