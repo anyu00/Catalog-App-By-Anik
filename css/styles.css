@@ -974,7 +974,7 @@ body {
     }
 }
 
-/* Desktop: Prefer top navigation, hide sidebar */
+/* Desktop: Prefer top navigation, hide sidebar */  
 @media (min-width: 901px) {
     .sidebar {
         display: none !important;

@@ -60,16 +60,25 @@ let CATALOG_NAMES = [
 // ===== LOAD CATALOG NAMES FROM FIREBASE =====
 async function loadCatalogNamesFromFirebase() {
     try {
-        // Build object with ONLY the official catalogs from CATALOG_NAMES
-        const defaultsObj = {};
-        CATALOG_NAMES.forEach((name, idx) => {
-            defaultsObj[`default_${idx}`] = name;
-        });
-        
-        // Overwrite Firebase with only official catalogs
-        await set(ref(db, 'CatalogNames'), defaultsObj);
-        
-        console.log(`Catalog names enforced in Firebase (${CATALOG_NAMES.length} official catalogs):`, CATALOG_NAMES);
+        const snapshot = await get(ref(db, 'CatalogNames'));
+        const existing = snapshot.exists() ? snapshot.val() : null;
+
+        if (!existing || Object.keys(existing).length === 0) {
+            // Seed defaults only when CatalogNames is empty
+            const defaultsObj = {};
+            CATALOG_NAMES.forEach((name, idx) => {
+                defaultsObj[`default_${idx}`] = name;
+            });
+            await set(ref(db, 'CatalogNames'), defaultsObj);
+            console.log(`Catalog names seeded in Firebase (${CATALOG_NAMES.length} defaults).`);
+        } else {
+            // Sync local list with Firebase data
+            CATALOG_NAMES = Object.values(existing)
+                .filter((name) => typeof name === 'string' && name.trim().length > 0)
+                .map((name) => name.trim())
+                .sort();
+        }
+
         initializeCatalogSelects();
     } catch (error) {
         console.warn('Could not enforce catalog names in Firebase:', error);
@@ -615,6 +624,11 @@ function setupCatalogRealTimeListener() {
 
     onValue(catalogNamesRef, (snapshot) => {
         catalogItemsData = snapshot.exists() ? snapshot.val() : {};
+        CATALOG_NAMES = Object.values(catalogItemsData)
+            .filter((name) => typeof name === 'string' && name.trim().length > 0)
+            .map((name) => name.trim())
+            .sort();
+        initializeCatalogSelects();
         renderPlaceOrderProductGrid();
     }, (error) => {
         console.warn('Error listening to catalog names:', error);
@@ -889,9 +903,13 @@ async function deleteCatalogFromCard(catalogKey) {
     if (!confirmed) return;
     
     try {
+        console.log('[DELETE CARD] Starting delete for:', catalogName, 'key:', catalogKey);
+        
         // Delete from CatalogNames
         const catalogNamesRef = ref(db, `CatalogNames/${catalogKey}`);
+        console.log('[DELETE CARD] Deleting from CatalogNames');
         await remove(catalogNamesRef);
+        console.log('[DELETE CARD] Successfully deleted from CatalogNames');
         
         // Delete all catalog entries with this name
         const catalogsRef = ref(db, 'Catalogs');
@@ -906,23 +924,28 @@ async function deleteCatalogFromCard(catalogKey) {
                 }
             });
             
+            console.log('[DELETE CARD] Found', toDelete.length, 'entries to delete');
             // Delete in batches
             for (const key of toDelete) {
                 await remove(ref(db, `Catalogs/${key}`));
             }
+            console.log('[DELETE CARD] Deleted all related entries');
         }
         
         // Delete image if exists
         try {
+            console.log('[DELETE CARD] Attempting to delete image');
             await remove(ref(db, `CatalogImages/${catalogKey}`));
         } catch (e) {
-            // Image might not exist, that's fine
+            console.log('[DELETE CARD] Image not found (OK)');
         }
         
-        showAddToCartToast('カタログが削除されました: ' + catalogName, 1);
+        showAddToCartToast('カタログが削除されました ✓: ' + catalogName, 1);
     } catch (error) {
-        console.error('Error deleting catalog:', error);
-        showAddToCartToast('カタログの削除に失敗しました', 0);
+        console.error('[DELETE CARD] ERROR:', error);
+        console.error('[DELETE CARD] Error code:', error.code);
+        console.error('[DELETE CARD] Error message:', error.message);
+        showAddToCartToast('削除エラー: ' + error.message, 0);
     }
 }
 
@@ -951,6 +974,8 @@ async function editCatalogNameFromCard(catalogKey, newName) {
         const sanitizedName = newName.trim();
         const currentName = catalogItemsData[catalogKey];
         
+        console.log('[EDIT CARD] Starting edit:', currentName, '->', sanitizedName);
+        
         if (!currentName) {
             showAddToCartToast('カタログが見つかりません', 0);
             return;
@@ -958,12 +983,15 @@ async function editCatalogNameFromCard(catalogKey, newName) {
         
         // Check if new name already exists
         if (sanitizedName !== currentName && Object.values(catalogItemsData).some(v => v === sanitizedName)) {
+            console.warn('[EDIT CARD] New name already exists');
             showAddToCartToast('このカタログ名は既に存在します', 0);
             return;
         }
         
         // Update catalog name
+        console.log('[EDIT CARD] Writing to Firebase:', catalogKey, '=', sanitizedName);
         await set(ref(db, `CatalogNames/${catalogKey}`), sanitizedName);
+        console.log('[EDIT CARD] Successfully updated CatalogNames');
         
         // Update all catalog entries with the old name
         const catalogsRef = ref(db, 'Catalogs');
@@ -979,14 +1007,18 @@ async function editCatalogNameFromCard(catalogKey, newName) {
             });
             
             if (Object.keys(updateBatch).length > 0) {
+                console.log('[EDIT CARD] Updating', Object.keys(updateBatch).length, 'entries');
                 await update(catalogsRef, updateBatch);
+                console.log('[EDIT CARD] Entries updated');
             }
         }
         
-        showAddToCartToast('カタログが更新されました: ' + sanitizedName, 1);
+        showAddToCartToast('カタログが更新されました ✓: ' + sanitizedName, 1);
     } catch (error) {
-        console.error('Error editing catalog:', error);
-        showAddToCartToast('カタログの更新に失敗しました', 0);
+        console.error('[EDIT CARD] ERROR:', error);
+        console.error('[EDIT CARD] Error code:', error.code);
+        console.error('[EDIT CARD] Error message:', error.message);
+        showAddToCartToast('編集エラー: ' + error.message, 0);
     }
 }
 

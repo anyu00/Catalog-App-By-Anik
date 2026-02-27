@@ -601,30 +601,38 @@ async function handleAddCatalogName(input, container) {
   }
   
   try {
+    console.log('[ADD CATALOG] Starting add:', catalogName);
+    
     // Check if name already exists
     const snapshot = await get(ref(db, 'CatalogNames'));
     const names = snapshot.exists() ? snapshot.val() : {};
+    console.log('[ADD CATALOG] Existing names:', names);
     
     if (Object.values(names).some(v => v === catalogName)) {
+      console.warn('[ADD CATALOG] Name already exists');
       showNotification('このカタログ名は既に存在します', 'error');
       return;
     }
     
     // Add new catalog name
     const newKey = `name_${Date.now()}`;
+    console.log('[ADD CATALOG] Writing to Firebase:', newKey, '=', catalogName);
     await set(ref(db, `CatalogNames/${newKey}`), catalogName);
+    console.log('[ADD CATALOG] Successfully written to Firebase');
     
     input.value = '';
     await loadAndDisplayCatalogNames(container);
-    showNotification('カタログ名を追加しました', 'success');
+    showNotification('カタログ名を追加しました ✓', 'success');
     
     // Trigger real-time update in place order page
     if (window.renderPlaceOrderProductGrid) {
       window.renderPlaceOrderProductGrid();
     }
   } catch (error) {
-    console.error('Error adding catalog name:', error);
-    showNotification('エラーが発生しました: ' + error.message, 'error');
+    console.error('[ADD CATALOG] ERROR:', error);
+    console.error('[ADD CATALOG] Error code:', error.code);
+    console.error('[ADD CATALOG] Error message:', error.message);
+    showNotification('保存エラー: ' + error.message, 'error');
   }
 }
 
@@ -641,17 +649,22 @@ async function handleEditCatalogName(key, oldName, container) {
   }
   
   try {
+    console.log('[EDIT CATALOG] Starting edit:', oldName, '->', trimmedName);
+    
     // Check if new name already exists
     const snapshot = await get(ref(db, 'CatalogNames'));
     const names = snapshot.exists() ? snapshot.val() : {};
     
     if (Object.values(names).some((v, idx) => v === trimmedName)) {
+      console.warn('[EDIT CATALOG] New name already exists');
       showNotification('このカタログ名は既に存在します', 'error');
       return;
     }
     
     // Update catalog name
+    console.log('[EDIT CATALOG] Writing to Firebase:', key, '=', trimmedName);
     await set(ref(db, `CatalogNames/${key}`), trimmedName);
+    console.log('[EDIT CATALOG] Successfully updated CatalogNames');
     
     // Update all catalog entries with the old name (if any exist)
     const catalogsRef = ref(db, 'Catalogs');
@@ -667,25 +680,29 @@ async function handleEditCatalogName(key, oldName, container) {
       });
       
       if (Object.keys(updateBatch).length > 0) {
+        console.log('[EDIT CATALOG] Updating', Object.keys(updateBatch).length, 'catalog entries');
         // Update in batches to avoid Firebase size limits
         const entries = Object.entries(updateBatch);
         for (let i = 0; i < entries.length; i += 500) {
           const batch = Object.fromEntries(entries.slice(i, i + 500));
           await update(catalogsRef, batch);
         }
+        console.log('[EDIT CATALOG] Catalog entries updated');
       }
     }
     
     await loadAndDisplayCatalogNames(container);
-    showNotification('カタログ名を更新しました', 'success');
+    showNotification('カタログ名を更新しました ✓', 'success');
     
     // Trigger real-time update in place order page
     if (window.renderPlaceOrderProductGrid) {
       window.renderPlaceOrderProductGrid();
     }
   } catch (error) {
-    console.error('Error editing catalog name:', error);
-    showNotification('編集に失敗しました: ' + error.message, 'error');
+    console.error('[EDIT CATALOG] ERROR:', error);
+    console.error('[EDIT CATALOG] Error code:', error.code);
+    console.error('[EDIT CATALOG] Error message:', error.message);
+    showNotification('編集エラー: ' + error.message, 'error');
   }
 }
 
@@ -695,8 +712,12 @@ async function handleDeleteCatalogName(key, name, container) {
   }
   
   try {
+    console.log('[DELETE CATALOG] Starting delete:', name);
+    
     // Delete from CatalogNames
+    console.log('[DELETE CATALOG] Deleting from CatalogNames:', key);
     await set(ref(db, `CatalogNames/${key}`), null);
+    console.log('[DELETE CATALOG] Deleted from CatalogNames');
     
     // Delete all catalog entries with this name
     const catalogsRef = ref(db, 'Catalogs');
@@ -711,29 +732,34 @@ async function handleDeleteCatalogName(key, name, container) {
         }
       });
       
+      console.log('[DELETE CATALOG] Found', entriesToDelete.length, 'entries to delete');
       // Delete entries in batches
       for (const entryKey of entriesToDelete) {
         await set(ref(db, `Catalogs/${entryKey}`), null);
       }
+      console.log('[DELETE CATALOG] Deleted all related entries');
     }
     
     // Delete image if exists
     try {
+      console.log('[DELETE CATALOG] Attempting to delete image:', key);
       await set(ref(db, `CatalogImages/${key}`), null);
     } catch (e) {
-      // Image might not exist, that's fine
+      console.log('[DELETE CATALOG] Image delete skipped (not critical)');
     }
     
     await loadAndDisplayCatalogNames(container);
-    showNotification('カタログを削除しました', 'success');
+    showNotification('カタログを削除しました ✓', 'success');
     
     // Trigger real-time update in place order page
     if (window.renderPlaceOrderProductGrid) {
       window.renderPlaceOrderProductGrid();
     }
   } catch (error) {
-    console.error('Error deleting catalog name:', error);
-    showNotification('削除に失敗しました', 'error');
+    console.error('[DELETE CATALOG] ERROR:', error);
+    console.error('[DELETE CATALOG] Error code:', error.code);
+    console.error('[DELETE CATALOG] Error message:', error.message);
+    showNotification('削除エラー: ' + error.message, 'error');
   }
 }
 
