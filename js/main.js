@@ -2677,9 +2677,12 @@ function setupAnalyticsSettingsListener() {
         if (snapshot.exists()) {
             analyticsSettings = snapshot.val();
             console.log('[ANALYTICS] Settings updated in real-time');
-            // Refresh analytics displays if currently viewing
-            if (window.analyticsSettingsUpdated) {
-                window.location.reload();
+            
+            // Auto-refresh analytics if tab is visible
+            const analyticsTab = document.getElementById('tab-analytics');
+            if (analyticsTab && analyticsTab.style.display !== 'none') {
+                console.log('[ANALYTICS] Auto-refreshing due to settings change');
+                fetchAndRenderAnalytics();
             }
         }
     }, (error) => {
@@ -2723,33 +2726,86 @@ function getAnalyticsSelection() {
     }
 }
 
+// Store Orders data globally for analytics
+let OrdersData = {};
+
 function fetchAndRenderAnalytics() {
-    get(ref(db, 'Catalogs/')).then(cSnap => {
-        const catalogData = cSnap.exists() ? cSnap.val() : {};
-        get(ref(db, 'Orders/')).then(oSnap => {
-            const orderData = oSnap.exists() ? oSnap.val() : {};
-            
-            // Get date range from UI
-            const preset = document.getElementById('analyticsDatePreset')?.value;
-            let dateFrom = null;
-            let dateTo = null;
-            
-            if (preset === 'custom') {
-                dateFrom = document.getElementById('analyticsDateStart')?.value;
-                dateTo = document.getElementById('analyticsDateEnd')?.value;
-            } else if (preset) {
-                const days = parseInt(preset);
-                dateTo = new Date();
-                dateFrom = new Date(dateTo);
-                dateFrom.setDate(dateFrom.getDate() - days);
-                // Format to YYYY-MM-DD
-                dateFrom = dateFrom.toISOString().split('T')[0];
-                dateTo = dateTo.toISOString().split('T')[0];
-            }
-            
-            console.log('Analytics date range:', { dateFrom, dateTo });
-            renderAnalyticsDashboard(catalogData, orderData, dateFrom, dateTo);
-        });
+    // Use CatalogDB for catalog data (already has real-time sync)
+    const catalogData = {};
+    Object.values(CatalogDB).forEach(catalogInfo => {
+        if (catalogInfo.entries) {
+            Object.entries(catalogInfo.entries).forEach(([key, entry]) => {
+                catalogData[key] = {
+                    ...entry,
+                    CatalogName: catalogInfo.name,
+                    StockQuantity: entry.StockQuantity || catalogInfo.stock || 0
+                };
+            });
+        }
+    });
+    
+    // Use OrdersData for orders (synced by listener)
+    const orderData = OrdersData;
+    
+    // Get date range from UI
+    const preset = document.getElementById('analyticsDatePreset')?.value;
+    let dateFrom = null;
+    let dateTo = null;
+    
+    if (preset === 'custom') {
+        dateFrom = document.getElementById('analyticsDateStart')?.value;
+        dateTo = document.getElementById('analyticsDateEnd')?.value;
+    } else if (preset) {
+        const days = parseInt(preset);
+        dateTo = new Date();
+        dateFrom = new Date(dateTo);
+        dateFrom.setDate(dateFrom.getDate() - days);
+        // Format to YYYY-MM-DD
+        dateFrom = dateFrom.toISOString().split('T')[0];
+        dateTo = dateTo.toISOString().split('T')[0];
+    }
+    
+    console.log('Analytics date range:', { dateFrom, dateTo });
+    console.log('Analytics using CatalogDB entries:', Object.keys(catalogData).length);
+    console.log('Analytics using Orders:', Object.keys(orderData).length);
+    renderAnalyticsDashboard(catalogData, orderData, dateFrom, dateTo);
+}
+
+// Setup real-time listener for Orders data
+function setupOrdersListenerForAnalytics() {
+    const ordersRef = ref(db, 'Orders/');
+    onValue(ordersRef, (snapshot) => {
+        OrdersData = snapshot.exists() ? snapshot.val() : {};
+        console.log('[ANALYTICS] Orders data updated:', Object.keys(OrdersData).length);
+        
+        // Auto-refresh analytics if tab is visible
+        const analyticsTab = document.getElementById('tab-analytics');
+        if (analyticsTab && analyticsTab.style.display !== 'none') {
+            console.log('[ANALYTICS] Auto-refreshing due to Orders change');
+            fetchAndRenderAnalytics();
+        }
+    }, (error) => {
+        console.error('[ANALYTICS] Error listening to Orders:', error);
+    });
+}
+
+// Setup listener for CatalogDB changes to refresh analytics
+function setupCatalogDBListenerForAnalytics() {
+    const catalogsRef = ref(db, 'Catalogs/');
+    onValue(catalogsRef, (snapshot) => {
+        console.log('[ANALYTICS] Catalogs changed, CatalogDB will be updated by main listener');
+        
+        // Auto-refresh analytics if tab is visible
+        const analyticsTab = document.getElementById('tab-analytics');
+        if (analyticsTab && analyticsTab.style.display !== 'none') {
+            console.log('[ANALYTICS] Auto-refreshing due to Catalogs change');
+            // Small delay to ensure CatalogDB is updated
+            setTimeout(() => {
+                fetchAndRenderAnalytics();
+            }, 100);
+        }
+    }, (error) => {
+        console.error('[ANALYTICS] Error listening to Catalogs:', error);
     });
 }
 
@@ -3421,6 +3477,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Setup real-time listener for analytics settings
         setupAnalyticsSettingsListener();
+        
+        // Setup real-time listeners for analytics data
+        setupOrdersListenerForAnalytics();
+        setupCatalogDBListenerForAnalytics();
 
         // Load catalog names from Firebase
         await loadCatalogNamesFromFirebase();
