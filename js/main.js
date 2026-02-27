@@ -44,20 +44,29 @@ let currentUser = null;
 let userPermissions = null;
 let cartHasChanged = false; // Track if cart has items for beforeunload
 
-// ===== CATALOG NAMES (loaded dynamically from Firebase) =====
-let CATALOG_NAMES = [                      
-    // Cabinet (Behind)
+// ===== UNIFIED CATALOG DATABASE =====
+// Single source of truth for all catalog data: names, images, and stock
+let CatalogDB = {}; // { catalogKey: { key, name, image, stock, entries: [...] }, ... }
+
+// Default catalog names (used only for initial seeding)
+const DEFAULT_CATALOG_NAMES = [                      
     "JL-1027", "JL-0127", "JC-20001-5", "JC-5021-7", "JS-10003", "JS-100-2E", "JS-100-2F", 
     "Dairy", "手帳", "JS 10001-3A", "JC-5020-8", "JA-30002", "JC-1026", "JA-30003", "JC-10010-9a",
-    // Cabinet (C-6)
     "JL-5026-1A", "JL-5028", "JC-5030-2", "Automatic Shavings Compactor", "JL-5039", "JL-5028-1", 
     "JC-5020-8A", "JC-5022-4B",
-    // Cabinet (C-5)
     "JS-10001-3", "ES-100-2", "JC-10003-6", "JC-0815", "JC-0612-3", "JL-0615", "JC-1905-1", 
     "JC-1320-4", "EC-10004-5", "JC-1012-2B", "EC-0612-1"
 ];
 
-// ===== LOAD CATALOG NAMES FROM FIREBASE =====
+// Get sorted list of catalog names from unified DB
+function getCatalogNames() {
+    return Object.values(CatalogDB)
+        .map(cat => cat.name)
+        .filter(name => name && name.trim().length > 0)
+        .sort();
+}
+
+// ===== LOAD AND SYNC CATALOG DATA FROM FIREBASE =====
 async function loadCatalogNamesFromFirebase() {
     try {
         const snapshot = await get(ref(db, 'CatalogNames'));
@@ -66,34 +75,43 @@ async function loadCatalogNamesFromFirebase() {
         if (!existing || Object.keys(existing).length === 0) {
             // Seed defaults only when CatalogNames is empty
             const defaultsObj = {};
-            CATALOG_NAMES.forEach((name, idx) => {
+            DEFAULT_CATALOG_NAMES.forEach((name, idx) => {
                 defaultsObj[`default_${idx}`] = name;
             });
             await set(ref(db, 'CatalogNames'), defaultsObj);
-            console.log(`Catalog names seeded in Firebase (${CATALOG_NAMES.length} defaults).`);
+            console.log(`[CATALOG SYNC] Seeded firebase with ${DEFAULT_CATALOG_NAMES.length} default catalogs`);
+            // Build CatalogDB from defaults
+            DEFAULT_CATALOG_NAMES.forEach((name, idx) => {
+                const key = `default_${idx}`;
+                CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+            });
         } else {
-            // Sync local list with Firebase data
-            CATALOG_NAMES = Object.values(existing)
-                .filter((name) => typeof name === 'string' && name.trim().length > 0)
-                .map((name) => name.trim())
-                .sort();
+            // Build CatalogDB from existing CatalogNames
+            console.log('[CATALOG SYNC] Loading catalog names from Firebase');
+            Object.entries(existing).forEach(([key, name]) => {
+                if (!CatalogDB[key]) {
+                    CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+                } else {
+                    CatalogDB[key].name = name;
+                }
+            });
         }
 
         initializeCatalogSelects();
     } catch (error) {
-        console.warn('Could not enforce catalog names in Firebase:', error);
-        // Fall back to using CATALOG_NAMES directly
+        console.warn('[CATALOG SYNC] Error loading catalog names:', error);
         initializeCatalogSelects();
     }
 }
 
-
 // ===== INITIALIZE CATALOG SELECTS =====
 function initializeCatalogSelects() {
     const selects = document.querySelectorAll('#CatalogName, #OrderCatalogName');
+    const names = getCatalogNames();
+    
     selects.forEach(select => {
         select.innerHTML = '<option value="">--選択してください--</option>';
-        CATALOG_NAMES.forEach(name => {
+        names.forEach(name => {
             const option = document.createElement('option');
             option.value = name;
             option.textContent = name;
@@ -329,8 +347,7 @@ function createSuccessAnimation(button) {
 }
 
 // ===== PLACE ORDER - PRODUCT GRID (AMAZON-STYLE) =====
-let catalogItemsData = {}; // Store catalog items for ordering
-let catalogStockData = {}; // Store calculated stock for each catalog
+// All catalog data now stored in unified CatalogDB
 let currentOrderItemKey = null; // Track current item being ordered
 let userAssignedLocationId = null; // User's assigned location from their account
 let selectedAddressType = 'location'; // 'location' or 'custom'
@@ -574,8 +591,6 @@ async function checkoutCart() {
     }
 }
 
-let catalogImages = {}; // Store catalog images
-
 async function loadPlaceOrderProducts() {
     try {
         // Load user's location (if they have one assigned to their account)
@@ -587,127 +602,187 @@ async function loadPlaceOrderProducts() {
             selectedAddressValue = userAddress.value;
         }
         
-        // Load catalog names/items
-        const catalogNamesSnapshot = await get(ref(db, 'CatalogNames'));
-        if (catalogNamesSnapshot.exists()) {
-            catalogItemsData = catalogNamesSnapshot.val();
-        }
+        console.log('[CATALOG LOAD] Starting catalog data load...');
         
-        // Load catalog images
+        // Load and build unified catalog database
+        const namesSnapshot = await get(ref(db, 'CatalogNames'));
         const imagesSnapshot = await get(ref(db, 'CatalogImages'));
-        if (imagesSnapshot.exists()) {
-            catalogImages = imagesSnapshot.val();
+        const catalogsSnapshot = await get(ref(db, 'Catalogs'));
+        
+        // Initialize CatalogDB from CatalogNames
+        if (namesSnapshot.exists()) {
+            Object.entries(namesSnapshot.val()).forEach(([key, name]) => {
+                if (!CatalogDB[key]) {
+                    CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+                }
+                CatalogDB[key].name = name;
+            });
+            console.log('[CATALOG LOAD] Loaded', Object.keys(namesSnapshot.val()).length, 'catalog names');
         }
         
-        // Load catalog entries and calculate stock
-        const catalogSnapshot = await get(ref(db, 'Catalogs'));
-        if (catalogSnapshot.exists()) {
-            const catalogData = catalogSnapshot.val();
-            calculateStockPerCatalog(catalogData);
+        // Add images to CatalogDB
+        if (imagesSnapshot.exists()) {
+            Object.entries(imagesSnapshot.val()).forEach(([key, image]) => {
+                if (CatalogDB[key]) {
+                    CatalogDB[key].image = image;
+                }
+            });
+            console.log('[CATALOG LOAD] Loaded', Object.keys(imagesSnapshot.val()).length, 'catalog images');
+        }
+        
+        // Add entries and calculate stock for CatalogDB
+        if (catalogsSnapshot.exists()) {
+            const catalogData = catalogsSnapshot.val();
+            const stockByName = {};
+            
+            // Group entries by catalog name and calculate stock
+            Object.entries(catalogData).forEach(([entryKey, entry]) => {
+                if (!entry || !entry.CatalogName) return;
+                const name = entry.CatalogName;
+                
+                // Store entry in CatalogDB by key (if key exists in CatalogDB)
+                Object.entries(CatalogDB).forEach(([catKey, catData]) => {
+                    if (catData.name === name) {
+                        if (!catData.entries) catData.entries = [];
+                        catData.entries.push({ ...entry, _key: entryKey });
+                    }
+                });
+                
+                // Track stock per name (for compatibility)
+                if (!stockByName[name]) stockByName[name] = { received: 0, issued: 0 };
+                stockByName[name].received += Number(entry.QuantityReceived || 0);
+                stockByName[name].issued += Number(entry.IssueQuantity || 0);
+            });
+            
+            // Update stock in CatalogDB
+            Object.entries(CatalogDB).forEach(([key, catData]) => {
+                if (stockByName[catData.name]) {
+                    catData.stock = stockByName[catData.name].received - stockByName[catData.name].issued;
+                }
+            });
+            
+            console.log('[CATALOG LOAD] Loaded', Object.keys(catalogData).length, 'catalog entries');
         }
         
         renderPlaceOrderProductGrid();
         setupCatalogRealTimeListener();
     } catch (error) {
-        console.error('Error loading catalog items:', error);
+        console.error('[CATALOG LOAD] Error loading catalog items:', error);
     }
 }
 
 // ===== CATALOG MANAGEMENT CRUD =====
 /**
  * Setup real-time listener for catalog changes in Firebase
+ * Updates the unified CatalogDB whenever any catalog data changes
  */
 function setupCatalogRealTimeListener() {
+    console.log('[SYNC SETUP] Initializing real-time catalog listeners');
+    
     const catalogNamesRef = ref(db, 'CatalogNames');
     const catalogImagesRef = ref(db, 'CatalogImages');
     const catalogsRef = ref(db, 'Catalogs');
 
+    // Listen for catalog name changes
     onValue(catalogNamesRef, (snapshot) => {
-        catalogItemsData = snapshot.exists() ? snapshot.val() : {};
-        CATALOG_NAMES = Object.values(catalogItemsData)
-            .filter((name) => typeof name === 'string' && name.trim().length > 0)
-            .map((name) => name.trim())
-            .sort();
-        initializeCatalogSelects();
-        
-        // Sync all relevant UI components when catalog names change
-        console.log('[SYNC] Catalog names changed, updating all pages...');
-        renderPlaceOrderProductGrid();
-        if (window.renderCatalogTablesAccordion) {
-            console.log('[SYNC] Updating Catalog Entries page');
-            window.renderCatalogTablesAccordion();
-        }
-        if (window.renderOrderTablesAccordion) {
-            console.log('[SYNC] Updating Order Entries page');
-            window.renderOrderTablesAccordion();
-        }
-    }, (error) => {
-        console.warn('Error listening to catalog names:', error);
-    });
-
-    onValue(catalogImagesRef, (snapshot) => {
-        catalogImages = snapshot.exists() ? snapshot.val() : {};
-        renderPlaceOrderProductGrid();
-    }, (error) => {
-        console.warn('Error listening to catalog images:', error);
-    });
-
-    onValue(catalogsRef, (snapshot) => {
+        console.log('[SYNC LISTENER] Catalog names changed');
         if (snapshot.exists()) {
-            calculateStockPerCatalog(snapshot.val());
-        } else {
-            catalogStockData = {};
+            const names = snapshot.val();
+            Object.entries(names).forEach(([key, name]) => {
+                if (!CatalogDB[key]) {
+                    CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+                }
+                CatalogDB[key].name = name;
+            });
         }
         
-        // Sync all relevant UI components when catalog entries change
-        console.log('[SYNC] Catalog entries changed, updating all pages...');
-        renderPlaceOrderProductGrid();
-        if (window.renderCatalogTablesAccordion) {
-            console.log('[SYNC] Updating Catalog Entries page');
-            window.renderCatalogTablesAccordion();
-        }
-        if (window.renderOrderTablesAccordion) {
-            console.log('[SYNC] Updating Order Entries page');
-            window.renderOrderTablesAccordion();
-        }
+        initializeCatalogSelects();
+        syncAllPages();
     }, (error) => {
-        console.warn('Error listening to catalog entries:', error);
+        console.warn('[SYNC LISTENER] Error on catalog names:', error);
+    });
+
+    // Listen for catalog image changes
+    onValue(catalogImagesRef, (snapshot) => {
+        console.log('[SYNC LISTENER] Catalog images changed');
+        if (snapshot.exists()) {
+            const images = snapshot.val();
+            Object.entries(images).forEach(([key, image]) => {
+                if (CatalogDB[key]) {
+                    CatalogDB[key].image = image;
+                }
+            });
+        }
+        
+        renderPlaceOrderProductGrid();
+    }, (error) => {
+        console.warn('[SYNC LISTENER] Error on catalog images:', error);
+    });
+
+    // Listen for catalog entry and stock changes
+    onValue(catalogsRef, (snapshot) => {
+        console.log('[SYNC LISTENER] Catalog entries changed');
+        
+        if (snapshot.exists()) {
+            const catalogData = snapshot.val();
+            const stockByName = {};
+            
+            // Reset entries in CatalogDB
+            Object.values(CatalogDB).forEach(cat => cat.entries = []);
+            
+            // Group entries and calculate stock
+            Object.entries(catalogData).forEach(([entryKey, entry]) => {
+                if (!entry || !entry.CatalogName) return;
+                
+                const name = entry.CatalogName;
+                
+                // Find matching catalog by name and add entry
+                Object.entries(CatalogDB).forEach(([catKey, catData]) => {
+                    if (catData.name === name) {
+                        catData.entries.push({ ...entry, _key: entryKey });
+                    }
+                });
+                
+                // Calculate stock
+                if (!stockByName[name]) stockByName[name] = { received: 0, issued: 0 };
+                stockByName[name].received += Number(entry.QuantityReceived || 0);
+                stockByName[name].issued += Number(entry.IssueQuantity || 0);
+            });
+            
+            // Update stock in CatalogDB
+            Object.entries(CatalogDB).forEach(([key, catData]) => {
+                if (stockByName[catData.name]) {
+                    catData.stock = stockByName[catData.name].received - stockByName[catData.name].issued;
+                } else {
+                    catData.stock = 0;
+                }
+            });
+        } else {
+            // No catalog entries - reset all stocks
+            Object.values(CatalogDB).forEach(cat => {
+                cat.stock = 0;
+                cat.entries = [];
+            });
+        }
+        
+        syncAllPages();
+    }, (error) => {
+        console.warn('[SYNC LISTENER] Error on catalog entries:', error);
     });
 }
 
-function calculateStockPerCatalog(catalogData) {
-    catalogStockData = {};
-    // Group entries by catalog name and calculate current stock
-    const catalogsByName = {};
-    
-    Object.entries(catalogData).forEach(([key, entry]) => {
-        if (!entry || !entry.CatalogName) return;
-        
-        const name = entry.CatalogName;
-        if (!catalogsByName[name]) catalogsByName[name] = [];
-        catalogsByName[name].push({
-            ...entry,
-            QuantityReceived: Number(entry.QuantityReceived || 0),
-            IssueQuantity: Number(entry.IssueQuantity || 0),
-            ReceiptDate: entry.ReceiptDate || ''
-        });
-    });
-    
-    // Calculate stock for each catalog
-    Object.entries(catalogsByName).forEach(([name, entries]) => {
-        // Sort by receipt date
-        entries.sort((a, b) => new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01'));
-        
-        // Calculate running stock
-        let currentStock = 0;
-        entries.forEach((entry, i) => {
-            const received = entry.QuantityReceived || 0;
-            const issued = entry.IssueQuantity || 0;
-            currentStock = currentStock + received - issued;
-        });
-        
-        catalogStockData[name] = currentStock;
-    });
+/**
+ * Sync all pages when any catalog data changes
+ */
+function syncAllPages() {
+    console.log('[SYNC ALL] Syncing Place Order, Catalog Entries, and Order Entries pages');
+    renderPlaceOrderProductGrid();
+    if (window.renderCatalogTablesAccordion) {
+        window.renderCatalogTablesAccordion();
+    }
+    if (window.renderOrderTablesAccordion) {
+        window.renderOrderTablesAccordion();
+    }
 }
 
 /**
@@ -856,15 +931,13 @@ function renderPlaceOrderProductGrid() {
     
     grid.innerHTML = '';
     let itemCount = 0;
-    Object.entries(catalogItemsData).forEach(([key, item]) => {
-        if (!item) return;
+    
+    // Iterate through unified CatalogDB
+    Object.entries(CatalogDB).forEach(([key, catalogData]) => {
+        if (!catalogData) return;
         
-        const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || key);
-        // Get image from catalogImages using the key
-        let imageUrl = catalogImages[key] || '';
-        
-        // Extract image URL from HTML or plain URL
-        imageUrl = extractImageUrl(imageUrl);
+        const catalogName = catalogData.name || key;
+        const imageUrl = extractImageUrl(catalogData.image || '');
         
         // Filter by search
         if (searchTerm && !catalogName.toLowerCase().includes(searchTerm)) {
@@ -887,8 +960,8 @@ function renderPlaceOrderProductGrid() {
         
         const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTQwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjcwIiB5PSI3MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjEyIiBmaWxsPSIjOTk5Ij5Ob0ltYWdlPC90ZXh0Pjwvc3ZnPg==';
         
-        // Get current stock for this catalog
-        const currentStock = catalogStockData[catalogName] || 0;
+        // Get stock directly from unified CatalogDB
+        const currentStock = catalogData.stock || 0;
         const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '絶版';
         const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
         
@@ -918,9 +991,10 @@ function renderPlaceOrderProductGrid() {
  * Delete catalog from product card (for admins)
  */
 async function deleteCatalogFromCard(catalogKey) {
-    const catalogName = catalogItemsData[catalogKey];
-    if (!catalogName) return;
+    const catalogData = CatalogDB[catalogKey];
+    if (!catalogData) return;
     
+    const catalogName = catalogData.name;
     const confirmed = confirm(`本当に「${catalogName}」を削除しますか？このカタログに関連するすべてのエントリも削除されます。`);
     if (!confirmed) return;
     
@@ -928,56 +1002,65 @@ async function deleteCatalogFromCard(catalogKey) {
         console.log('[DELETE CARD] Starting delete for:', catalogName, 'key:', catalogKey);
         
         // Delete from CatalogNames
-        const catalogNamesRef = ref(db, `CatalogNames/${catalogKey}`);
-        console.log('[DELETE CARD] Deleting from CatalogNames');
-        await remove(catalogNamesRef);
-        console.log('[DELETE CARD] Successfully deleted from CatalogNames');
+        await remove(ref(db, `CatalogNames/${catalogKey}`));
+        console.log('[DELETE CARD] Deleted from CatalogNames');
         
         // Delete all catalog entries with this name
         const catalogsRef = ref(db, 'Catalogs');
         const snapshot = await get(catalogsRef);
         if (snapshot.exists()) {
-            const catalogData = snapshot.val();
+            const catalogEntries = snapshot.val();
             const toDelete = [];
             
-            Object.entries(catalogData).forEach(([key, entry]) => {
+            Object.entries(catalogEntries).forEach(([key, entry]) => {
                 if (entry && entry.CatalogName === catalogName) {
                     toDelete.push(key);
                 }
             });
             
             console.log('[DELETE CARD] Found', toDelete.length, 'entries to delete');
-            // Delete in batches
             for (const key of toDelete) {
                 await remove(ref(db, `Catalogs/${key}`));
             }
             console.log('[DELETE CARD] Deleted all related entries');
         }
         
+        // Delete all orders with this name
+        const ordersRef = ref(db, 'Orders');
+        const ordersSnapshot = await get(ordersRef);
+        if (ordersSnapshot.exists()) {
+            const orders = ordersSnapshot.val();
+            const toDeleteOrders = [];
+            
+            Object.entries(orders).forEach(([key, order]) => {
+                if (order && order.CatalogName === catalogName) {
+                    toDeleteOrders.push(key);
+                }
+            });
+            
+            console.log('[DELETE CARD] Found', toDeleteOrders.length, 'orders to delete');
+            for (const key of toDeleteOrders) {
+                await remove(ref(db, `Orders/${key}`));
+            }
+        }
+        
         // Delete image if exists
         try {
-            console.log('[DELETE CARD] Attempting to delete image');
             await remove(ref(db, `CatalogImages/${catalogKey}`));
+            console.log('[DELETE CARD] Deleted image');
         } catch (e) {
             console.log('[DELETE CARD] Image not found (OK)');
         }
         
+        // Remove from local CatalogDB
+        delete CatalogDB[catalogKey];
+        
         showAddToCartToast('カタログが削除されました ✓: ' + catalogName, 1);
+        syncAllPages();
     } catch (error) {
         console.error('[DELETE CARD] ERROR:', error);
         console.error('[DELETE CARD] Error code:', error.code);
-        console.error('[DELETE CARD] Error message:', error.message);
-        showAddToCartToast('削除エラー: ' + error.message, 0);
-    }
-    
-    // Sync all pages after delete
-    if (window.renderCatalogTablesAccordion) {
-      console.log('[DELETE CARD] Syncing Catalog Entries page');
-      window.renderCatalogTablesAccordion();
-    }
-    if (window.renderOrderTablesAccordion) {
-      console.log('[DELETE CARD] Syncing Order Entries page');
-      window.renderOrderTablesAccordion();
+        showAddToCartToast('削除エラー: ' +error.message, 0);
     }
 }
 
@@ -1004,23 +1087,23 @@ async function editCatalogNameFromCard(catalogKey, newName) {
     
     try {
         const sanitizedName = newName.trim();
-        const currentName = catalogItemsData[catalogKey];
-        
-        console.log('[EDIT CARD] Starting edit:', currentName, '->', sanitizedName);
-        
-        if (!currentName) {
+        const catalogData = CatalogDB[catalogKey];
+        if (!catalogData) {
             showAddToCartToast('カタログが見つかりません', 0);
             return;
         }
         
+        const currentName = catalogData.name;
+        console.log('[EDIT CARD] Starting edit:', currentName, '->', sanitizedName);
+        
         // Check if new name already exists
-        if (sanitizedName !== currentName && Object.values(catalogItemsData).some(v => v === sanitizedName)) {
+        if (sanitizedName !== currentName && Object.values(CatalogDB).some(c => c.name === sanitizedName)) {
             console.warn('[EDIT CARD] New name already exists');
             showAddToCartToast('このカタログ名は既に存在します', 0);
             return;
         }
         
-        // Update catalog name
+        // Update catalog name in Firebase
         console.log('[EDIT CARD] Writing to Firebase:', catalogKey, '=', sanitizedName);
         await set(ref(db, `CatalogNames/${catalogKey}`), sanitizedName);
         console.log('[EDIT CARD] Successfully updated CatalogNames');
@@ -1029,10 +1112,10 @@ async function editCatalogNameFromCard(catalogKey, newName) {
         const catalogsRef = ref(db, 'Catalogs');
         const snapshot = await get(catalogsRef);
         if (snapshot.exists()) {
-            const catalogData = snapshot.val();
+            const catalogEntries = snapshot.val();
             const updateBatch = {};
             
-            Object.entries(catalogData).forEach(([entryKey, entry]) => {
+            Object.entries(catalogEntries).forEach(([entryKey, entry]) => {
                 if (entry && entry.CatalogName === currentName) {
                     updateBatch[entryKey] = { ...entry, CatalogName: sanitizedName };
                 }
@@ -1066,35 +1149,21 @@ async function editCatalogNameFromCard(catalogKey, newName) {
         }
         
         showAddToCartToast('カタログが更新されました ✓: ' + sanitizedName, 1);
+        syncAllPages();
     } catch (error) {
         console.error('[EDIT CARD] ERROR:', error);
         console.error('[EDIT CARD] Error code:', error.code);
-        console.error('[EDIT CARD] Error message:', error.message);
         showAddToCartToast('編集エラー: ' + error.message, 0);
-    }
-    
-    // Sync all pages after edit
-    if (window.renderCatalogTablesAccordion) {
-      console.log('[EDIT CARD] Syncing Catalog Entries page');
-      window.renderCatalogTablesAccordion();
-    }
-    if (window.renderOrderTablesAccordion) {
-      console.log('[EDIT CARD] Syncing Order Entries page');
-      window.renderOrderTablesAccordion();
     }
 }
 
 function openPlaceOrderModal(itemKey) {
-    const item = catalogItemsData[itemKey];
-    if (!item) return;
+    const catalogData = CatalogDB[itemKey];
+    if (!catalogData) return;
     
     currentOrderItemKey = itemKey;
-    const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || itemKey);
-    // Get image from catalogImages using the key
-    let imageUrl = catalogImages[itemKey] || '';
-    
-    // Extract image URL from HTML or plain URL
-    imageUrl = extractImageUrl(imageUrl);
+    const catalogName = catalogData.name || itemKey;
+    const imageUrl = extractImageUrl(catalogData.image || '');
     
     document.getElementById('placeOrderModalTitle').textContent = catalogName;
     document.getElementById('placeOrderModalName').textContent = catalogName;

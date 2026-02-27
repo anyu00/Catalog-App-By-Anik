@@ -1100,7 +1100,7 @@ body {
     }
 }
 
-/* Slide up when message appears */
+/* Slide up when message appears */  
 @keyframes slideUpIn {
     from {
         opacity: 0;
