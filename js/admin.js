@@ -783,6 +783,27 @@ async function handleDeleteCatalogName(key, name, container) {
       console.log('[DELETE CATALOG] Deleted all related entries');
     }
     
+    // Delete all orders with this catalog name (CRITICAL for data integrity)
+    const ordersRef = ref(db, 'Orders');
+    const ordersSnapshot = await get(ordersRef);
+    if (ordersSnapshot.exists()) {
+      const ordersData = ordersSnapshot.val();
+      const ordersToDelete = [];
+      
+      Object.entries(ordersData).forEach(([orderKey, order]) => {
+        if (order && order.CatalogName === name) {
+          ordersToDelete.push(orderKey);
+        }
+      });
+      
+      console.log('[DELETE CATALOG] Found', ordersToDelete.length, 'orders to delete');
+      // Delete orders in batches
+      for (const orderKey of ordersToDelete) {
+        await set(ref(db, `Orders/${orderKey}`), null);
+      }
+      console.log('[DELETE CATALOG] Deleted all related orders');
+    }
+    
     // Delete image if exists
     try {
       console.log('[DELETE CATALOG] Attempting to delete image:', key);
