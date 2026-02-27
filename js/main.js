@@ -1188,8 +1188,8 @@ function openPlaceOrderModal(itemKey) {
     document.getElementById('placeOrderModalAddress').value = defaultAddress;
     document.getElementById('placeOrderModalMessage').value = '';
     
-    // Display current stock from calculated data
-    const currentStock = catalogStockData[catalogName] || 0;
+    // Display current stock from CatalogDB
+    const currentStock = CatalogDB[itemKey]?.stock || 0;
     const stockStatus = currentStock > 0 ? `在庫あり: ${currentStock}個` : '絶版';
     document.getElementById('placeOrderModalStock').textContent = stockStatus;
     
@@ -1232,8 +1232,8 @@ async function submitPlaceOrder() {
         return;
     }
     
-    const item = catalogItemsData[currentOrderItemKey];
-    const catalogName = typeof item === 'string' ? item : (item.name || item.catalogName || currentOrderItemKey);
+    const item = CatalogDB[currentOrderItemKey];
+    const catalogName = item?.name || currentOrderItemKey;
     const quantity = parseInt(document.getElementById('placeOrderModalQty').value);
     const department = document.getElementById('placeOrderModalDepartment').value.trim();
     const requester = document.getElementById('placeOrderModalRequester').value.trim();
@@ -2504,7 +2504,8 @@ document.getElementById('generateSampleCatalogBtn').addEventListener('click', ()
     const addresses = ["東京都港区", "大阪府大阪市", "愛知県名古屋市"];
     let count = 0;
     
-    CATALOG_NAMES.slice(0, 5).forEach((catName, i) => {
+    Object.keys(CatalogDB).slice(0, 5).forEach((catKey, i) => {
+        const catName = CatalogDB[catKey]?.name || catKey;
         for (let j = 0; j < 3; j++) {
             const baseDate = new Date(2025, 5, 1 + j);
             const entry = {
@@ -2534,7 +2535,8 @@ document.getElementById('generateSampleOrderBtn').addEventListener('click', () =
     const requesters = ["田中", "佐藤", "鈴木"];
     const addresses = ["東京都港区", "大阪府大阪市", "愛知県名古屋市"];
     const now = Date.now();
-    CATALOG_NAMES.slice(0, 5).forEach((catName, i) => {
+    Object.keys(CatalogDB).slice(0, 5).forEach((catKey, i) => {
+        const catName = CatalogDB[catKey]?.name || catKey;
         for (let j = 0; j < 2; j++) {
             const order = {
                 CatalogName: catName,
