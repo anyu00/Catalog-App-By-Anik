@@ -85,6 +85,11 @@ export function initAdminPanel() {
       adminTabUsers.style.borderBottom = 'none';
       adminTabSettings.style.borderBottom = '3px solid #2563eb';
       loadAnalyticsSettingsUI();
+      // Setup real-time listeners (only once)
+      if (!window.analyticsListenersSetup) {
+        setupAnalyticsSettingsListeners();
+        window.analyticsListenersSetup = true;
+      }
     });
   }
 
@@ -131,34 +136,47 @@ async function loadAnalyticsSettingsUI() {
       return;
     }
     
-    // Load analytics settings from Firebase
-    const settingsRef = ref(db, 'AnalyticsSettings');
+    // Load analytics settings from Firebase (FIXED PATH)
+    const settingsRef = ref(db, 'Settings/Analytics/');
     const settingsSnapshot = await get(settingsRef);
     
     let analyticsSettings = {
       globalLowStockThreshold: 5,
       globalHighStockThreshold: 50,
-      globalFastMovingDefinition: 10
+      globalFastMovingDefinition: 10,
+      perItemOverrides: {}
     };
     
     if (settingsSnapshot.exists()) {
       analyticsSettings = { ...analyticsSettings, ...settingsSnapshot.val() };
     }
     
+    // Store globally for save functions
+    window.currentAnalyticsSettings = analyticsSettings;
+    
     globalLowInput.value = analyticsSettings.globalLowStockThreshold;
     globalHighInput.value = analyticsSettings.globalHighStockThreshold;
     globalFastInput.value = analyticsSettings.globalFastMovingDefinition;
 
-    // Load all catalog names for per-item overrides
-    const catalogsRef = ref(db, 'Catalogs/');
-    const snapshot = await get(catalogsRef);
-    const catalogs = snapshot.exists() ? snapshot.val() : {};
+    // Load all catalog names for per-item overrides from CatalogNames
+    const catalogNamesRef = ref(db, 'CatalogNames');
+    const catalogNamesSnapshot = await get(catalogNamesRef);
+    const catalogNamesData = catalogNamesSnapshot.exists() ? catalogNamesSnapshot.val() : {};
     
-    const catalogNames = [...new Set(Object.values(catalogs).map(cat => cat.CatalogName))].sort();
+    const catalogNames = Object.values(catalogNamesData)
+      .map(item => item.name)
+      .filter(name => name)
+      .sort();
+    
     const container = document.getElementById('perItemOverridesContainer');
     if (!container) return; // Element doesn't exist
     
     container.innerHTML = '';
+    
+    if (catalogNames.length === 0) {
+      container.innerHTML = '<p style="color:#999;text-align:center;padding:20px;">カタログが登録されていません</p>';
+      return;
+    }
     
     catalogNames.forEach(catalogName => {
       const override = (analyticsSettings.perItemOverrides && analyticsSettings.perItemOverrides[catalogName]) || {};
@@ -178,23 +196,41 @@ async function loadAnalyticsSettingsUI() {
   }
 }
 
+// Setup real-time listeners for analytics settings UI
+function setupAnalyticsSettingsListeners() {
+  // Listen to analytics settings changes
+  const analyticsRef = ref(db, 'Settings/Analytics/');
+  onValue(analyticsRef, (snapshot) => {
+    console.log('[ANALYTICS SETTINGS] Settings changed, reloading UI');
+    loadAnalyticsSettingsUI();
+  }, (error) => {
+    console.error('[ANALYTICS SETTINGS] Error listening:', error);
+  });
+  
+  // Listen to catalog names changes (for per-item overrides list)
+  const catalogNamesRef = ref(db, 'CatalogNames');
+  onValue(catalogNamesRef, (snapshot) => {
+    console.log('[ANALYTICS SETTINGS] Catalog names changed, reloading UI');
+    loadAnalyticsSettingsUI();
+  }, (error) => {
+    console.error('[ANALYTICS SETTINGS] Error listening to catalog names:', error);
+  });
+}
+
 async function saveGlobalAnalyticsSettings() {
   const lowVal = Number(document.getElementById('globalLowStockInput').value);
   const highVal = Number(document.getElementById('globalHighStockInput').value);
   const fastVal = Number(document.getElementById('globalFastMovingInput').value);
   
   try {
+    const currentSettings = window.currentAnalyticsSettings || {};
     await set(ref(db, 'Settings/Analytics/'), {
       globalLowStockThreshold: lowVal,
       globalHighStockThreshold: highVal,
       globalFastMovingDefinition: fastVal,
-      perItemOverrides: analyticsSettings.perItemOverrides || {},
+      perItemOverrides: currentSettings.perItemOverrides || {},
       updatedAt: new Date().toISOString()
     });
-    
-    analyticsSettings.globalLowStockThreshold = lowVal;
-    analyticsSettings.globalHighStockThreshold = highVal;
-    analyticsSettings.globalFastMovingDefinition = fastVal;
     
     alert('グローバル設定を保存しました');
     window.analyticsSettingsUpdated = true;
@@ -226,15 +262,15 @@ async function savePerItemAnalyticsSettings() {
   });
   
   try {
+    const currentSettings = window.currentAnalyticsSettings || {};
     await set(ref(db, 'Settings/Analytics/'), {
-      globalLowStockThreshold: analyticsSettings.globalLowStockThreshold,
-      globalHighStockThreshold: analyticsSettings.globalHighStockThreshold,
-      globalFastMovingDefinition: analyticsSettings.globalFastMovingDefinition,
+      globalLowStockThreshold: currentSettings.globalLowStockThreshold || 5,
+      globalHighStockThreshold: currentSettings.globalHighStockThreshold || 50,
+      globalFastMovingDefinition: currentSettings.globalFastMovingDefinition || 10,
       perItemOverrides: overrides,
       updatedAt: new Date().toISOString()
     });
     
-    analyticsSettings.perItemOverrides = overrides;
     alert('個別設定を保存しました');
     window.analyticsSettingsUpdated = true;
   } catch (error) {

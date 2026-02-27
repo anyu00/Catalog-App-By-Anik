@@ -2670,6 +2670,23 @@ async function loadAnalyticsSettings() {
     }
 }
 
+// Setup real-time listener for analytics settings changes
+function setupAnalyticsSettingsListener() {
+    const settingsRef = ref(db, 'Settings/Analytics/');
+    onValue(settingsRef, (snapshot) => {
+        if (snapshot.exists()) {
+            analyticsSettings = snapshot.val();
+            console.log('[ANALYTICS] Settings updated in real-time');
+            // Refresh analytics displays if currently viewing
+            if (window.analyticsSettingsUpdated) {
+                window.location.reload();
+            }
+        }
+    }, (error) => {
+        console.error('[ANALYTICS] Error listening to settings:', error);
+    });
+}
+
 function getItemThreshold(catalogName, thresholdType) {
     const override = analyticsSettings.perItemOverrides?.[catalogName];
     if (thresholdType === 'low') {
@@ -3401,6 +3418,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load analytics settings
         await loadAnalyticsSettings();
+        
+        // Setup real-time listener for analytics settings
+        setupAnalyticsSettingsListener();
 
         // Load catalog names from Firebase
         await loadCatalogNamesFromFirebase();
