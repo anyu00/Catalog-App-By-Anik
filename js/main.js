@@ -4215,26 +4215,33 @@ async function filterTabsByPermissions(permissions) {
         }
     });
 
-    // Make first visible tab active
+    // Make Order page the default landing page
+    let orderBtn = document.querySelector('[data-tab="placeOrder"]:not(.tab-locked)');
     let firstVisibleBtn = null;
-    const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
     
-    // Find first accessible (non-locked) button
-    for (const btn of sidebarBtns) {
-        if (!btn.classList.contains('tab-locked')) {
-            firstVisibleBtn = btn;
-            break;
-        }
-    }
-    
-    if (firstVisibleBtn) {
-        const tabId = firstVisibleBtn.getAttribute('data-tab');
-        console.log('✓ Activating first accessible tab:', tabId);
-        firstVisibleBtn.click();  
+    if (orderBtn) {
+        // Order page is accessible - use it as landing page
+        console.log('✓ Activating Order page as landing page');
+        orderBtn.click();
     } else {
-        // User has NO accessible tabs - show helpful message
-        console.warn('✗ User has no accessible tabs');
-        showNoAccessMessage();
+        // Order page not accessible - find first accessible tab
+        const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
+        for (const btn of sidebarBtns) {
+            if (!btn.classList.contains('tab-locked')) {
+                firstVisibleBtn = btn;
+                break;
+            }
+        }
+        
+        if (firstVisibleBtn) {
+            const tabId = firstVisibleBtn.getAttribute('data-tab');
+            console.log('✓ Activating first accessible tab (Order page not available):', tabId);
+            firstVisibleBtn.click();  
+        } else {
+            // User has NO accessible tabs - show helpful message
+            console.warn('✗ User has no accessible tabs');
+            showNoAccessMessage();
+        }
     }
 }
 
