@@ -647,8 +647,36 @@
     <!-- Internationalization (must load before main.js) -->
     <script src="js/i18n.js"></script>
     
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                    }
+
+                    if ('caches' in window) {
+                        const cacheKeys = await caches.keys();
+                        for (const key of cacheKeys) {
+                            if (key.includes('catalog-app') || key.includes('firebase')) {
+                                await caches.delete(key);
+                            }
+                        }
+                    }
+
+                    if (registrations.length > 0) {
+                        console.log('[CACHE CLEANUP] Removed old service workers and related caches');
+                    }
+                } catch (error) {
+                    console.log('[CACHE CLEANUP] Skipped:', error);
+                }
+            });
+        }
+    </script>
+
     <!-- Main App Module (contains all logic) -->
-    <script type="module" src="js/main.js?v=2025121801"></script>
+    <script type="module" src="js/main.js?v=2026022802"></script>
     
     <!-- Auto-Update Check: Version Check Every 30 Seconds -->
     <script>

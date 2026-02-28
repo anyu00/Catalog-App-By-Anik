@@ -76,7 +76,7 @@
     let lastKnownVersion = null;
     
     function initVersionCheck() {
-      fetch('/version.json')
+      fetch('./version.json')
         .then(response => response.json())
         .then(data => {
           lastKnownVersion = data.version;
@@ -85,7 +85,7 @@
         .catch(error => console.log('Could not load version:', error));
       
       setInterval(() => {
-        fetch('/version.json?t=' + Date.now())
+        fetch('./version.json?t=' + Date.now())
           .then(response => response.json())
           .then(data => {
             if (lastKnownVersion && lastKnownVersion !== data.version) {
