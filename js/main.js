@@ -4111,16 +4111,16 @@ async function filterTabsByPermissions(permissions) {
     console.log('Filtering tabs with permissions:', permissions);
     
     const tabConfig = {
-        'manageCatalog': { label: 'Manage Catalog', permission: 'manageCatalog', icon: '📦' },
-        'placeOrder': { label: 'Place Order', permission: 'placeOrder', icon: '📝' },
-        'catalogEntries': { label: 'Catalog Entries', permission: 'catalogEntries', icon: '📋' },
-        'orderEntries': { label: 'Order Entries', permission: 'orderEntries', icon: '📄' },
+        'manageCatalog': { label: '登録', permission: 'manageCatalog', icon: '📦' },
+        'placeOrder': { label: '注文', permission: 'placeOrder', icon: '📝' },
+        'catalogEntries': { label: '台帳', permission: 'catalogEntries', icon: '📋' },
+        'orderEntries': { label: '注文台帳', permission: 'orderEntries', icon: '📄' },
         'reports': { label: 'Reports', permission: 'reports', icon: '📊' },
-        'stockCalendar': { label: 'Stock Calendar', permission: 'stockCalendar', icon: '📅' },
-        'analytics': { label: 'Analytics', permission: 'analytics', icon: '📈' },
-        'adminPanel': { label: 'Admin Panel', permission: 'userManagement', icon: '⚙️' },
-        'movementHistory': { label: 'Movement History', permission: 'movementHistory', icon: '📜' },
-        'auditLog': { label: 'Audit Log', permission: 'auditLog', icon: '📑' }
+        'stockCalendar': { label: 'カレンダー', permission: 'stockCalendar', icon: '📅' },
+        'analytics': { label: '分析', permission: 'analytics', icon: '📈' },
+        'adminPanel': { label: '設定', permission: 'userManagement', icon: '⚙️' },
+        'movementHistory': { label: '履歴', permission: 'movementHistory', icon: '📜' },
+        'auditLog': { label: '監査', permission: 'auditLog', icon: '📑' }
     };
 
     // Track accessibility for debugging

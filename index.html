@@ -49,15 +49,15 @@
         </div>
         
         <div class="sidebar-nav">
-            <button class="sidebar-nav-btn active" data-tab="manageCatalog"><i class="fa-solid fa-box"></i> カタログ管理</button>
-            <button class="sidebar-nav-btn" data-tab="placeOrder"><i class="fa-solid fa-cart-plus"></i> 注文する</button>
-            <button class="sidebar-nav-btn" data-tab="catalogEntries"><i class="fa-solid fa-list"></i> カタログエントリ</button>
-            <button class="sidebar-nav-btn" data-tab="orderEntries"><i class="fa-solid fa-file-invoice"></i> 注文エントリ</button>
+            <button class="sidebar-nav-btn active" data-tab="manageCatalog"><i class="fa-solid fa-box"></i> 登録</button>
+            <button class="sidebar-nav-btn" data-tab="placeOrder"><i class="fa-solid fa-cart-plus"></i> 注文</button>
+            <button class="sidebar-nav-btn" data-tab="catalogEntries"><i class="fa-solid fa-list"></i> 台帳</button>
+            <button class="sidebar-nav-btn" data-tab="orderEntries"><i class="fa-solid fa-file-invoice"></i> 注文台帳</button>
             <button class="sidebar-nav-btn" data-tab="stockCalendar"><i class="fa-solid fa-calendar"></i> カレンダー</button>
-            <button class="sidebar-nav-btn" data-tab="movementHistory"><i class="fa-solid fa-history"></i> 推移履歴</button>
-            <button class="sidebar-nav-btn" data-tab="auditLog"><i class="fa-solid fa-clipboard"></i> 監査ログ</button>
-            <button class="sidebar-nav-btn" data-tab="analytics"><i class="fa-solid fa-chart-pie"></i> アナリティクス</button>
-            <button class="sidebar-nav-btn" data-tab="adminPanel"><i class="fa-solid fa-user-shield"></i> 管理者パネル</button>
+            <button class="sidebar-nav-btn" data-tab="movementHistory"><i class="fa-solid fa-history"></i> 履歴</button>
+            <button class="sidebar-nav-btn" data-tab="auditLog"><i class="fa-solid fa-clipboard"></i> 監査</button>
+            <button class="sidebar-nav-btn" data-tab="analytics"><i class="fa-solid fa-chart-pie"></i> 分析</button>
+            <button class="sidebar-nav-btn" data-tab="adminPanel"><i class="fa-solid fa-user-shield"></i> 設定</button>
         </div>
         <div class="sidebar-actions">
             <button class="icon-btn" title="Logout" id="logoutBtn"><i class="fa-solid fa-sign-out-alt"></i></button>
@@ -75,15 +75,15 @@
                 <div style="display:flex; align-items:center; gap:16px;">
                     <div style="font-weight:800; color:#ffffff; font-size:18px;">📦 YukenCatalogPro</div>
                     <div class="topnav-buttons-container" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="manageCatalog">Dashboard</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="placeOrder">Place Order</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="catalogEntries">Inventory</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="orderEntries">Orders</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="stockCalendar">Calendar</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="auditLog">Audit Log</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="movementHistory">Movement</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="analytics">Analytics</button>
-                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="adminPanel">Settings</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="manageCatalog">登録</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="placeOrder">注文</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="catalogEntries">台帳</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="orderEntries">注文台帳</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="stockCalendar">カレンダー</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="auditLog">監査</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="movementHistory">履歴</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="analytics">分析</button>
+                        <button class="nav-link-btn sidebar-nav-btn topnav-btn" data-tab="adminPanel">設定</button>
                     </div>
                 </div>
                 <div class="topbar-right-section" style="display:flex; align-items:center; gap:12px;">
@@ -111,7 +111,7 @@
             <div class="glass-cards">
                 <!-- TAB: Catalog Management -->
                 <div class="glass-card tab-section" id="tab-manageCatalog">
-                    <h2>カタログの管理</h2>
+                    <h2>登録</h2>
                     
                     <form id="catalogEntryForm">
                         <div class="form-row">
@@ -167,7 +167,7 @@
                 
                 <!-- TAB: Place Order -->
                 <div class="glass-card tab-section" id="tab-placeOrder" style="display:none;">
-                    <h2 style="margin-bottom:20px;">🛒 注文する</h2>
+                    <h2 style="margin-bottom:20px;">🛒 注文</h2>
                     
                     <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px; min-height: 500px;">
                         <!-- Left: Product Catalog -->
@@ -331,7 +331,7 @@
 
                 <!-- TAB: Admin Panel -->
                 <div class="glass-card tab-section" id="tab-adminPanel" style="display:none;">
-                    <h2 style="margin-bottom:16px;">管理者パネル</h2>
+                    <h2 style="margin-bottom:16px;">設定</h2>
                     
                     <!-- Admin Tabs -->
                     <div style="display:flex; gap:8px; margin-bottom:20px; border-bottom:2px solid #eee; padding-bottom:12px;">
@@ -579,7 +579,7 @@
                 <!-- TAB: Audit Log -->
                 <div class="glass-card tab-section" id="tab-auditLog" style="display:none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h2 style="margin-bottom: 0;">監査ログ</h2>
+                        <h2 style="margin-bottom: 0;">監査</h2>
                         <button class="btn btn-secondary btn-sm" id="exportAuditCSV">📥 Export Log</button>
                     </div>
                     <div id="auditLogContent" style="max-height: 600px; overflow-y: auto;"></div>
@@ -588,7 +588,7 @@
                 <!-- TAB: Inventory Movement History -->
                 <div class="glass-card tab-section" id="tab-movementHistory" style="display:none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h2 style="margin-bottom: 0;">在庫推移履歴</h2>
+                        <h2 style="margin-bottom: 0;">履歴</h2>
                         <button class="btn btn-secondary btn-sm" id="exportMovementCSV">📥 Export History</button>
                     </div>
                     <div id="movementHistoryContent" style="max-height: 600px; overflow-y: auto;"></div>

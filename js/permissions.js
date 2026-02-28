@@ -235,28 +235,28 @@ export async function getFormattedPermissions(userId) {
 
     const formatted = {
       manageCatalog: {
-        label: 'Manage Catalog',
+        label: '登録',
         create: permissions.manageCatalog?.create || false,
         read: permissions.manageCatalog?.read || false,
         update: permissions.manageCatalog?.update || false,
         delete: permissions.manageCatalog?.delete || false
       },
       placeOrder: {
-        label: 'Place Order',
+        label: '注文',
         create: permissions.placeOrder?.create || false,
         read: permissions.placeOrder?.read || false,
         update: permissions.placeOrder?.update || false,
         delete: permissions.placeOrder?.delete || false
       },
       catalogEntries: {
-        label: 'Catalog Entries',
+        label: '台帳',
         create: permissions.catalogEntries?.create || false,
         read: permissions.catalogEntries?.read || false,
         update: permissions.catalogEntries?.update || false,
         delete: permissions.catalogEntries?.delete || false
       },
       orderEntries: {
-        label: 'Order Entries',
+        label: '注文台帳',
         create: permissions.orderEntries?.create || false,
         read: permissions.orderEntries?.read || false,
         update: permissions.orderEntries?.update || false,
@@ -270,14 +270,14 @@ export async function getFormattedPermissions(userId) {
         delete: false
       },
       stockCalendar: {
-        label: 'Stock Calendar',
+        label: 'カレンダー',
         create: false,
         read: permissions.stockCalendar?.read || false,
         update: false,
         delete: false
       },
       analytics: {
-        label: 'Analytics',
+        label: '分析',
         create: false,
         read: permissions.analytics?.read || false,
         update: false,
@@ -285,21 +285,21 @@ export async function getFormattedPermissions(userId) {
       }
       ,
       userManagement: {
-        label: 'User Management',
+        label: '設定',
         create: permissions.userManagement?.create || false,
         read: permissions.userManagement?.read || false,
         update: permissions.userManagement?.update || false,
         delete: permissions.userManagement?.delete || false
       },
       movementHistory: {
-        label: 'Movement History',
+        label: '履歴',
         create: false,
         read: permissions.movementHistory?.read || false,
         update: false,
         delete: false
       },
       auditLog: {
-        label: 'Audit Log',
+        label: '監査',
         create: false,
         read: permissions.auditLog?.read || false,
         update: false,
