@@ -4218,9 +4218,8 @@ async function filterTabsByPermissions(permissions) {
     // Make Order page the default landing page
     console.log('🔍 Looking for Order page button...');
     
-    // Try to find Order button in both sidebar and top nav
-    let orderBtn = document.querySelector('[data-tab="placeOrder"]:not(.tab-locked)') || 
-                   document.querySelector('button[data-tab="placeOrder"]');
+    // Try to find Order button - prefer sidebar button for proper activation
+    let orderBtn = document.querySelector('.sidebar-nav-btn[data-tab="placeOrder"]:not(.tab-locked)');
     
     console.log('📍 Order button found:', orderBtn ? 'YES' : 'NO');
     if (orderBtn) {
@@ -4231,8 +4230,32 @@ async function filterTabsByPermissions(permissions) {
     
     if (orderBtn && !orderBtn.classList.contains('tab-locked')) {
         // Order page is accessible - use it as landing page
-        console.log('✅ Activating Order page as landing page');
-        orderBtn.click();
+        console.log('✅ Directly activating Order page (placeOrder tab)');
+        
+        // Hide all tab sections first
+        document.querySelectorAll('.tab-section').forEach(tab => tab.style.display = 'none');
+        
+        // Show the Order tab
+        const orderTabElement = document.getElementById('tab-placeOrder');
+        if (orderTabElement) {
+            orderTabElement.style.display = 'block';
+            console.log('✅ Order tab displayed');
+        }
+        
+        // Update active button states
+        document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.remove('active'));
+        orderBtn.classList.add('active');
+        
+        // Also update top nav buttons
+        document.querySelectorAll('.nav-link-btn').forEach(b => {
+            if (b.getAttribute('data-tab') === 'placeOrder') {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+        
+        console.log('✅ Active states updated');
     } else {
         console.log('⚠️ Order page not accessible, finding first accessible tab...');
         // Order page not accessible - find first accessible tab
