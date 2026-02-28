@@ -2910,13 +2910,23 @@ function getItemThreshold(catalogName, thresholdType) {
 }
 
 const ANALYTICS_CARDS = [
-    { key: 'stockByItem', label: 'カタログ別在庫', icon: 'fa-layer-group' },
-    { key: 'ordersByItem', label: 'カタログ別注文', icon: 'fa-list-ol' },
-    { key: 'lowStockItems', label: '在庫不足アイテム', icon: 'fa-triangle-exclamation' },
-    { key: 'fastMovingItems', label: '販売数の多いアイテム', icon: 'fa-arrow-trend-up' },
-    { key: 'stockTrend', label: '在庫トレンド', icon: 'fa-chart-line' },
-    { key: 'requesterRankings', label: 'リクエスター顧問', icon: 'fa-ranking-star' },
-    { key: 'distributionAnalysis', label: '配分分析', icon: 'fa-pie-chart' },
+    // **CATALOG-BASED ANALYTICS** (most important)
+    { key: 'stockByItem', label: 'カタログ別在庫', icon: 'fa-layer-group', category: 'catalog', width: '2' },
+    { key: 'ordersByItem', label: 'カタログ別注文', icon: 'fa-list-ol', category: 'catalog', width: '2' },
+    { key: 'catalogComparison', label: 'カタログ比較 (在庫vs注文)', icon: 'fa-object-group', category: 'catalog', width: '2' },
+    
+    // **TIME-BASED ANALYTICS**
+    { key: 'stockTrend', label: '在庫トレンド', icon: 'fa-chart-line', category: 'timebased', width: '2' },
+    { key: 'orderTrend', label: '注文トレンド', icon: 'fa-chart-area', category: 'timebased', width: '2' },
+    { key: 'dailyActivity', label: '日次活動', icon: 'fa-calendar-days', category: 'timebased', width: '2' },
+    
+    // **THRESHOLD & ALERTS**
+    { key: 'lowStockItems', label: '在庫不足アイテム (< 閾値)', icon: 'fa-triangle-exclamation', category: 'alerts', width: '1' },
+    { key: 'fastMovingItems', label: '販売数の多いアイテム (> 閾値)', icon: 'fa-arrow-trend-up', category: 'alerts', width: '1' },
+    
+    // **DISTRIBUTION & REQUESTER**
+    { key: 'requesterRankings', label: 'トップリクエスター', icon: 'fa-ranking-star', category: 'requesters', width: '1' },
+    { key: 'distributionAnalysis', label: '配分先分析', icon: 'fa-pie-chart', category: 'distribution', width: '1' },
 ];
 
 function getAnalyticsSelection() {
@@ -3025,64 +3035,248 @@ function renderAnalyticsDashboard(catalogData, orderData, dateFrom = null, dateT
     const container = document.getElementById('analyticsCards');
     container.innerHTML = '';
     
+    // Build container HTML with proper grid layout
+    let gridHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; padding: 20px;">';
+    
     ANALYTICS_CARDS.forEach(card => {
         if (selection.includes(card.key)) {
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'glass-card';
-            cardDiv.innerHTML = `<h2><i class="fa-solid ${card.icon}"></i> ${card.label}</h2><div id="analytics-${card.key}"></div>`;
-            container.appendChild(cardDiv);
+            // Determine column span based on card width (1 = 1 col, 2 = 2 cols)
+            const colSpan = card.width === '2' ? 2 : 1;
+            const style = colSpan === 2 ? 'style="grid-column: span 2;"' : '';
             
-            if (card.key === 'stockByItem') {
-                const byItem = {};
-                Object.values(catalogData).forEach(e => { byItem[e.CatalogName] = (byItem[e.CatalogName] || 0) + Number(e.StockQuantity || 0); });
-                const ctxId = 'stockByItem-chart';
-                const container = document.getElementById('analytics-stockByItem');
-                let canvas = document.getElementById(ctxId);
-                if (!canvas) {
-                    canvas = document.createElement('canvas');
-                    canvas.id = ctxId;
-                    container.appendChild(canvas);
+            gridHTML += `
+                <div class="glass-card analytics-card" ${style}>
+                    <div class="analytics-card-header">
+                        <h3><i class="fa-solid ${card.icon}"></i> ${card.label}</h3>
+                    </div>
+                    <div id="analytics-${card.key}" class="analytics-card-content"></div>
+                </div>
+            `;
+        }
+    });
+    
+    gridHTML += '</div>';
+    container.innerHTML = gridHTML;
+    
+    // Render each selected card
+    ANALYTICS_CARDS.forEach(card => {
+        if (selection.includes(card.key)) {
+            // Dispatch rendering based on card type
+            try {
+                if (card.key === 'stockByItem') {
+                    renderStockByItem(catalogData);
+                } else if (card.key === 'ordersByItem') {
+                    renderOrdersByItem(orderData);
+                } else if (card.key === 'catalogComparison') {
+                    renderCatalogComparison(catalogData, orderData);
+                } else if (card.key === 'stockTrend') {
+                    renderStockTrend(catalogData, orderData, dateFrom, dateTo);
+                } else if (card.key === 'orderTrend') {
+                    renderOrderTrend(orderData, dateFrom, dateTo);
+                } else if (card.key === 'dailyActivity') {
+                    renderDailyActivity(orderData, dateFrom, dateTo);
+                } else if (card.key === 'lowStockItems') {
+                    renderLowStockItems(catalogData);
+                } else if (card.key === 'fastMovingItems') {
+                    renderFastMovingItems(orderData, dateFrom, dateTo);
+                } else if (card.key === 'requesterRankings') {
+                    renderRequesterRankings(orderData, dateFrom, dateTo);
+                } else if (card.key === 'distributionAnalysis') {
+                    renderDistributionAnalysis(catalogData);
                 }
-                if (window.stockByItemChart) window.stockByItemChart.destroy();
-                window.stockByItemChart = new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(byItem),
-                        datasets: [{ label: '在庫数量', data: Object.values(byItem), backgroundColor: 'rgba(75,192,192,0.5)' }]
-                    },
-                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-                });
-            } else if (card.key === 'ordersByItem') {
-                const byItem = {};
-                Object.values(orderData).forEach(e => { byItem[e.CatalogName] = (byItem[e.CatalogName] || 0) + 1; });
-                const ctxId = 'ordersByItem-chart';
-                const container = document.getElementById('analytics-ordersByItem');
-                let canvas = document.getElementById(ctxId);
-                if (!canvas) {
-                    canvas = document.createElement('canvas');
-                    canvas.id = ctxId;
-                    container.appendChild(canvas);
+            } catch (err) {
+                console.error(`Error rendering ${card.key}:`, err);
+                const container = document.getElementById(`analytics-${card.key}`);
+                if (container) {
+                    container.innerHTML = '<div style="padding:20px;color:#e74c3c;">エラーが発生しました</div>';
                 }
-                if (window.ordersByItemChart) window.ordersByItemChart.destroy();
-                window.ordersByItemChart = new Chart(canvas, {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(byItem),
-                        datasets: [{ label: '注文数', data: Object.values(byItem), backgroundColor: 'rgba(153,102,255,0.5)' }]
-                    },
-                    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-                });
-            } else if (card.key === 'lowStockItems') {
-                renderLowStockItems(catalogData);
-            } else if (card.key === 'fastMovingItems') {
-                renderFastMovingItems(orderData, dateFrom, dateTo);
-            } else if (card.key === 'stockTrend') {
-                renderStockTrend(catalogData, orderData, dateFrom, dateTo);
-            } else if (card.key === 'requesterRankings') {
-                renderRequesterRankings(orderData, dateFrom, dateTo);
-            } else if (card.key === 'distributionAnalysis') {
-                renderDistributionAnalysis(catalogData);
             }
+        }
+    });
+}
+
+// Stock by Item - Horizontal bar chart
+function renderStockByItem(catalogData) {
+    const byItem = {};
+    let totalStock = 0;
+    
+    Object.values(catalogData).forEach(e => {
+        const stock = Number(e.StockQuantity || 0);
+        byItem[e.CatalogName] = (byItem[e.CatalogName] || 0) + stock;
+        totalStock += stock;
+    });
+    
+    const container = document.getElementById('analytics-stockByItem');
+    
+    if (Object.keys(byItem).length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">カタログデータがありません</div>';
+        return;
+    }
+    
+    const sorted = Object.entries(byItem)
+        .map(([name, qty]) => ({ name, quantity: qty }))
+        .sort((a, b) => b.quantity - a.quantity);
+    
+    const ctxId = 'stockByItem-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    container.style.position = 'relative';
+    container.style.height = '300px';
+    
+    if (window.stockByItemChart) window.stockByItemChart.destroy();
+    
+    window.stockByItemChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(item => item.name),
+            datasets: [{
+                label: '在庫数量',
+                data: sorted.map(item => item.quantity),
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgb(75, 192, 192)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { 
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const total = sorted.reduce((sum, item) => sum + item.quantity, 0);
+                            const percent = ((context.parsed.x / total) * 100).toFixed(1);
+                            return `(${percent}%)`;
+                        }
+                    }
+                }
+            },
+            scales: { x: { beginAtZero: true } }
+        }
+    });
+}
+
+// Orders by Item - Vertical bar chart
+function renderOrdersByItem(orderData) {
+    const byItem = {};
+    Object.values(orderData).forEach(e => { 
+        byItem[e.CatalogName] = (byItem[e.CatalogName] || 0) + 1; 
+    });
+    
+    const container = document.getElementById('analytics-ordersByItem');
+    
+    if (Object.keys(byItem).length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">注文データがありません</div>';
+        return;
+    }
+    
+    const sorted = Object.entries(byItem)
+        .map(([name, cnt]) => ({ name, count: cnt }))
+        .sort((a, b) => b.count - a.count);
+    
+    const ctxId = 'ordersByItem-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    container.style.position = 'relative';
+    container.style.height = '300px';
+    
+    if (window.ordersByItemChart) window.ordersByItemChart.destroy();
+    
+    window.ordersByItemChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: sorted.map(item => item.name),
+            datasets: [{
+                label: '注文数',
+                data: sorted.map(item => item.count),
+                backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                borderColor: 'rgb(153, 102, 255)',
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// Catalog Comparison - Stock vs Orders side by side
+function renderCatalogComparison(catalogData, orderData) {
+    const catalogStock = {};
+    const catalogOrders = {};
+    
+    Object.values(catalogData).forEach(item => {
+        const stock = Number(item.StockQuantity || 0);
+        catalogStock[item.CatalogName] = (catalogStock[item.CatalogName] || 0) + stock;
+    });
+    
+    Object.values(orderData).forEach(order => {
+        catalogOrders[order.CatalogName] = (catalogOrders[order.CatalogName] || 0) + 1;
+    });
+    
+    const allCatalogs = new Set([...Object.keys(catalogStock), ...Object.keys(catalogOrders)]);
+    const labels = Array.from(allCatalogs).sort();
+    
+    const container = document.getElementById('analytics-catalogComparison');
+    
+    if (labels.length === 0) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;">データがありません</div>';
+        return;
+    }
+    
+    const ctxId = 'catalogComparison-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    container.style.position = 'relative';
+    container.style.height = '300px';
+    
+    if (window.catalogComparisonChart) window.catalogComparisonChart.destroy();
+    
+    window.catalogComparisonChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '在庫数量',
+                    data: labels.map(cat => catalogStock[cat] || 0),
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderWidth: 1
+                },
+                {
+                    label: '注文数',
+                    data: labels.map(cat => catalogOrders[cat] || 0),
+                    backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                    borderColor: 'rgb(153, 102, 255)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: 'top' } },
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
@@ -3372,6 +3566,168 @@ function renderDistributionAnalysis(catalogData) {
         options: {
             plugins: {
                 legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+// Order Trend - Shows order count changes over time
+function renderOrderTrend(orderData, dateFrom = null, dateTo = null) {
+    const container = document.getElementById('analytics-orderTrend');
+    
+    // Determine date range
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+        startDate = new Date(dateFrom);
+        endDate = new Date(dateTo);
+    } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+    }
+    
+    // Calculate daily order counts
+    const dailyOrders = {};
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    for (let i = daysDiff; i >= 0; i--) {
+        const date = new Date(endDate);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        dailyOrders[dateStr] = 0;
+    }
+    
+    Object.values(orderData).forEach(order => {
+        const orderDate = new Date(order.OrderDate || new Date());
+        if (orderDate >= startDate && orderDate <= endDate) {
+            const dateStr = orderDate.toISOString().split('T')[0];
+            if (dailyOrders.hasOwnProperty(dateStr)) {
+                dailyOrders[dateStr]++;
+            }
+        }
+    });
+    
+    const dates = Object.keys(dailyOrders).sort();
+    const counts = dates.map(d => dailyOrders[d]);
+    
+    const ctxId = 'orderTrend-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    container.style.position = 'relative';
+    container.style.height = '300px';
+    
+    if (window.orderTrendChart) window.orderTrendChart.destroy();
+    
+    window.orderTrendChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: dates.map(d => new Date(d).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })),
+            datasets: [{
+                label: '日次注文数',
+                data: counts,
+                borderColor: 'rgb(139, 92, 246)',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: 'rgb(139, 92, 246)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+}
+
+// Daily Activity - Shows order quantity and count per day
+function renderDailyActivity(orderData, dateFrom = null, dateTo = null) {
+    const container = document.getElementById('analytics-dailyActivity');
+    
+    // Determine date range
+    let startDate, endDate;
+    if (dateFrom && dateTo) {
+        startDate = new Date(dateFrom);
+        endDate = new Date(dateTo);
+    } else {
+        endDate = new Date();
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+    }
+    
+    // Aggregate by date
+    const dailyActivity = {};
+    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    for (let i = daysDiff; i >= 0; i--) {
+        const date = new Date(endDate);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        dailyActivity[dateStr] = { orders: 0, quantity: 0 };
+    }
+    
+    Object.values(orderData).forEach(order => {
+        const orderDate = new Date(order.OrderDate || new Date());
+        if (orderDate >= startDate && orderDate <= endDate) {
+            const dateStr = orderDate.toISOString().split('T')[0];
+            if (dailyActivity.hasOwnProperty(dateStr)) {
+                dailyActivity[dateStr].orders++;
+                dailyActivity[dateStr].quantity += Number(order.OrderQuantity || 0);
+            }
+        }
+    });
+    
+    const dates = Object.keys(dailyActivity).sort();
+    
+    const ctxId = 'dailyActivity-chart';
+    let canvas = document.getElementById(ctxId);
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = ctxId;
+        container.appendChild(canvas);
+    }
+    container.style.position = 'relative';
+    container.style.height = '300px';
+    
+    if (window.dailyActivityChart) window.dailyActivityChart.destroy();
+    
+    window.dailyActivityChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: dates.map(d => new Date(d).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' })),
+            datasets: [
+                {
+                    label: '注文数',
+                    data: dates.map(d => dailyActivity[d].orders),
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '注文数量',
+                    data: dates.map(d => dailyActivity[d].quantity),
+                    backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                    borderColor: 'rgb(34, 197, 94)',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+                y: { type: 'linear', display: true, position: 'left', beginAtZero: true, title: { display: true, text: '注文数' } },
+                y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, title: { display: true, text: '注文数量' }, grid: { drawOnChartArea: false } }
             }
         }
     });
