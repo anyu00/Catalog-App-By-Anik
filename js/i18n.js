@@ -5,15 +5,15 @@
 const translations = {
     ja: {
         // Sidebar Navigation
-        'sidebar.manage': 'カタログ管理',
-        'sidebar.order': '注文する',
-        'sidebar.entries': 'カタログエントリ',
-        'sidebar.orders': '注文エントリ',
+        'sidebar.manage': '登録',
+        'sidebar.order': '注文',
+        'sidebar.entries': '台帳',
+        'sidebar.orders': '注文台帳',
         'sidebar.calendar': 'カレンダー',
-        'sidebar.history': '推移履歴',
-        'sidebar.audit': '監査ログ',
-        'sidebar.analytics': 'アナリティクス',
-        'sidebar.admin': '管理者パネル',
+        'sidebar.history': '履歴',
+        'sidebar.audit': '監査',
+        'sidebar.analytics': '分析',
+        'sidebar.admin': '設定',
         
         // Form Labels - Catalog Management
         'form.catalog_name': 'カタログ名',
@@ -57,15 +57,15 @@ const translations = {
         'btn.back': '戻る',
         
         // Section Titles
-        'section.manage_catalog': 'カタログの管理',
-        'section.place_order': '注文する',
-        'section.catalog_entries': 'カタログエントリ',
-        'section.order_entries': '注文エントリ',
-        'section.calendar': '在庫カレンダー',
-        'section.history': '推移履歴',
-        'section.audit': '監査ログ',
-        'section.analytics': 'アナリティクス',
-        'section.admin': '管理者パネル',
+        'section.manage_catalog': '登録',
+        'section.place_order': '注文',
+        'section.catalog_entries': '台帳',
+        'section.order_entries': '注文台帳',
+        'section.calendar': 'カレンダー',
+        'section.history': '履歴',
+        'section.audit': '監査',
+        'section.analytics': '分析',
+        'section.admin': '設定',
         
         // Table Headers
         'table.catalog_name': 'カタログ名',
