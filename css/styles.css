@@ -344,6 +344,13 @@ body {
         padding: 6px 12px;
         font-size: 13px;
     }
+    .tab-separator {
+        display: none;
+    }
+    .tab-group-label {
+        font-size: 14px;
+        margin: 0 2px;
+    }
 }
 
 /* Small Tablet (640px - 767px): More compact */
@@ -380,6 +387,32 @@ body {
     filter: none !important;
     cursor: pointer;
     pointer-events: auto !important;
+}
+
+/* Tab Group Separator */
+.tab-separator {
+    height: 28px;
+    width: 2px;
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+    margin: 0 4px;
+    border-radius: 1px;
+}
+
+/* Tab Group Label (Emoji) */
+.tab-group-label {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 4px;
+    opacity: 0.9;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.tab-group-label:hover {
+    opacity: 1;
+    transform: scale(1.15);
 }
 
 .hamburger {
