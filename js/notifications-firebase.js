@@ -21,6 +21,34 @@ function decodeEmail(encoded) {
     return encoded.replace(/_at_/g, '@').replace(/_/g, '.');
 }
 
+// Get all admin emails from Firebase Users
+async function getAllAdminEmails() {
+    try {
+        const usersRef = ref(db, 'Users/');
+        const snapshot = await get(usersRef);
+        
+        if (!snapshot.exists()) {
+            console.warn('No users found in database');
+            return [];
+        }
+        
+        const users = snapshot.val();
+        const adminEmails = [];
+        
+        Object.values(users).forEach(user => {
+            if (user.role === 'admin' && user.email && user.isActive !== false) {
+                adminEmails.push(user.email);
+            }
+        });
+        
+        console.log('🔔 Found admin emails:', adminEmails);
+        return adminEmails;
+    } catch (error) {
+        console.error('Error fetching admin emails:', error);
+        return [];
+    }
+}
+
 // Request browser notification permission
 async function requestNotificationPermission() {
     if (!('Notification' in window)) {
@@ -261,14 +289,14 @@ function closeNotificationCenter() {
 export async function addNotification(notification) {
     console.log('📢 FIREBASE Notification added:', notification);
     
-    if (!currentUserEmail || !currentUserEmailEncoded) {
-        console.warn('No user logged in, cannot add notification');
-        return;
-    }
-    
     try {
-        const notificationsRef = ref(db, `Notifications/${currentUserEmailEncoded}`);
-        const newNotifRef = push(notificationsRef);
+        // Get all admin emails
+        const adminEmails = await getAllAdminEmails();
+        
+        if (adminEmails.length === 0) {
+            console.warn('No admin users found to notify');
+            return;
+        }
         
         const fullNotif = {
             type: notification.type,
@@ -280,15 +308,26 @@ export async function addNotification(notification) {
             read: false
         };
         
-        await set(newNotifRef, fullNotif);
-        console.log('✅ Notification saved to Firebase');
-        
-        // Show browser notification
-        showBrowserNotification(notification.title, {
-            body: notification.message,
-            tag: notification.type || 'default',
-            data: notification.details
+        // Send notification to all admins
+        const notificationPromises = adminEmails.map(async (adminEmail) => {
+            const encodedEmail = encodeEmail(adminEmail);
+            const notificationsRef = ref(db, `Notifications/${encodedEmail}`);
+            const newNotifRef = push(notificationsRef);
+            await set(newNotifRef, fullNotif);
+            console.log(`✅ Notification sent to admin: ${adminEmail}`);
         });
+        
+        await Promise.all(notificationPromises);
+        console.log('✅ Notifications sent to all admins');
+        
+        // Show browser notification only for current user if they are admin
+        if (currentUserEmail && adminEmails.includes(currentUserEmail)) {
+            showBrowserNotification(notification.title, {
+                body: notification.message,
+                tag: notification.type || 'default',
+                data: notification.details
+            });
+        }
     } catch (error) {
         console.error('Error adding notification:', error);
     }
