@@ -4123,9 +4123,9 @@ async function filterTabsByPermissions(permissions) {
         'auditLog': { label: 'Audit Log', permission: 'auditLog', icon: '📑' }
     };
 
-    // Track which tabs user has access to
-    const userAccessibleTabs = new Set();
-    const lockedTabs = new Map();
+    // Track accessibility for debugging
+    const accessibleTabs = [];
+    const lockedTabs = [];
 
     // Filter both sidebar and top nav buttons
     document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
@@ -4139,36 +4139,31 @@ async function filterTabsByPermissions(permissions) {
             // For movementHistory and auditLog, don't require explicit permission - always accessible
             if (tabId === 'movementHistory' || tabId === 'auditLog') {
                 hasReadAccess = true;
-                console.log('Showing tab (always visible):', tabId);
             } else if (permissions[tabConfig_item.permission]) {
                 if (permissions[tabConfig_item.permission].read === true) {
                     hasReadAccess = true;
-                    console.log('Showing tab:', tabId);
                 } else {
                     isLocked = true;
                     lockReason = 'READ';
-                    console.log('Locking tab (no read):', tabId);
                 }
             } else {
                 isLocked = true;
                 lockReason = 'READ';
-                console.log('Locking tab (no permission):', tabId);
             }
         } else {
             isLocked = true;
             lockReason = 'UNKNOWN';
-            console.log('Locking tab (not in config):', tabId);
         }
 
         if (hasReadAccess) {
             btn.style.display = 'block';
             btn.classList.remove('tab-locked');
-            userAccessibleTabs.add(tabId);
+            accessibleTabs.push(tabId);
         } else if (isLocked) {
             btn.style.display = 'block';
             btn.classList.add('tab-locked');
             btn.setAttribute('title', `🔒 Locked - You don't have READ access to this section`);
-            lockedTabs.set(tabId, { label: tabConfig_item?.label || tabId, lockReason });
+            lockedTabs.push(tabId);
             
             // Prevent navigation to locked tab
             btn.addEventListener('click', (e) => {
@@ -4179,6 +4174,11 @@ async function filterTabsByPermissions(permissions) {
             }, true);
         }
     });
+
+    // Log access summary
+    console.log(`📊 Tab Access Summary: ${accessibleTabs.length} accessible, ${lockedTabs.length} locked`);
+    console.log(`   ✓ Accessible: ${accessibleTabs.join(', ')}`);
+    console.log(`   🔒 Locked: ${lockedTabs.join(', ')}`);
 
     // Apply same locked state to topnav buttons
     document.querySelectorAll('.topnav-btn').forEach(btn => {
@@ -4220,18 +4220,95 @@ async function filterTabsByPermissions(permissions) {
 
     // Make first visible tab active
     let firstVisibleBtn = null;
-    document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)').forEach(btn => {
-        if (!firstVisibleBtn && btn.style.display !== 'none' && !btn.classList.contains('tab-locked')) {
+    const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
+    
+    // Find first accessible (non-locked) button
+    for (const btn of sidebarBtns) {
+        if (!btn.classList.contains('tab-locked')) {
             firstVisibleBtn = btn;
+            break;
         }
-    });
+    }
     
     if (firstVisibleBtn) {
-        console.log('Activating first visible tab:', firstVisibleBtn.getAttribute('data-tab'));
+        const tabId = firstVisibleBtn.getAttribute('data-tab');
+        console.log('✓ Activating first accessible tab:', tabId);
         firstVisibleBtn.click();  
     } else {
-        console.warn('No visible tabs found!');
+        // User has NO accessible tabs - show helpful message
+        console.warn('✗ User has no accessible tabs');
+        showNoAccessMessage();
     }
+}
+
+// ===== SHOW NO ACCESS MESSAGE =====
+function showNoAccessMessage() {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease;
+    `;
+
+    // Create message box
+    const messageBox = document.createElement('div');
+    messageBox.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 40px;
+        max-width: 450px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        animation: slideUp 0.4s ease;
+    `;
+
+    const message = `
+        <div style="font-size: 4em; margin-bottom: 20px;">🔐</div>
+        <h2 style="color: #dc2626; margin: 0 0 16px 0; font-size: 22px; font-weight: 600;">No Access</h2>
+        <p style="color: #666; margin: 0 0 12px 0; font-size: 15px; line-height: 1.6;">
+            You don't have access to any sections yet.
+        </p>
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 14px; border-radius: 4px; margin: 20px 0; text-align: left; font-size: 13px; color: #333;">
+            <strong>What you need to do:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                <li>Contact your administrator</li>
+                <li>Request permissions to access sections</li>
+                <li>Once granted, log out and back in</li>
+            </ul>
+        </div>
+        <button id="logoutNoAccess" style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        " onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#2563eb'">
+            Log Out
+        </button>
+    `;
+
+    messageBox.innerHTML = message;
+    modal.appendChild(messageBox);
+    document.body.appendChild(modal);
+
+    // Log out on button click
+    document.getElementById('logoutNoAccess').addEventListener('click', () => {
+        auth.signOut();
+    });
 }
 
 // ===== SHOW LOCKED TAB MESSAGE =====
