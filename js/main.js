@@ -3746,10 +3746,11 @@ document.getElementById('customizeAnalyticsBtn').addEventListener('click', () =>
     document.querySelectorAll('#analyticsCustomizeForm input').forEach(chk => {
         chk.checked = selection.includes(chk.value);
     });
-    $('#analyticsCustomizeModal').modal('show'); initiate(maximum)
+    $('#analyticsCustomizeModal').modal('show');
 });
 
 document.getElementById('saveAnalyticsCustomize').addEventListener('click', () => {
+    const selected = [];
     document.querySelectorAll('#analyticsCustomizeForm input:checked').forEach(chk => {
         selected.push(chk.value);
     });
