@@ -42,6 +42,23 @@ function extractImageUrl(input) {
 
 // ===== FCM PUSH NOTIFICATION INITIALIZATION =====
 /**
+ * Wait for service worker to be registered before initializing FCM
+ */
+async function waitForServiceWorkerRegistration(timeout = 5000) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        if (registrations.length > 0) {
+            console.log('✅ Service Worker is registered');
+            return true;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.warn('⚠️ Service Worker registration timeout');
+    return false;
+}
+
+/**
  * Initialize Firebase Cloud Messaging for push notifications
  * Gets FCM token and saves it to Firebase so Cloud Functions can send messages
  */
@@ -53,22 +70,41 @@ async function initializeFCM(user) {
             return;
         }
 
+        // Wait for service worker to be registered before trying messaging
+        const swReady = await waitForServiceWorkerRegistration();
+        if (!swReady) {
+            console.warn('⚠️ Service Worker not ready, skipping FCM initialization');
+            return;
+        }
+
         // Request notification permission if not already granted
         if (Notification.permission === 'default') {
-            const permission = await Notification.requestPermission();
-            console.log('📢 Notification permission:', permission);
+            try {
+                const permission = await Notification.requestPermission();
+                console.log('📢 Notification permission:', permission);
+            } catch (error) {
+                console.warn('⚠️ Could not request notification permission:', error.message);
+            }
         }
 
         // Only get FCM token if permission is granted
         if (Notification.permission === 'granted') {
             try {
+                // Import getToken dynamically to avoid early initialization issues
                 const { getToken } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js");
+                
+                // Get FCM token with error handling
                 const token = await getToken(messaging, {
                     vapidKey: 'BMhCCqFRZq0AQZDNe95Sf-yxTJg4HjAfTXGQJpXpPlVnLJ-sLZAULZaJYLeRBr3-9-RzYqCWaGFkqPkXQj9CcEk'
+                }).catch(error => {
+                    // This is expected on some deployment scenarios (like localhost or GitHub Pages subdirectories)
+                    console.warn('⚠️ Could not get FCM token:', error.message);
+                    console.log('💡 Push notifications will work only with tab open. For closed-tab notifications, ensure messaging is properly configured.');
+                    return null;
                 });
 
                 if (token) {
-                    console.log('🔑 FCM Token received:', token);
+                    console.log('🔑 FCM Token received:', token.substring(0, 20) + '...');
                     
                     // Save FCM token to Firebase
                     const encodedEmail = user.email.replace(/\./g, '_').replace(/@/g, '_at_');
@@ -80,15 +116,20 @@ async function initializeFCM(user) {
                     });
                     
                     console.log('✅ FCM Token saved to Firebase');
+                    console.log('🔔 Push notifications enabled! Admins will receive notifications even when app is closed.');
                 } else {
-                    console.warn('⚠️ No FCM token received');
+                    console.log('ℹ️ FCM not available - notifications will work only with tab open');
                 }
             } catch (error) {
-                console.error('Error getting FCM token:', error);
+                console.warn('⚠️ Error initializing FCM:', error.message);
+                console.log('ℹ️ Notifications will work with tab open (in-app only)');
             }
+        } else {
+            console.log('ℹ️ Notification permission not granted - notifications disabled');
         }
     } catch (error) {
-        console.error('Error initializing FCM:', error);
+        console.error('❌ Unexpected error in initializeFCM:', error);
+        console.log('ℹ️ App continues to work with in-app notifications');
     }
 }
 

@@ -31,5 +31,12 @@ export const auth = getAuth(app);
 // Export functions client for callable cloud functions
 export const functionsClient = getFunctions(app);
 
-// Export messaging for push notifications
-export const messaging = getMessaging(app);
+// Export messaging for push notifications (try to initialize, but don't fail if unavailable)
+let messagingInstance = null;
+try {
+    messagingInstance = getMessaging(app);
+    console.log('✅ Firebase Messaging initialized');
+} catch (error) {
+    console.warn('⚠️ Firebase Messaging not available:', error.message);
+}
+export const messaging = messagingInstance;
