@@ -346,8 +346,9 @@ function initTabSwitching() {
             }
         });
     });
-        document.getElementById('tab-manageCatalog').style.display = 'block';
-        const topNavBtns = document.querySelectorAll('.nav-link-btn');
+    
+    // Default display handled by filterTabsByPermissions instead of hardcoding here
+    const topNavBtns = document.querySelectorAll('.nav-link-btn');
         topNavBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const tab = btn.getAttribute('data-tab');
