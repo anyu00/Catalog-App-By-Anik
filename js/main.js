@@ -2771,14 +2771,24 @@ function initializeCalendar() {
         },
         height: 'auto',
         contentHeight: 'auto',
-        eventMaxStack: 3,
-        dayMaxEvents: 3,
-        dayMaxEventRows: true,
+        eventMaxStack: 1,
+        dayMaxEvents: 1,
+        dayMaxEventRows: 1,
         expandRows: false,
+        moreLinkClick: 'day',
+        moreLinkContent: function(args) {
+            return `+${args.num}件`;
+        },
+        eventContent: function(arg) {
+            const title = arg.event.title || '';
+            const issueQty = arg.event.extendedProps?.issueQuantity;
+            const qtyText = issueQty ? ` (${issueQty})` : '';
+            return { html: `<div class="calendar-compact-event">${title}${qtyText}</div>` };
+        },
         events: function(info, successCallback) {
-            const events = [];
             const catalogRef = ref(db, 'Catalogs/');
             onValue(catalogRef, (snapshot) => {
+                const events = [];
                 if (snapshot.exists()) {
                     Object.values(snapshot.val()).forEach(entry => {
                         events.push({
