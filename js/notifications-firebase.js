@@ -21,11 +21,54 @@ function decodeEmail(encoded) {
     return encoded.replace(/_at_/g, '@').replace(/_/g, '.');
 }
 
+// Request browser notification permission
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('This browser does not support desktop notifications');
+        return false;
+    }
+    
+    if (Notification.permission === 'granted') {
+        return true;
+    }
+    
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }
+    
+    return false;
+}
+
+// Show browser notification
+function showBrowserNotification(title, options = {}) {
+    if (Notification.permission === 'granted') {
+        const notification = new Notification(title, {
+            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect fill="%23007bff" width="192" height="192"/><text x="96" y="140" font-size="100" fill="%23fff" text-anchor="middle">📦</text></svg>',
+            badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="48" fill="%23007bff"/><text x="48" y="70" font-size="60" fill="%23fff" text-anchor="middle">📦</text></svg>',
+            requireInteraction: false,
+            ...options
+        });
+        
+        notification.onclick = function() {
+            window.focus();
+            toggleNotificationCenter();
+            this.close();
+        };
+        
+        // Auto-close after 10 seconds
+        setTimeout(() => notification.close(), 10000);
+    }
+}
+
 // Initialize Notification Center
 export function initNotificationSystem() {
     createNotificationPanel();
     setupNotificationListeners();
     displayBadgeCount();
+    
+    // Request browser notification permission
+    requestNotificationPermission();
     
     // Hook existing bell button
     const existingBell = document.querySelector('button[title="Notifications"]');
@@ -232,12 +275,20 @@ export async function addNotification(notification) {
             priority: notification.priority,
             title: notification.title,
             message: notification.message,
+            details: notification.details || null,
             timestamp: new Date().toISOString(),
             read: false
         };
         
         await set(newNotifRef, fullNotif);
         console.log('✅ Notification saved to Firebase');
+        
+        // Show browser notification
+        showBrowserNotification(notification.title, {
+            body: notification.message,
+            tag: notification.type || 'default',
+            data: notification.details
+        });
     } catch (error) {
         console.error('Error adding notification:', error);
     }
@@ -367,11 +418,28 @@ function renderNotificationItem(notif) {
     const icons = {
         stock: '📦',
         order: '📝',
+        ORDER: '📝',
         user: '👤'
     };
     
     const bgColor = notif.read ? '#fff' : colors[notif.priority];
     const borderColor = borderColors[notif.priority];
+    
+    // Build details section if available
+    let detailsHTML = '';
+    if (notif.details) {
+        const details = notif.details;
+        detailsHTML = '<div style="margin-top:8px; padding:8px; background:#f1f5f9; border-radius:4px; font-size:12px; line-height:1.6;">';
+        
+        if (details.catalogName) detailsHTML += `<div><strong>カタログ:</strong> ${details.catalogName}</div>`;
+        if (details.quantity) detailsHTML += `<div><strong>数量:</strong> ${details.quantity}</div>`;
+        if (details.requester) detailsHTML += `<div><strong>注文者:</strong> ${details.requester}</div>`;
+        if (details.date) detailsHTML += `<div><strong>日付:</strong> ${details.date}</div>`;
+        if (details.location) detailsHTML += `<div><strong>場所:</strong> ${details.location}</div>`;
+        if (details.items) detailsHTML += `<div><strong>アイテム数:</strong> ${details.items}</div>`;
+        
+        detailsHTML += '</div>';
+    }
     
     return `
         <div class="notification-item" data-id="${notif.id}" style="
@@ -388,7 +456,8 @@ function renderNotificationItem(notif) {
             <div style="flex:1;min-width:0;">
                 <div style="font-weight:600;margin-bottom:4px;color:#1f2937;">${notif.title}</div>
                 <div style="font-size:13px;color:#666;margin-bottom:6px;word-break:break-word;">${notif.message}</div>
-                <div style="font-size:11px;color:#999;">${getTimeAgo(notif.timestamp)}</div>
+                ${detailsHTML}
+                <div style="font-size:11px;color:#999;margin-top:6px;">${getTimeAgo(notif.timestamp)}</div>
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0;">
                 ${!notif.read ? '<div style="width:8px;height:8px;background:#2563eb;border-radius:50%;margin-top:6px;"></div>' : ''}

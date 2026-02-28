@@ -663,7 +663,12 @@ async function checkoutCart() {
             type: 'order',
             priority: 'info',
             title: '📦 一括注文が完了しました',
-            message: `${shoppingCart.length}件の注文が登録されました`
+            message: `${shoppingCart.length}件の注文が登録されました`,
+            details: {
+                items: shoppingCart.length,
+                date: new Date().toLocaleDateString('ja-JP'),
+                requester: currentUser?.email || 'Unknown'
+            }
         });
         
         // Show celebration animation
@@ -2294,8 +2299,14 @@ $(document).on('click', '.add-order-row', function() {
             addNotification({
                 type: 'ORDER',
                 priority: 'normal',
-                title: `New order created: ${catalogName}`,
-                message: `By ${currentUser?.email}`,
+                title: `📦 新しい注文が作成されました`,
+                message: `${catalogName}`,
+                details: {
+                    catalogName: catalogName,
+                    quantity: 1,
+                    requester: currentUser?.email || 'Unknown',
+                    date: new Date().toLocaleDateString('ja-JP')
+                },
                 timestamp: Date.now()
             });
             logAuditEvent('CREATE_ORDER', `Added new order for: ${catalogName}`, currentUser?.email);
