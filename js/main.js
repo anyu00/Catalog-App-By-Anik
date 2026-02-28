@@ -4216,26 +4216,39 @@ async function filterTabsByPermissions(permissions) {
         }
     });
 
-    // Make first visible tab active
-    let firstVisibleBtn = null;
-    const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
+    // Auto-click Order (注文) tab on login if accessible, otherwise first accessible tab
+    console.log('🔍 Looking for Order (注文) button to auto-click...');
     
-    // Find first accessible (non-locked) button
-    for (const btn of sidebarBtns) {
-        if (!btn.classList.contains('tab-locked')) {
-            firstVisibleBtn = btn;
-            break;
-        }
-    }
+    // Try to find placeOrder button specifically
+    const placeOrderBtn = document.querySelector('.sidebar-nav-btn[data-tab="placeOrder"]:not(.tab-locked)');
     
-    if (firstVisibleBtn) {
-        const tabId = firstVisibleBtn.getAttribute('data-tab');
-        console.log('✓ Activating first accessible tab:', tabId);
-        firstVisibleBtn.click();  
+    if (placeOrderBtn) {
+        console.log('✅ Order button found and accessible - auto-clicking');
+        setTimeout(() => {
+            placeOrderBtn.click();
+        }, 100);
     } else {
-        // User has NO accessible tabs - show helpful message
-        console.warn('✗ User has no accessible tabs');
-        showNoAccessMessage();
+        console.log('⚠️ Order button not accessible, finding first accessible tab...');
+        // Order page not accessible - find first accessible tab
+        let firstVisibleBtn = null;
+        const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
+        
+        for (const btn of sidebarBtns) {
+            if (!btn.classList.contains('tab-locked')) {
+                firstVisibleBtn = btn;
+                break;
+            }
+        }
+        
+        if (firstVisibleBtn) {
+            const tabId = firstVisibleBtn.getAttribute('data-tab');
+            console.log('✅ Activating first accessible tab:', tabId);
+            firstVisibleBtn.click();  
+        } else {
+            // User has NO accessible tabs - show helpful message
+            console.warn('❌ User has no accessible tabs');
+            showNoAccessMessage();
+        }
     }
 }
 
