@@ -5,6 +5,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
+import { getMessaging } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js";
 
 // Firebase Config - Replace with your own
 const firebaseConfig = {
@@ -26,5 +27,9 @@ export const db = getDatabase(app);
 
 // Export auth reference for use in other modules
 export const auth = getAuth(app);
+
 // Export functions client for callable cloud functions
 export const functionsClient = getFunctions(app);
+
+// Export messaging for push notifications
+export const messaging = getMessaging(app);

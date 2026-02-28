@@ -3,6 +3,7 @@
 
 // ===== IMPORTS =====
 import { db } from './firebase-config.js';
+import { messaging } from './firebase-config.js';
 import { initNotificationSystem, addNotification } from './notifications-firebase.js';
 import { onAuthStateChanged, getCurrentUser, logoutUser, updateLastLogin, getUserLocation, getUserSelectedAddress, setUserSelectedAddress } from './auth.js';
 import { getUserPermissions, canUserAction, getUserAccessiblePages, isAdmin } from './permissions.js';
@@ -38,6 +39,64 @@ function extractImageUrl(input) {
     // Return as-is if no extraction worked
     return input.trim();
 }
+
+// ===== FCM PUSH NOTIFICATION INITIALIZATION =====
+/**
+ * Initialize Firebase Cloud Messaging for push notifications
+ * Gets FCM token and saves it to Firebase so Cloud Functions can send messages
+ */
+async function initializeFCM(user) {
+    try {
+        // Check if browser supports service workers and FCM
+        if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+            console.log('⚠️ Browser does not support push notifications');
+            return;
+        }
+
+        // Request notification permission if not already granted
+        if (Notification.permission === 'default') {
+            const permission = await Notification.requestPermission();
+            console.log('📢 Notification permission:', permission);
+        }
+
+        // Only get FCM token if permission is granted
+        if (Notification.permission === 'granted') {
+            try {
+                const { getToken } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js");
+                const token = await getToken(messaging, {
+                    vapidKey: 'BMhCCqFRZq0AQZDNe95Sf-yxTJg4HjAfTXGQJpXpPlVnLJ-sLZAULZaJYLeRBr3-9-RzYqCWaGFkqPkXQj9CcEk'
+                });
+
+                if (token) {
+                    console.log('🔑 FCM Token received:', token);
+                    
+                    // Save FCM token to Firebase
+                    const encodedEmail = user.email.replace(/\./g, '_').replace(/@/g, '_at_');
+                    await set(ref(db, `AdminTokens/${user.uid}`), {
+                        fcmToken: token,
+                        email: user.email,
+                        savedAt: new Date().toISOString(),
+                        deviceInfo: navigator.userAgent
+                    });
+                    
+                    console.log('✅ FCM Token saved to Firebase');
+                } else {
+                    console.warn('⚠️ No FCM token received');
+                }
+            } catch (error) {
+                console.error('Error getting FCM token:', error);
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing FCM:', error);
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
+/**
+ * Extract image URL from HTML or plain URL
+ * Handles both plain URLs and HTML img tags (e.g., from imgbb HTML full linked format)
+ */
 
 // ===== GLOBAL STATE =====
 let currentUser = null;
@@ -3605,6 +3664,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize notification system
         initNotificationSystem();
+        
+        // Initialize FCM for push notifications (when tab is closed)
+        await initializeFCM(user);
         
         // Initialize app components
         initializeCatalogSelects();
