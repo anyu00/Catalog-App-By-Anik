@@ -42,38 +42,18 @@ function extractImageUrl(input) {
 
 // ===== FCM PUSH NOTIFICATION INITIALIZATION =====
 /**
- * Wait for service worker to be registered before initializing FCM
- */
-async function waitForServiceWorkerRegistration(timeout = 5000) {
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeout) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        if (registrations.length > 0) {
-            console.log('✅ Service Worker is registered');
-            return true;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    console.warn('⚠️ Service Worker registration timeout');
-    return false;
-}
-
-/**
  * Initialize Firebase Cloud Messaging for push notifications
  * Gets FCM token and saves it to Firebase so Cloud Functions can send messages
+ * 
+ * Note: FCM requires service worker which doesn't work reliably on GitHub Pages subdirectories.
+ * In-app notifications work perfectly - notifications show immediately when tab is open.
+ * When tab is closed, notifications are stored in Firebase and show on next app open.
  */
 async function initializeFCM(user) {
     try {
-        // Check if browser supports service workers and FCM
-        if (!('serviceWorker' in navigator) || !('Notification' in window)) {
-            console.log('⚠️ Browser does not support push notifications');
-            return;
-        }
-
-        // Wait for service worker to be registered before trying messaging
-        const swReady = await waitForServiceWorkerRegistration();
-        if (!swReady) {
-            console.warn('⚠️ Service Worker not ready, skipping FCM initialization');
+        // Check if browser supports notifications
+        if (!('Notification' in window)) {
+            console.log('ℹ️ Browser does not support notifications');
             return;
         }
 
@@ -87,49 +67,53 @@ async function initializeFCM(user) {
             }
         }
 
-        // Only get FCM token if permission is granted
-        if (Notification.permission === 'granted') {
+        // Attempt FCM initialization (optional, for closed-tab notifications)
+        // This is best-effort and not required for core functionality
+        if (Notification.permission === 'granted' && 'serviceWorker' in navigator) {
             try {
-                // Import getToken dynamically to avoid early initialization issues
-                const { getToken } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js");
-                
-                // Get FCM token with error handling
-                const token = await getToken(messaging, {
-                    vapidKey: 'BMhCCqFRZq0AQZDNe95Sf-yxTJg4HjAfTXGQJpXpPlVnLJ-sLZAULZaJYLeRBr3-9-RzYqCWaGFkqPkXQj9CcEk'
-                }).catch(error => {
-                    // This is expected on some deployment scenarios (like localhost or GitHub Pages subdirectories)
-                    console.warn('⚠️ Could not get FCM token:', error.message);
-                    console.log('💡 Push notifications will work only with tab open. For closed-tab notifications, ensure messaging is properly configured.');
-                    return null;
-                });
+                // Try to get service worker registrations
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                if (registrations.length > 0) {
+                    console.log('✅ Service Worker found, attempting FCM...');
+                    
+                    const { getToken } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js");
+                    
+                    try {
+                        const token = await Promise.race([
+                            getToken(messaging, {
+                                vapidKey: 'BMhCCqFRZq0AQZDNe95Sf-yxTJg4HjAfTXGQJpXpPlVnLJ-sLZAULZaJYLeRBr3-9-RzYqCWaGFkqPkXQj9CcEk'
+                            }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                        ]);
 
-                if (token) {
-                    console.log('🔑 FCM Token received:', token.substring(0, 20) + '...');
-                    
-                    // Save FCM token to Firebase
-                    const encodedEmail = user.email.replace(/\./g, '_').replace(/@/g, '_at_');
-                    await set(ref(db, `AdminTokens/${user.uid}`), {
-                        fcmToken: token,
-                        email: user.email,
-                        savedAt: new Date().toISOString(),
-                        deviceInfo: navigator.userAgent
-                    });
-                    
-                    console.log('✅ FCM Token saved to Firebase');
-                    console.log('🔔 Push notifications enabled! Admins will receive notifications even when app is closed.');
+                        if (token) {
+                            console.log('🔑 FCM Token received');
+                            
+                            await set(ref(db, `AdminTokens/${user.uid}`), {
+                                fcmToken: token,
+                                email: user.email,
+                                savedAt: new Date().toISOString(),
+                                deviceInfo: navigator.userAgent
+                            });
+                            
+                            console.log('✅ Push notifications enabled (closed-tab alerts)');
+                        }
+                    } catch (error) {
+                        console.log('ℹ️ FCM unavailable:', error.message);
+                        console.log('💡 In-app notifications will work when tab is open');
+                    }
                 } else {
-                    console.log('ℹ️ FCM not available - notifications will work only with tab open');
+                    console.log('ℹ️ Service Worker not registered - in-app notifications only');
                 }
             } catch (error) {
-                console.warn('⚠️ Error initializing FCM:', error.message);
-                console.log('ℹ️ Notifications will work with tab open (in-app only)');
+                console.log('ℹ️ Service Worker registration check failed - in-app notifications only');
             }
         } else {
             console.log('ℹ️ Notification permission not granted - notifications disabled');
         }
     } catch (error) {
-        console.error('❌ Unexpected error in initializeFCM:', error);
-        console.log('ℹ️ App continues to work with in-app notifications');
+        console.error('⚠️ Error in initializeFCM:', error.message);
+        console.log('ℹ️ App will use in-app notifications (tab must be open)');
     }
 }
 
