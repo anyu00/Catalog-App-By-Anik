@@ -4216,14 +4216,25 @@ async function filterTabsByPermissions(permissions) {
     });
 
     // Make Order page the default landing page
-    let orderBtn = document.querySelector('[data-tab="placeOrder"]:not(.tab-locked)');
+    console.log('🔍 Looking for Order page button...');
+    
+    // Try to find Order button in both sidebar and top nav
+    let orderBtn = document.querySelector('[data-tab="placeOrder"]:not(.tab-locked)') || 
+                   document.querySelector('button[data-tab="placeOrder"]');
+    
+    console.log('📍 Order button found:', orderBtn ? 'YES' : 'NO');
+    if (orderBtn) {
+        console.log('🔒 Is locked:', orderBtn.classList.contains('tab-locked'));
+    }
+    
     let firstVisibleBtn = null;
     
-    if (orderBtn) {
+    if (orderBtn && !orderBtn.classList.contains('tab-locked')) {
         // Order page is accessible - use it as landing page
-        console.log('✓ Activating Order page as landing page');
+        console.log('✅ Activating Order page as landing page');
         orderBtn.click();
     } else {
+        console.log('⚠️ Order page not accessible, finding first accessible tab...');
         // Order page not accessible - find first accessible tab
         const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
         for (const btn of sidebarBtns) {
@@ -4235,11 +4246,11 @@ async function filterTabsByPermissions(permissions) {
         
         if (firstVisibleBtn) {
             const tabId = firstVisibleBtn.getAttribute('data-tab');
-            console.log('✓ Activating first accessible tab (Order page not available):', tabId);
+            console.log('✅ Activating first accessible tab:', tabId);
             firstVisibleBtn.click();  
         } else {
             // User has NO accessible tabs - show helpful message
-            console.warn('✗ User has no accessible tabs');
+            console.warn('❌ User has no accessible tabs');
             showNoAccessMessage();
         }
     }
