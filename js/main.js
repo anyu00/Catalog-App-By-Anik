@@ -4136,10 +4136,8 @@ async function filterTabsByPermissions(permissions) {
         let lockReason = '';
 
         if (tabConfig_item) {
-            // For movementHistory and auditLog, don't require explicit permission - always accessible
-            if (tabId === 'movementHistory' || tabId === 'auditLog') {
-                hasReadAccess = true;
-            } else if (permissions[tabConfig_item.permission]) {
+            // Check permission normally for all tabs (including movementHistory and auditLog)
+            if (permissions[tabConfig_item.permission]) {
                 if (permissions[tabConfig_item.permission].read === true) {
                     hasReadAccess = true;
                 } else {
@@ -4187,9 +4185,8 @@ async function filterTabsByPermissions(permissions) {
         let hasReadAccess = false;
 
         if (tabConfig_item) {
-            if (tabId === 'movementHistory' || tabId === 'auditLog') {
-                hasReadAccess = true;
-            } else if (permissions[tabConfig_item.permission] && permissions[tabConfig_item.permission].read === true) {
+            // Check permission normally for all tabs
+            if (permissions[tabConfig_item.permission] && permissions[tabConfig_item.permission].read === true) {
                 hasReadAccess = true;
             }
         }
