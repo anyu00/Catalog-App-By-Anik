@@ -4111,51 +4111,117 @@ async function filterTabsByPermissions(permissions) {
     console.log('Filtering tabs with permissions:', permissions);
     
     const tabConfig = {
-        'manageCatalog': { label: 'Manage Catalog', permission: 'manageCatalog' },
-        'placeOrder': { label: 'Place Order', permission: 'placeOrder' },
-        'catalogEntries': { label: 'Catalog Entries', permission: 'catalogEntries' },
-        'orderEntries': { label: 'Order Entries', permission: 'orderEntries' },
-        'reports': { label: 'Reports', permission: 'reports' },
-        'stockCalendar': { label: 'Stock Calendar', permission: 'stockCalendar' },
-        'analytics': { label: 'Analytics', permission: 'analytics' },
-        'adminPanel': { label: 'Admin Panel', permission: 'userManagement' },
-        'movementHistory': { label: 'Movement History', permission: 'movementHistory' },
-        'auditLog': { label: 'Audit Log', permission: 'auditLog' }
+        'manageCatalog': { label: 'Manage Catalog', permission: 'manageCatalog', icon: '📦' },
+        'placeOrder': { label: 'Place Order', permission: 'placeOrder', icon: '📝' },
+        'catalogEntries': { label: 'Catalog Entries', permission: 'catalogEntries', icon: '📋' },
+        'orderEntries': { label: 'Order Entries', permission: 'orderEntries', icon: '📄' },
+        'reports': { label: 'Reports', permission: 'reports', icon: '📊' },
+        'stockCalendar': { label: 'Stock Calendar', permission: 'stockCalendar', icon: '📅' },
+        'analytics': { label: 'Analytics', permission: 'analytics', icon: '📈' },
+        'adminPanel': { label: 'Admin Panel', permission: 'userManagement', icon: '⚙️' },
+        'movementHistory': { label: 'Movement History', permission: 'movementHistory', icon: '📜' },
+        'auditLog': { label: 'Audit Log', permission: 'auditLog', icon: '📑' }
     };
+
+    // Track which tabs user has access to
+    const userAccessibleTabs = new Set();
+    const lockedTabs = new Map();
 
     // Filter both sidebar and top nav buttons
     document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
         const tabId = btn.getAttribute('data-tab');
         const tabConfig_item = tabConfig[tabId];
-        let shouldShow = true;
+        let hasReadAccess = false;
+        let isLocked = false;
+        let lockReason = '';
 
         if (tabConfig_item) {
-            // For movementHistory and auditLog, don't require explicit permission - show if user is logged in
+            // For movementHistory and auditLog, don't require explicit permission - always accessible
             if (tabId === 'movementHistory' || tabId === 'auditLog') {
+                hasReadAccess = true;
                 console.log('Showing tab (always visible):', tabId);
             } else if (permissions[tabConfig_item.permission]) {
-                if (permissions[tabConfig_item.permission].read !== true) {
-                    shouldShow = false;
-                    console.log('Hiding tab (no read):', tabId);
-                } else {
+                if (permissions[tabConfig_item.permission].read === true) {
+                    hasReadAccess = true;
                     console.log('Showing tab:', tabId);
+                } else {
+                    isLocked = true;
+                    lockReason = 'READ';
+                    console.log('Locking tab (no read):', tabId);
                 }
             } else {
-                shouldShow = false;
-                console.log('Hiding tab (no permission):', tabId);
+                isLocked = true;
+                lockReason = 'READ';
+                console.log('Locking tab (no permission):', tabId);
             }
         } else {
-            shouldShow = false;
-            console.log('Hiding tab (not in config):', tabId);
+            isLocked = true;
+            lockReason = 'UNKNOWN';
+            console.log('Locking tab (not in config):', tabId);
         }
 
-        btn.style.display = shouldShow ? 'block' : 'none';
+        if (hasReadAccess) {
+            btn.style.display = 'block';
+            btn.classList.remove('tab-locked');
+            userAccessibleTabs.add(tabId);
+        } else if (isLocked) {
+            btn.style.display = 'block';
+            btn.classList.add('tab-locked');
+            btn.setAttribute('title', `🔒 Locked - You don't have READ access to this section`);
+            lockedTabs.set(tabId, { label: tabConfig_item?.label || tabId, lockReason });
+            
+            // Prevent navigation to locked tab
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showLockedTabMessage(tabId, tabConfig_item?.label || tabId, lockReason);
+                return false;
+            }, true);
+        }
+    });
+
+    // Apply same locked state to topnav buttons
+    document.querySelectorAll('.topnav-btn').forEach(btn => {
+        const tabId = btn.getAttribute('data-tab');
+        const tabConfig_item = tabConfig[tabId];
+        let hasReadAccess = false;
+
+        if (tabConfig_item) {
+            if (tabId === 'movementHistory' || tabId === 'auditLog') {
+                hasReadAccess = true;
+            } else if (permissions[tabConfig_item.permission] && permissions[tabConfig_item.permission].read === true) {
+                hasReadAccess = true;
+            }
+        }
+
+        if (hasReadAccess) {
+            btn.classList.remove('tab-locked');
+        } else {
+            btn.classList.add('tab-locked');
+            btn.setAttribute('title', `🔒 Locked - You don't have READ access to this section`);
+        }
+    });
+
+    // Also apply locked state to topnav buttons
+    document.querySelectorAll('.topnav-btn').forEach(btn => {
+        const tabId = btn.getAttribute('data-tab');
+        if (btn.classList.contains('tab-locked')) {
+            // Prevent navigation to locked tab
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const tabConfig_item = tabConfig[tabId];
+                const lockReason = 'READ';
+                showLockedTabMessage(tabId, tabConfig_item?.label || tabId, lockReason);
+                return false;
+            }, true);
+        }
     });
 
     // Make first visible tab active
     let firstVisibleBtn = null;
     document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)').forEach(btn => {
-        if (!firstVisibleBtn && btn.style.display !== 'none') {
+        if (!firstVisibleBtn && btn.style.display !== 'none' && !btn.classList.contains('tab-locked')) {
             firstVisibleBtn = btn;
         }
     });
@@ -4166,6 +4232,98 @@ async function filterTabsByPermissions(permissions) {
     } else {
         console.warn('No visible tabs found!');
     }
+}
+
+// ===== SHOW LOCKED TAB MESSAGE =====
+function showLockedTabMessage(tabId, tabLabel, lockReason) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.2s ease;
+    `;
+
+    // Create message box
+    const messageBox = document.createElement('div');
+    messageBox.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 32px;
+        max-width: 400px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        animation: slideUp 0.3s ease;
+    `;
+
+    const lockIcon = lockReason === 'READ' ? '📖' : '🔒';
+    const message = `
+        <div style="font-size: 3em; margin-bottom: 16px;">${lockIcon}</div>
+        <h2 style="color: #1e40af; margin: 0 0 12px 0; font-size: 20px;">Access Restricted</h2>
+        <p style="color: #666; margin: 0 0 24px 0; font-size: 14px;">
+            You don't have access to <strong>${tabLabel}</strong>
+        </p>
+        <p style="color: #999; margin: 0 0 24px 0; font-size: 13px;">
+            Required Permission: <strong>${lockReason} Access</strong>
+        </p>
+        <div style="background: #f0f4ff; border-left: 4px solid #2563eb; padding: 12px; border-radius: 4px; margin-bottom: 24px; text-align: left; font-size: 13px; color: #333;">
+            <strong>What you can do:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                <li>Contact your administrator</li>
+                <li>Request access to this section</li>
+                <li>Review available features</li>
+            </ul>
+        </div>
+        <button id="closeLockedModal" style="
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        " onmouseover="this.style.background='#1e40af'" onmouseout="this.style.background='#2563eb'">
+            Got It
+        </button>
+    `;
+
+    messageBox.innerHTML = message;
+    modal.appendChild(messageBox);
+    document.body.appendChild(modal);
+
+    // Close on button click
+    document.getElementById('closeLockedModal').addEventListener('click', () => {
+        modal.style.animation = 'fadeOut 0.2s ease';
+        setTimeout(() => modal.remove(), 200);
+    });
+
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.animation = 'fadeOut 0.2s ease';
+            setTimeout(() => modal.remove(), 200);
+        }
+    });
+
+    // Close on Escape key
+    const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+            modal.style.animation = 'fadeOut 0.2s ease';
+            setTimeout(() => modal.remove(), 200);
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    };
+    document.addEventListener('keydown', escapeHandler);
 }
 
 // ===== UPDATE USER DISPLAY =====

@@ -115,6 +115,27 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Locked Tab Styling */
+.sidebar-nav-btn.tab-locked {
+    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.sidebar-nav-btn.tab-locked::after {
+    content: ' 🔒';
+    font-size: 1.1em;
+    margin-left: 4px;
+}
+
+.sidebar-nav-btn.tab-locked:hover {
+    opacity: 0.65;
+    background: rgba(255, 255, 255, 0.05) !important;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
+
 .sidebar-actions {
     margin-top: auto;
     padding: 24px 32px 32px 32px;
@@ -290,6 +311,28 @@ body {
 }
 .nav-link-btn:hover { background: rgba(0, 0, 0, 0.1); color: #ffffff; filter: brightness(1.15); }
 .nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); font-weight: 700; }
+
+/* Locked nav button styling */
+.nav-link-btn.tab-locked {
+    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.nav-link-btn.tab-locked::after {
+    content: ' 🔒';
+    font-size: 0.9em;
+    margin-left: 2px;
+}
+
+.nav-link-btn.tab-locked:hover {
+    opacity: 0.65;
+    background: transparent !important;
+    filter: none !important;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
 
 .hamburger {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
@@ -1188,6 +1231,36 @@ canvas {
 /* Apply pulse to checkout button when cart has items */
 .cart-pulse {
     animation: cartPulse 2s infinite;
+}
+
+/* Animations for locked tab message modal */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }
 
 /* ============================================
