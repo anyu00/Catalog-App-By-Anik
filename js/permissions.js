@@ -290,6 +290,20 @@ export async function getFormattedPermissions(userId) {
         read: permissions.userManagement?.read || false,
         update: permissions.userManagement?.update || false,
         delete: permissions.userManagement?.delete || false
+      },
+      movementHistory: {
+        label: 'Movement History',
+        create: false,
+        read: permissions.movementHistory?.read || false,
+        update: false,
+        delete: false
+      },
+      auditLog: {
+        label: 'Audit Log',
+        create: false,
+        read: permissions.auditLog?.read || false,
+        update: false,
+        delete: false
       }
     };
 
