@@ -385,22 +385,21 @@ body {
     pointer-events: auto !important;
 }
 
-/* Tab Group Separator - Glass Style */
+/* Tab Separator - Glass Style */
 .tab-separator {
-    height: 32px;
-    width: 1.5px;
+    height: 24px;
+    width: 1px;
     background: linear-gradient(
         180deg,
         transparent 0%,
-        rgba(255, 255, 255, 0.2) 15%,
-        rgba(255, 255, 255, 0.5) 50%,
-        rgba(255, 255, 255, 0.2) 85%,
+        rgba(255, 255, 255, 0.25) 25%,
+        rgba(255, 255, 255, 0.4) 50%,
+        rgba(255, 255, 255, 0.25) 75%,
         transparent 100%
     );
-    margin: 0 6px;
+    margin: 0 2px;
     border-radius: 1px;
-    backdrop-filter: blur(2px);
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(1px);
 }
 
 .hamburger {
