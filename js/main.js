@@ -58,6 +58,112 @@ const DEFAULT_CATALOG_NAMES = [
     "JC-1320-4", "EC-10004-5", "JC-1012-2B", "EC-0612-1"
 ];
 
+const CATALOG_NAME_ENRICHMENTS = {
+    "JL-1027": "HE-YA パック",
+    "JL-0127": "双方向回転圧力補償ピストンポンプ",
+    "JC-20001-5": "グローバルネットワーク 製造・販売・サービス",
+    "JC-5021-7": "自動切屑圧縮機「キリコ」",
+    "JS-10003": "油圧回路記号 JIS B 0125-1984 と YUKEN 油圧機器",
+    "JS-100-2E": "Basic Hydraulics and Components",
+    "JS 10001-3A": "双方向回転圧力補償ピストンポンプ",
+    "JC-5020-8": "油圧の環境関連機器",
+    "JA-30002": "YUKEN KOGYO CO., LTD CORPORATE PROFILE",
+    "JC-1026": "標準油圧ユニット",
+    "JA-30003": "YUKEN KOGYO CO., LTD CORPORATE PROFILE",
+    "JC-10010-9a": "Products Guide",
+    "JL-5026-1A": "マルチコンパクタ",
+    "JL-5028": "ドラム缶コンパクタ",
+    "JC-5030-2": "自動マルチコンパクタ",
+    "JL-5039": "自動マルチコンパクタ ASR シリーズ AC サーボモータ駆動ポンプ搭載",
+    "JL-5028-1": "ドラム缶コンパクタ YB-25D F形",
+    "JC-5020-8A": "油圧の環境関連機器",
+    "JC-5022-4B": "自動 PET ボトル減容機 YB シリーズ",
+    "JS-10001-3": "油圧機器／油圧作動原理図例集",
+    "ES-100-2": "Basic Hydraulics and Components",
+    "JC-10003-6": "工作機械用油圧機器",
+    "JC-0612-3": "高速リニアサーボ弁",
+    "JL-0615": "ダブルモータ直動形リニアサーボ弁",
+    "JC-1905-1": "ASR シリーズ AC サーボモータ駆動ポンプ",
+    "JC-1320-4": "比例電磁式制御機器",
+    "EC-10004-5": "Hydraulic Equipment",
+    "JC-1012-2B": "標準油圧ユニット",
+    "EC-0612-1": "High-Speed linear Servo Valves"
+};
+
+function getEnrichedCatalogName(rawName) {
+    const name = String(rawName || '').trim();
+    if (!name) return '';
+
+    const description = CATALOG_NAME_ENRICHMENTS[name];
+    if (!description) return name;
+
+    // Keep existing enriched names untouched
+    if (name.includes(' - ') || name.includes('｜') || name.includes('|')) {
+        return name;
+    }
+
+    return `${name} - ${description}`;
+}
+
+async function enrichCatalogNamesAcrossApp() {
+    try {
+        const namesSnapshot = await get(ref(db, 'CatalogNames'));
+        if (!namesSnapshot.exists()) return;
+
+        const namesData = namesSnapshot.val() || {};
+        const rootUpdates = {};
+        const renamePairs = [];
+
+        Object.entries(namesData).forEach(([key, currentName]) => {
+            const oldName = String(currentName || '').trim();
+            const enrichedName = getEnrichedCatalogName(oldName);
+
+            if (enrichedName && enrichedName !== oldName) {
+                rootUpdates[`CatalogNames/${key}`] = enrichedName;
+                renamePairs.push({ oldName, enrichedName });
+            }
+        });
+
+        if (renamePairs.length === 0) {
+            return;
+        }
+
+        const [catalogsSnapshot, ordersSnapshot] = await Promise.all([
+            get(ref(db, 'Catalogs')),
+            get(ref(db, 'Orders'))
+        ]);
+
+        if (catalogsSnapshot.exists()) {
+            const catalogs = catalogsSnapshot.val() || {};
+            Object.entries(catalogs).forEach(([entryKey, entry]) => {
+                if (!entry || !entry.CatalogName) return;
+
+                const match = renamePairs.find(pair => pair.oldName === String(entry.CatalogName).trim());
+                if (match) {
+                    rootUpdates[`Catalogs/${entryKey}/CatalogName`] = match.enrichedName;
+                }
+            });
+        }
+
+        if (ordersSnapshot.exists()) {
+            const orders = ordersSnapshot.val() || {};
+            Object.entries(orders).forEach(([orderKey, order]) => {
+                if (!order || !order.CatalogName) return;
+
+                const match = renamePairs.find(pair => pair.oldName === String(order.CatalogName).trim());
+                if (match) {
+                    rootUpdates[`Orders/${orderKey}/CatalogName`] = match.enrichedName;
+                }
+            });
+        }
+
+        await update(ref(db), rootUpdates);
+        console.log(`[CATALOG ENRICH] Updated ${renamePairs.length} catalog names across app`);
+    } catch (error) {
+        console.warn('[CATALOG ENRICH] Error enriching catalog names:', error);
+    }
+}
+
 // Get sorted list of catalog names from unified DB
 function getCatalogNames() {
     return Object.values(CatalogDB)
@@ -3484,6 +3590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load catalog names from Firebase
         await loadCatalogNamesFromFirebase();
+        await enrichCatalogNamesAcrossApp();
 
         // Initialize notification system
         initNotificationSystem();
