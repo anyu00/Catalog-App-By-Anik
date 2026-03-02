@@ -1194,12 +1194,12 @@ function renderPlaceOrderProductGrid() {
         
         // Get stock directly from unified CatalogDB
         const currentStock = catalogData.stock || 0;
-        const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '絶版';
+        const stockStatus = currentStock > 0 ? `在庫: ${currentStock}部` : '絶版';
         const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
         
         // Get order count for display
         const orderCount = orderCounts[catalogName] || 0;
-        const orderCountDisplay = orderCount > 0 ? `<p style="font-size:0.75rem; color:#666; margin:4px 0 0 0;">📊 ${orderCount}件注文済</p>` : '';
+        const orderCountDisplay = orderCount > 0 ? `<p style="font-size:0.85rem; font-weight:700; color:#666; margin:4px 0 0 0;">注文数${orderCount}件</p>` : '';
         
         // Check if user is admin
         const userIsAdmin = userPermissions && userPermissions.role === 'admin';
@@ -1207,7 +1207,7 @@ function renderPlaceOrderProductGrid() {
         card.innerHTML = `
             <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
             <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
-            <p style="font-size:0.85rem; font-weight:600; margin:0; color:${stockColor};">${stockStatus}</p>
+            <p style="font-size:1.1rem; font-weight:700; margin:0; color:${stockColor};">${stockStatus}</p>
             ${orderCountDisplay}
             ${userIsAdmin ? `
                 <div class="catalog-card-overlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); border-radius:8px; display:flex; gap:8px; align-items:center; justify-content:center; z-index:10;">
