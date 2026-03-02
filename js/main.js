@@ -1129,8 +1129,34 @@ function renderPlaceOrderProductGrid() {
     grid.innerHTML = '';
     let itemCount = 0;
     
-    // Iterate through unified CatalogDB
-    Object.entries(CatalogDB).forEach(([key, catalogData]) => {
+    // Count orders for each catalog from the Orders data
+    const orderCounts = {};
+    Object.values(Orders || {}).forEach(order => {
+        const catalogName = order.CatalogName;
+        if (catalogName) {
+            orderCounts[catalogName] = (orderCounts[catalogName] || 0) + 1;
+        }
+    });
+    
+    // Sort catalogs by popularity (order count descending), then alphabetically for zero-count items
+    const sortedCatalogs = Object.entries(CatalogDB)
+        .sort(([keyA, catalogA], [keyB, catalogB]) => {
+            const nameA = catalogA.name || keyA;
+            const nameB = catalogB.name || keyB;
+            const countA = orderCounts[nameA] || 0;
+            const countB = orderCounts[nameB] || 0;
+            
+            // Sort by order count descending
+            if (countA !== countB) {
+                return countB - countA;
+            }
+            
+            // If same order count, sort alphabetically
+            return nameA.localeCompare(nameB, 'ja');
+        });
+    
+    // Render sorted catalogs
+    sortedCatalogs.forEach(([key, catalogData]) => {
         if (!catalogData) return;
         
         const catalogName = catalogData.name || key;
@@ -1162,6 +1188,10 @@ function renderPlaceOrderProductGrid() {
         const stockStatus = currentStock > 0 ? `在庫: ${currentStock}個` : '絶版';
         const stockColor = currentStock > 0 ? '#16a34a' : '#dc2626';
         
+        // Get order count for display
+        const orderCount = orderCounts[catalogName] || 0;
+        const orderCountDisplay = orderCount > 0 ? `<p style="font-size:0.75rem; color:#666; margin:4px 0 0 0;">📊 ${orderCount}件注文済</p>` : '';
+        
         // Check if user is admin
         const userIsAdmin = userPermissions && userPermissions.role === 'admin';
         
@@ -1169,6 +1199,7 @@ function renderPlaceOrderProductGrid() {
             <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
             <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
             <p style="font-size:0.85rem; font-weight:600; margin:0; color:${stockColor};">${stockStatus}</p>
+            ${orderCountDisplay}
             ${userIsAdmin ? `
                 <div class="catalog-card-overlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); border-radius:8px; display:flex; gap:8px; align-items:center; justify-content:center; z-index:10;">
                     <button onclick="openEditCatalogModal('${key}', '${catalogName.replace(/'/g, "\\'")}'); event.stopPropagation();" style="padding:6px 12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600;">編集</button>
