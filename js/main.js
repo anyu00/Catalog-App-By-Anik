@@ -1618,7 +1618,7 @@ function showOrderConfirmationCelebration(itemCount) {
         confetti.textContent = emoji;
         confetti.style.cssText = `
             position: fixed;
-            font-size: ${20 + Math.random() * 20}px;
+            font-size: ${80 + Math.random() * 80}px;
             left: 50%;
             top: 50%;
             pointer-events: none;
@@ -1644,15 +1644,15 @@ function showOrderConfirmationCelebration(itemCount) {
         position: fixed;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, calc(-50% + 100px));
+        transform: translate(-50%, calc(-50% + 400px));
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         color: white;
-        padding: 20px 40px;
-        border-radius: 12px;
-        font-size: 18px;
+        padding: 80px 160px;
+        border-radius: 48px;
+        font-size: 72px;
         font-weight: 700;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 40px 120px rgba(16, 185, 129, 0.4);
         z-index: 4998;
         animation: slideUpIn 0.5s ease-out;
         pointer-events: none;
@@ -1660,7 +1660,7 @@ function showOrderConfirmationCelebration(itemCount) {
     
     message.innerHTML = `
         <div>🎉 注文が完了しました！</div>
-        <div style="font-size: 14px; margin-top: 8px; opacity: 0.95;">
+        <div style="font-size: 56px; margin-top: 32px; opacity: 0.95;">
             ${itemCount}件の注文を受け付けました
         </div>
     `;
