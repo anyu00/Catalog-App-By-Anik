@@ -1600,7 +1600,7 @@ function showOrderConfirmationCelebration(itemCount) {
     
     celebration.innerHTML = `
         <div style="
-            font-size: 72px;
+            font-size: 180px;
             font-weight: 700;
             color: #10b981;
             text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
