@@ -805,6 +805,7 @@ async function loadPlaceOrderProducts() {
         const namesSnapshot = await get(ref(db, 'CatalogNames'));
         const imagesSnapshot = await get(ref(db, 'CatalogImages'));
         const catalogsSnapshot = await get(ref(db, 'Catalogs'));
+        const ordersSnapshot = await get(ref(db, 'Orders'));
         
         // Initialize CatalogDB from CatalogNames
         if (namesSnapshot.exists()) {
@@ -859,6 +860,14 @@ async function loadPlaceOrderProducts() {
             });
             
             console.log('[CATALOG LOAD] Loaded', Object.keys(catalogData).length, 'catalog entries');
+        }
+        
+        // Load Orders for popularity sorting
+        if (ordersSnapshot.exists()) {
+            window.Orders = ordersSnapshot.val() || {};
+            console.log('[CATALOG LOAD] Loaded', Object.keys(window.Orders).length, 'orders for popularity');
+        } else {
+            window.Orders = {};
         }
         
         renderPlaceOrderProductGrid();
@@ -1131,7 +1140,7 @@ function renderPlaceOrderProductGrid() {
     
     // Count orders for each catalog from the Orders data
     const orderCounts = {};
-    Object.values(Orders || {}).forEach(order => {
+    Object.values(window.Orders || {}).forEach(order => {
         const catalogName = order.CatalogName;
         if (catalogName) {
             orderCounts[catalogName] = (orderCounts[catalogName] || 0) + 1;
