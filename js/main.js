@@ -4917,6 +4917,73 @@ async function renderMovementHistory() {
     }
 }
 
+
+/**
+ * Open My Page - Display user account details
+ */
+async function openMyPage() {
+    try {
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+            alert('ユーザー情報が見つかりません');
+            return;
+        }
+        
+        // Switch to My Page tab
+        const tabs = document.querySelectorAll('.tab-section');
+        tabs.forEach(tab => tab.style.display = 'none');
+        const myPageTab = document.getElementById('tab-myPage');
+        if (myPageTab) {
+            myPageTab.style.display = 'block';
+        }
+        
+        // Fetch user data from Firebase
+        const userRef = ref(db, `Users/${currentUser.uid}`);
+        const userSnapshot = await get(userRef);
+        
+        let userData = {};
+        if (userSnapshot.exists()) {
+            userData = userSnapshot.val();
+        }
+        
+        // Render My Page content
+        const myPageContent = document.getElementById('myPageContent');
+        myPageContent.innerHTML = `
+            <div style="padding: 20px; color: #fff; font-family: monospace;">
+                <h3 style="color: #fff; margin-bottom: 30px; border-bottom: 1px solid #333; padding-bottom: 15px;">User Account Information</h3>
+                
+                <div style="margin-bottom: 20px;">
+                    <p><strong>Email:</strong> ${currentUser.email}</p>
+                    <p><strong>User ID:</strong> ${currentUser.uid}</p>
+                    <p><strong>Display Name:</strong> ${currentUser.displayName || 'Not set'}</p>
+                    <p><strong>Account Created:</strong> ${currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleDateString('ja-JP') : 'Unknown'}</p>
+                    <p><strong>Last Sign In:</strong> ${currentUser.metadata?.lastSignInTime ? new Date(currentUser.metadata.lastSignInTime).toLocaleDateString('ja-JP') : 'Unknown'}</p>
+                </div>
+                
+                <hr style="border-color: #333; margin: 30px 0;">
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #fff; margin-bottom: 15px;">Account Permissions (権限)</h4>
+                    <pre style="background: #111; padding: 15px; border-radius: 8px; overflow-x: auto;">
+${JSON.stringify(userPermissions || {}, null, 2)}
+                    </pre>
+                </div>
+                
+                <hr style="border-color: #333; margin: 30px 0;">
+                
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #fff; margin-bottom: 15px;">Assigned Location (割り当て場所)</h4>
+                    <p><strong>Location ID:</strong> ${userAssignedLocationId || 'Not assigned'}</p>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error opening My Page:', error);
+        alert('マイページを読み込むことができませんでした: ' + error.message);
+    }
+}
+
 // ===== BULK OPERATIONS =====
 
 // Export functions to global scope for HTML inline event handlers
@@ -4934,3 +5001,4 @@ window.submitPlaceOrder = submitPlaceOrder;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.updateCartUI = updateCartUI;
+window.openMyPage = openMyPage;

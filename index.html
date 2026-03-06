@@ -40,7 +40,7 @@
         <div class="sidebar-title">カタログ管理</div>
         
         <!-- User Profile Section -->
-        <div class="sidebar-user-profile">
+        <div class="sidebar-user-profile" style="cursor:pointer;" onclick="openMyPage()" title="マイページ">
             <div class="user-avatar">👤</div>
             <div class="user-info">
                 <div class="user-email" id="userEmail">Loading...</div>
@@ -102,7 +102,7 @@
                         <span style="color:#cbd5e1; font-size:12px;">|</span>
                         <button id="langEN" style="padding:4px 8px; border:none; background:transparent; cursor:pointer; font-weight:600; font-size:12px; color:#64748b;" title="English">EN</button>
                     </div>
-                    <div class="user-display" style="display:flex; align-items:center; gap:10px;">
+                    <div class="user-display" style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="openMyPage()" title="マイページ">
                         <img id="userAvatar" src="" alt="Avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; background:#e2e8f0;">
                         <div class="user-info-inline">
                             <div class="user-email-inline" id="userEmailInline">Loading...</div>
@@ -623,6 +623,15 @@
                         <button class="btn btn-primary" id="customizeAnalyticsBtn"><i class="fa-solid fa-sliders"></i> カスタマイズ</button>
                     </div>
                     <div id="analyticsCards"></div> 
+                </div>
+                
+                <!-- TAB: My Page (マイページ) - Start of My Page -->
+                <div class="glass-card tab-section" id="tab-myPage" style="display:none;">
+                    <h2>マイページ</h2>
+                    <!-- My Page content placeholder -->
+                    <div id="myPageContent" style="background: #000; color: #fff; padding: 40px; border-radius: 12px; min-height: 500px;">
+                        <!-- User details will be loaded here -->
+                    </div>
                 </div>
             </div>
         </div>
