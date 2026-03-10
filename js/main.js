@@ -709,6 +709,9 @@ async function checkoutCart() {
         checkoutBtn.disabled = true;
         checkoutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 処理中...';
         
+        // Get current user
+        const user = getCurrentUser();
+        
         // Submit all orders
         const orderIds = [];
         const now = new Date();
@@ -725,6 +728,13 @@ async function checkoutCart() {
                 AddressValue: item.addressValue,
                 OrderDate: now.toISOString().split('T')[0],
                 CreatedAt: now.toISOString(),
+                UserEmail: user?.email || 'unknown',  // Track which user placed order
+                Status: '注文受付',  // Initial status: pending
+                StatusHistory: [{
+                    status: '注文受付',
+                    timestamp: now.toISOString(),
+                    changedBy: user?.email || 'system'
+                }],
                 Fulfilled: false
             };
             
@@ -4919,7 +4929,7 @@ async function renderMovementHistory() {
 
 
 /**
- * Open My Page - Display user account details
+ * Open My Page - Display user account details and all previous orders
  */
 async function openMyPage() {
     try {
@@ -4946,41 +4956,220 @@ async function openMyPage() {
             userData = userSnapshot.val();
         }
         
+        // Fetch all orders for this user
+        const ordersRef = ref(db, 'Orders');
+        const ordersSnapshot = await get(ordersRef);
+        let userOrders = [];
+        
+        if (ordersSnapshot.exists()) {
+            const allOrders = ordersSnapshot.val();
+            // Filter orders by current user's email
+            userOrders = Object.entries(allOrders)
+                .filter(([_, order]) => order.UserEmail === currentUser.email || order.Requester === currentUser.email)
+                .map(([orderId, order]) => ({
+                    orderId,
+                    ...order
+                }))
+                .sort((a, b) => new Date(b.CreatedAt || b.OrderDate) - new Date(a.CreatedAt || a.OrderDate));
+        }
+        
         // Render My Page content
         const myPageContent = document.getElementById('myPageContent');
-        myPageContent.innerHTML = `
-            <div style="padding: 20px; color: #fff; font-family: monospace;">
-                <h3 style="color: #fff; margin-bottom: 30px; border-bottom: 1px solid #333; padding-bottom: 15px;">User Account Information</h3>
-                
-                <div style="margin-bottom: 20px;">
-                    <p><strong>Email:</strong> ${currentUser.email}</p>
-                    <p><strong>User ID:</strong> ${currentUser.uid}</p>
-                    <p><strong>Display Name:</strong> ${currentUser.displayName || 'Not set'}</p>
-                    <p><strong>Account Created:</strong> ${currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleDateString('ja-JP') : 'Unknown'}</p>
-                    <p><strong>Last Sign In:</strong> ${currentUser.metadata?.lastSignInTime ? new Date(currentUser.metadata.lastSignInTime).toLocaleDateString('ja-JP') : 'Unknown'}</p>
-                </div>
-                
-                <hr style="border-color: #333; margin: 30px 0;">
-                
-                <div style="margin-bottom: 20px;">
-                    <h4 style="color: #fff; margin-bottom: 15px;">Account Permissions (権限)</h4>
-                    <pre style="background: #111; padding: 15px; border-radius: 8px; overflow-x: auto;">
-${JSON.stringify(userPermissions || {}, null, 2)}
-                    </pre>
-                </div>
-                
-                <hr style="border-color: #333; margin: 30px 0;">
-                
-                <div style="margin-bottom: 20px;">
-                    <h4 style="color: #fff; margin-bottom: 15px;">Assigned Location (割り当て場所)</h4>
-                    <p><strong>Location ID:</strong> ${userAssignedLocationId || 'Not assigned'}</p>
+        
+        // Build account info section
+        const accountInfoHtml = `
+            <div style="background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); 
+                        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+                        border-radius: 12px; padding: 24px; margin-bottom: 30px;">
+                <h3 style="color: #fff; margin: 0 0 20px 0; font-size: 24px; display: flex; align-items: center; gap: 12px;">
+                    <i class="fas fa-user-circle" style="font-size: 28px; color: #3b82f6;"></i>
+                    アカウント情報
+                </h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #3b82f6;">
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8;">メールアドレス</p>
+                        <p style="margin: 0; font-size: 14px; color: #fff; font-weight: 600;">${currentUser.email}</p>
+                    </div>
+                    <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #10b981;">
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8;">ユーザーID</p>
+                        <p style="margin: 0; font-size: 13px; color: #cbd5e1; font-family: monospace; word-break: break-all;">${currentUser.uid}</p>
+                    </div>
+                    <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #f59e0b;">
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8;">アカウント作成日</p>
+                        <p style="margin: 0; font-size: 14px; color: #fff; font-weight: 500;">
+                            ${currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleDateString('ja-JP') : 'Unknown'}
+                        </p>
+                    </div>
+                    <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <p style="margin: 0 0 4px 0; font-size: 12px; color: #94a3b8;">最終ログイン</p>
+                        <p style="margin: 0; font-size: 14px; color: #fff; font-weight: 500;">
+                            ${currentUser.metadata?.lastSignInTime ? new Date(currentUser.metadata.lastSignInTime).toLocaleDateString('ja-JP') : 'Unknown'}
+                        </p>
+                    </div>
                 </div>
             </div>
         `;
         
+        // Build orders section
+        let ordersHtml = '';
+        if (userOrders.length > 0) {
+            const ordersTableHtml = userOrders.map((order, idx) => {
+                const orderDate = order.CreatedAt ? new Date(order.CreatedAt) : (order.OrderDate ? new Date(order.OrderDate) : new Date());
+                const statusColor = {
+                    '注文受付': '#3b82f6',
+                    'キャンセル': '#ef4444',
+                    '発送済み': '#f59e0b',
+                    '完了': '#10b981',
+                    'pending': '#3b82f6',
+                    'cancelled': '#ef4444',
+                    'shipped': '#f59e0b',
+                    'completed': '#10b981'
+                }[order.Status] || '#64748b';
+                
+                // Build status history timeline
+                const statusHistory = order.StatusHistory && Array.isArray(order.StatusHistory) ? order.StatusHistory : 
+                                     (order.Status ? [{status: order.Status, timestamp: order.CreatedAt || order.OrderDate, changedBy: 'system'}] : []);
+                
+                const statusTimelineHtml = statusHistory.map((entry, i) => {
+                    const statusDate = new Date(entry.timestamp);
+                    const histColor = {
+                        '注文受付': '#3b82f6',
+                        'キャンセル': '#ef4444',
+                        '発送済み': '#f59e0b',
+                        '完了': '#10b981'
+                    }[entry.status] || '#64748b';
+                    
+                    return `
+                        <div style="display: flex; gap: 12px; margin-bottom: ${i === statusHistory.length - 1 ? '0' : '8px'};">
+                            <div style="width: 24px; height: 24px; background: ${histColor}; border: 2px solid #1e293b; 
+                                       border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 12px; color: white; font-weight: bold;">✓</span>
+                            </div>
+                            <div style="flex: 1; padding-top: 2px;">
+                                <div style="color: #fff; font-size: 13px; font-weight: 600;">${entry.status}</div>
+                                <div style="color: #94a3b8; font-size: 11px;">
+                                    ${statusDate.toLocaleDateString('ja-JP')} ${statusDate.toLocaleTimeString('ja-JP')}
+                                    ${entry.changedBy && entry.changedBy !== 'system' ? ` (by ${entry.changedBy})` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+                                border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 16px; 
+                                margin-bottom: 12px; animation: slideIn 0.4s ease-out backwards; 
+                                animation-delay: ${idx * 0.1}s;
+                                transition: all 0.3s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <h4 style="margin: 0 0 8px 0; color: #fff; font-size: 15px;">${order.CatalogName}</h4>
+                                <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px;">
+                                    <div>
+                                        <span style="color: #94a3b8;">注文ID:</span>
+                                        <span style="color: #cbd5e1; font-family: monospace;">${order.orderId}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #94a3b8;">数量:</span>
+                                        <span style="color: #fff; font-weight: 600;">${order.OrderQuantity}部</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #94a3b8;">部署:</span>
+                                        <span style="color: #fff;">${order.RequesterDepartment || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="background: ${statusColor}; color: white; padding: 6px 12px; border-radius: 6px; 
+                                           font-size: 12px; font-weight: 600; margin-bottom: 8px;">
+                                    ${order.Status || '注文受付'}
+                                </div>
+                                <div style="font-size: 12px; color: #94a3b8;">
+                                    ${orderDate.toLocaleDateString('ja-JP')} ${orderDate.toLocaleTimeString('ja-JP')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 12px 0; padding: 12px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; border-radius: 6px;">
+                            <p style="margin: 0 0 8px 0; color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 600;">📋 ステータス推移</p>
+                            ${statusTimelineHtml}
+                        </div>
+                        
+                        <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; font-size: 12px;">
+                                <div>
+                                    <span style="color: #94a3b8;">配布先:</span>
+                                    <div style="color: #fff; margin-top: 2px;">${order.DistributionDestination || '-'}</div>
+                                </div>
+                                <div>
+                                    <span style="color: #94a3b8;">住所:</span>
+                                    <div style="color: #fff; margin-top: 2px; word-break: break-word;">${order.RequesterAddress || '-'}</div>
+                                </div>
+                                ${order.TrackingId ? `
+                                    <div>
+                                        <span style="color: #94a3b8;">追跡ID:</span>
+                                        <div style="color: #3b82f6; margin-top: 2px; font-family: monospace; cursor: pointer;" 
+                                             onclick="openTrackingLink('${order.TrackingId}', '${order.TrackingService || 'other'}')">
+                                            ${order.TrackingId} 🔗
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                <div>
+                                    <span style="color: #94a3b8;">備考:</span>
+                                    <div style="color: #cbd5e1; margin-top: 2px;">${order.Message || '-'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            ordersHtml = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #fff; margin: 0 0 16px 0; font-size: 22px; display: flex; align-items: center; gap: 12px;">
+                        <i class="fas fa-box" style="color: #3b82f6;"></i>
+                        注文履歴
+                        <span style="background: #3b82f6; color: white; padding: 4px 8px; border-radius: 6px; font-size: 13px;">
+                            ${userOrders.length}件
+                        </span>
+                    </h3>
+                    ${ordersTableHtml}
+                </div>
+            `;
+        } else {
+            ordersHtml = `
+                <div style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
+                           border: 1px dashed #64748b; border-radius: 10px; padding: 40px 20px; 
+                           text-align: center; margin-bottom: 20px;">
+                    <i class="fas fa-inbox" style="font-size: 48px; color: #64748b; margin-bottom: 16px; display: block;"></i>
+                    <p style="color: #94a3b8; margin: 0; font-size: 15px;">まだ注文履歴がありません</p>
+                    <p style="color: #64748b; margin: 8px 0 0 0; font-size: 13px;">新しい注文を作成してください</p>
+                </div>
+            `;
+        }
+        
+        myPageContent.innerHTML = `
+            <div style="padding: 20px; color: #fff;">
+                ${accountInfoHtml}
+                ${ordersHtml}
+            </div>
+        `;
+        
+        // Smooth scroll to My Page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
     } catch (error) {
         console.error('Error opening My Page:', error);
-        alert('マイページを読み込むことができませんでした: ' + error.message);
+        const myPageContent = document.getElementById('myPageContent');
+        myPageContent.innerHTML = `
+            <div style="padding: 20px; color: #ef4444; 
+                       background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(239,68,68,0.05) 100%);
+                       border: 1px solid rgba(239,68,68,0.3); border-radius: 10px;">
+                <h3 style="margin: 0 0 10px 0;">❌ エラーが発生しました</h3>
+                <p style="margin: 0; font-size: 14px; color: #fecaca;">${error.message}</p>
+            </div>
+        `;
     }
 }
 
