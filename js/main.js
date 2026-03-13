@@ -4929,6 +4929,19 @@ async function renderMovementHistory() {
 
 
 /**
+ * Convert hex color to RGB string format (r, g, b)
+ */
+function hexToRgb(hex) {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    // Parse hex values
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+}
+
+/**
  * Open My Page - Professional Order Tracking Dashboard (White Background)
  */
 async function openMyPage() {
@@ -5249,7 +5262,7 @@ async function openMyPage() {
                             <div style="text-align: right;">
                                 <div class="status-badge" style="background: ${statusBgLight}; color: ${statusTextDark}; padding: 8px 14px; border: 2px solid ${statusColor}; border-radius: 8px; 
                                            font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px ${statusColor}44; margin-bottom: 8px;
-                                           --status-rgb: ${statusColor.match(/\\d+/g).join(', ')};">
+                                           --status-rgb: ${hexToRgb(statusColor)};">
                                     ${order.Status || '注文受付'}
                                 </div>
                                 <div style="font-size: 12px; color: #6b7280;">
