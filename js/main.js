@@ -4929,7 +4929,7 @@ async function renderMovementHistory() {
 
 
 /**
- * Open My Page - Professional Order Tracking Dashboard
+ * Open My Page - Professional Order Tracking Dashboard (White Background)
  */
 async function openMyPage() {
     try {
@@ -4984,6 +4984,28 @@ async function openMyPage() {
         // Render My Page content
         const myPageContent = document.getElementById('myPageContent');
         
+        // Add CSS animations
+        const animationStyle = `
+            <style>
+                @keyframes statusPulse {
+                    0% { box-shadow: 0 0 0 0 rgba(var(--status-rgb), 0.7); }
+                    50% { box-shadow: 0 0 0 8px rgba(var(--status-rgb), 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(var(--status-rgb), 0); }
+                }
+                @keyframes statusGlow {
+                    0%, 100% { filter: brightness(1); box-shadow: 0 4px 12px rgba(var(--status-rgb), 0.4); }
+                    50% { filter: brightness(1.1); box-shadow: 0 6px 20px rgba(var(--status-rgb), 0.6); }
+                }
+                @keyframes slideInUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .status-badge {
+                    animation: statusGlow 2s ease-in-out infinite;
+                }
+            </style>
+        `;
+        
         // Build professional header
         const headerHtml = `
             <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); 
@@ -5010,54 +5032,54 @@ async function openMyPage() {
         // Build statistics cards
         const statsHtml = `
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 30px;">
-                <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
-                           border: 1px solid #10b98133; backdrop-filter: blur(10px);
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e8f5e9 100%);
+                           border: 1px solid #86efac; 
                            padding: 18px; border-radius: 12px; transition: all 0.3s ease;
-                           cursor: default; text-align: center;">
-                    <div style="font-size: 11px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                           cursor: default; text-align: center; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);">
+                    <div style="font-size: 11px; color: #16a34a; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                         ✓ 完了
                     </div>
-                    <div style="font-size: 28px; color: #fff; font-weight: 700;">${completedOrders}</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; background: rgba(16, 185, 129, 0.2); padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                    <div style="font-size: 28px; color: #15803d; font-weight: 700;">${completedOrders}</div>
+                    <div style="font-size: 12px; color: #4b5563; margin-top: 4px; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;">
                         ${totalOrders > 0 ? Math.round(completedOrders / totalOrders * 100) : 0}%
                     </div>
                 </div>
                 
-                <div style="background: linear-gradient(135deg, rgba(249, 158, 11, 0.15) 0%, rgba(249, 158, 11, 0.05) 100%);
-                           border: 1px solid #f59e0b33; backdrop-filter: blur(10px);
+                <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+                           border: 1px solid #fcd34d; 
                            padding: 18px; border-radius: 12px; transition: all 0.3s ease;
-                           cursor: default; text-align: center;">
-                    <div style="font-size: 11px; color: #f59e0b; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                           cursor: default; text-align: center; box-shadow: 0 2px 8px rgba(249, 158, 11, 0.1);">
+                    <div style="font-size: 11px; color: #b45309; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                         📦 発送
                     </div>
-                    <div style="font-size: 28px; color: #fff; font-weight: 700;">${shippedOrders}</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; background: rgba(249, 158, 11, 0.2); padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                    <div style="font-size: 28px; color: #92400e; font-weight: 700;">${shippedOrders}</div>
+                    <div style="font-size: 12px; color: #4b5563; margin-top: 4px; background: rgba(249, 158, 11, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;">
                         ${totalOrders > 0 ? Math.round(shippedOrders / totalOrders * 100) : 0}%
                     </div>
                 </div>
                 
-                <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
-                           border: 1px solid #3b82f633; backdrop-filter: blur(10px);
+                <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+                           border: 1px solid #93c5fd; 
                            padding: 18px; border-radius: 12px; transition: all 0.3s ease;
-                           cursor: default; text-align: center;">
-                    <div style="font-size: 11px; color: #3b82f6; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                           cursor: default; text-align: center; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);">
+                    <div style="font-size: 11px; color: #1e40af; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                         ⏳ 処理中
                     </div>
-                    <div style="font-size: 28px; color: #fff; font-weight: 700;">${pendingOrders}</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; background: rgba(59, 130, 246, 0.2); padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                    <div style="font-size: 28px; color: #1e3a8a; font-weight: 700;">${pendingOrders}</div>
+                    <div style="font-size: 12px; color: #4b5563; margin-top: 4px; background: rgba(59, 130, 246, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;">
                         ${totalOrders > 0 ? Math.round(pendingOrders / totalOrders * 100) : 0}%
                     </div>
                 </div>
                 
-                <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
-                           border: 1px solid #ef444433; backdrop-filter: blur(10px);
+                <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+                           border: 1px solid #fecaca; 
                            padding: 18px; border-radius: 12px; transition: all 0.3s ease;
-                           cursor: default; text-align: center;">
-                    <div style="font-size: 11px; color: #ef4444; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                           cursor: default; text-align: center; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);">
+                    <div style="font-size: 11px; color: #b91c1c; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                         ✕ キャンセル
                     </div>
-                    <div style="font-size: 28px; color: #fff; font-weight: 700;">${cancelledOrders}</div>
-                    <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; background: rgba(239, 68, 68, 0.2); padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                    <div style="font-size: 28px; color: #7f1d1d; font-weight: 700;">${cancelledOrders}</div>
+                    <div style="font-size: 12px; color: #4b5563; margin-top: 4px; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block;">
                         ${totalOrders > 0 ? Math.round(cancelledOrders / totalOrders * 100) : 0}%
                     </div>
                 </div>
@@ -5066,44 +5088,43 @@ async function openMyPage() {
         
         // Build account info section
         const accountInfoHtml = `
-            <div style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-                       backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.15);
-                       border-radius: 12px; padding: 24px; margin-bottom: 30px;">
-                <h3 style="color: #fff; margin: 0 0 16px 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+            <div style="background: #f9fafb; border: 1px solid #e5e7eb;
+                       border-radius: 12px; padding: 24px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <h3 style="color: #1f2937; margin: 0 0 16px 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-user-circle" style="font-size: 22px; color: #3b82f6;"></i>
                     アカウント詳細
                 </h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
-                    <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border-left: 3px solid #3b82f6;">
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
+                    <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #3b82f6; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
                             📧 メールアドレス
                         </div>
-                        <div style="font-size: 14px; color: #fff; font-weight: 500; word-break: break-word;">${currentUser.email}</div>
+                        <div style="font-size: 14px; color: #1f2937; font-weight: 500; word-break: break-word;">${currentUser.email}</div>
                     </div>
                     
-                    <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border-left: 3px solid #10b981;">
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
+                    <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #10b981; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
                             📅 登録日
                         </div>
-                        <div style="font-size: 14px; color: #fff; font-weight: 500;">
+                        <div style="font-size: 14px; color: #1f2937; font-weight: 500;">
                             ${currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleDateString('ja-JP') : 'Unknown'}
                         </div>
                     </div>
                     
-                    <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border-left: 3px solid #f59e0b;">
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
+                    <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #f59e0b; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
                             🕐 最終ログイン
                         </div>
-                        <div style="font-size: 14px; color: #fff; font-weight: 500;">
+                        <div style="font-size: 14px; color: #1f2937; font-weight: 500;">
                             ${currentUser.metadata?.lastSignInTime ? new Date(currentUser.metadata.lastSignInTime).toLocaleDateString('ja-JP') : 'Unknown'}
                         </div>
                     </div>
                     
-                    <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
+                    <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #8b5cf6; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 6px;">
                             📊 総品数
                         </div>
-                        <div style="font-size: 14px; color: #fff; font-weight: 500;">
+                        <div style="font-size: 14px; color: #1f2937; font-weight: 500;">
                             ${totalQuantity}部
                         </div>
                     </div>
@@ -5125,7 +5146,29 @@ async function openMyPage() {
                     'cancelled': '#ef4444',
                     'shipped': '#f59e0b',
                     'completed': '#10b981'
-                }[order.Status] || '#64748b';
+                }[order.Status] || '#6b7280';
+                
+                const statusBgLight = {
+                    '注文受付': '#eff6ff',
+                    'キャンセル': '#fef2f2',
+                    '発送済み': '#fffbeb',
+                    '完了': '#f0fdf4',
+                    'pending': '#eff6ff',
+                    'cancelled': '#fef2f2',
+                    'shipped': '#fffbeb',
+                    'completed': '#f0fdf4'
+                }[order.Status] || '#f3f4f6';
+                
+                const statusTextDark = {
+                    '注文受付': '#1e3a8a',
+                    'キャンセル': '#7f1d1d',
+                    '発送済み': '#92400e',
+                    '完了': '#15803d',
+                    'pending': '#1e3a8a',
+                    'cancelled': '#7f1d1d',
+                    'shipped': '#92400e',
+                    'completed': '#15803d'
+                }[order.Status] || '#374151';
                 
                 const statusEmoji = {
                     '注文受付': '📝',
@@ -5145,7 +5188,7 @@ async function openMyPage() {
                         'キャンセル': '#ef4444',
                         '発送済み': '#f59e0b',
                         '完了': '#10b981'
-                    }[entry.status] || '#64748b';
+                    }[entry.status] || '#6b7280';
                     
                     const histEmoji = {
                         '注文受付': '📝',
@@ -5155,14 +5198,14 @@ async function openMyPage() {
                     }[entry.status] || '❓';
                     
                     return `
-                        <div style="display: flex; gap: 12px; padding: 10px 0; ${i < statusHistory.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.1);' : ''}">
+                        <div style="display: flex; gap: 12px; padding: 10px 0; ${i < statusHistory.length - 1 ? 'border-bottom: 1px solid #e5e7eb;' : ''}">
                             <div style="width: 32px; height: 32px; background: ${histColor}; border-radius: 50%; flex-shrink: 0; 
-                                       display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px ${histColor}44;">
+                                       display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px ${histColor}44; color: white;">
                                 ${histEmoji}
                             </div>
                             <div style="flex: 1; padding-top: 4px;">
-                                <div style="color: #fff; font-size: 14px; font-weight: 600;">${entry.status}</div>
-                                <div style="color: #94a3b8; font-size: 12px; margin-top: 2px;">
+                                <div style="color: #1f2937; font-size: 14px; font-weight: 600;">${entry.status}</div>
+                                <div style="color: #6b7280; font-size: 12px; margin-top: 2px;">
                                     ${statusDate.toLocaleDateString('ja-JP')} ${statusDate.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})}
                                 </div>
                             </div>
@@ -5173,76 +5216,76 @@ async function openMyPage() {
                 const progressPercent = (statusHistory.length / 4) * 100;
                 
                 return `
-                    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-                                border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 20px; 
-                                margin-bottom: 16px; animation: slideIn 0.4s ease-out backwards; 
+                    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; 
+                                margin-bottom: 16px; animation: slideInUp 0.5s ease-out backwards; 
                                 animation-delay: ${idx * 0.08}s;
                                 transition: all 0.3s ease; cursor: pointer;
-                                box-shadow: 0 4px 12px rgba(0,0,0,0.2);"
-                             onmouseover="this.style.borderColor='rgba(59, 130, 246, 0.5)'; this.style.boxShadow='0 8px 24px rgba(59, 130, 246, 0.2)'"
-                             onmouseout="this.style.borderColor='rgba(255,255,255,0.15)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)'">
+                                box-shadow: 0 1px 3px rgba(0,0,0,0.1);"
+                             onmouseover="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 4px 12px rgba(59, 130, 246, 0.15)'"
+                             onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'">
                         
                         <!-- Header Row -->
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px;">
                             <div style="flex: 1;">
                                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
                                     <span style="font-size: 24px;">${statusEmoji}</span>
-                                    <h4 style="margin: 0; color: #fff; font-size: 16px; font-weight: 700;">${order.CatalogName}</h4>
+                                    <h4 style="margin: 0; color: #1f2937; font-size: 16px; font-weight: 700;">${order.CatalogName}</h4>
                                 </div>
                                 <div style="display: grid; grid-template-columns: auto auto auto; gap: 20px; font-size: 13px;">
                                     <div>
-                                        <span style="color: #94a3b8; font-weight: 600;">注文ID</span>
-                                        <div style="color: #cbd5e1; font-family: monospace; font-size: 12px; margin-top: 2px;">${order.orderId}</div>
+                                        <span style="color: #6b7280; font-weight: 600;">注文ID</span>
+                                        <div style="color: #374151; font-family: monospace; font-size: 12px; margin-top: 2px;">${order.orderId}</div>
                                     </div>
                                     <div>
-                                        <span style="color: #94a3b8; font-weight: 600;">数量</span>
-                                        <div style="color: #fff; font-weight: 600; margin-top: 2px;">${order.OrderQuantity}部</div>
+                                        <span style="color: #6b7280; font-weight: 600;">数量</span>
+                                        <div style="color: #1f2937; font-weight: 600; margin-top: 2px;">${order.OrderQuantity}部</div>
                                     </div>
                                     <div>
-                                        <span style="color: #94a3b8; font-weight: 600;">部署</span>
-                                        <div style="color: #cbd5e1; margin-top: 2px;">${order.RequesterDepartment || '-'}</div>
+                                        <span style="color: #6b7280; font-weight: 600;">部署</span>
+                                        <div style="color: #374151; margin-top: 2px;">${order.RequesterDepartment || '-'}</div>
                                     </div>
                                 </div>
                             </div>
                             <div style="text-align: right;">
-                                <div style="background: ${statusColor}; color: white; padding: 8px 14px; border-radius: 8px; 
-                                           font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px ${statusColor}44; margin-bottom: 8px;">
+                                <div class="status-badge" style="background: ${statusBgLight}; color: ${statusTextDark}; padding: 8px 14px; border: 2px solid ${statusColor}; border-radius: 8px; 
+                                           font-size: 13px; font-weight: 700; box-shadow: 0 4px 12px ${statusColor}44; margin-bottom: 8px;
+                                           --status-rgb: ${statusColor.match(/\\d+/g).join(', ')};">
                                     ${order.Status || '注文受付'}
                                 </div>
-                                <div style="font-size: 12px; color: #94a3b8;">
+                                <div style="font-size: 12px; color: #6b7280;">
                                     ${orderDate.toLocaleDateString('ja-JP')}
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Progress Bar -->
-                        <div style="margin: 12px 0; background: rgba(255,255,255,0.05); height: 6px; border-radius: 3px; overflow: hidden;">
-                            <div style="height: 100%; background: linear-gradient(90deg, ${statusColor}, ${statusColor}dd); width: ${progressPercent}%; transition: width 0.5s ease;"></div>
+                        <div style="margin: 12px 0; background: #e5e7eb; height: 6px; border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; background: linear-gradient(90deg, ${statusColor}, ${statusColor}dd); width: ${progressPercent}%; transition: width 0.8s ease;"></div>
                         </div>
                         
                         <!-- Status Timeline -->
-                        <div style="margin: 16px 0; padding: 12px; background: rgba(${statusColor.replace('#', '').match(/.{1,2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1); 
+                        <div style="margin: 16px 0; padding: 12px; background: ${statusBgLight}; 
                                    border-left: 3px solid ${statusColor}; border-radius: 6px;">
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+                            <div style="font-size: 11px; color: ${statusTextDark}; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                                 📋 ステータス推移
                             </div>
                             ${statusTimelineHtml}
                         </div>
                         
                         <!-- Additional Details -->
-                        <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="padding-top: 12px; border-top: 1px solid #e5e7eb;">
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; font-size: 12px;">
                                 <div>
-                                    <span style="color: #94a3b8; font-weight: 600;">配布先</span>
-                                    <div style="color: #cbd5e1; margin-top: 4px;">${order.DistributionDestination || '-'}</div>
+                                    <span style="color: #6b7280; font-weight: 600;">配布先</span>
+                                    <div style="color: #374151; margin-top: 4px;">${order.DistributionDestination || '-'}</div>
                                 </div>
                                 <div>
-                                    <span style="color: #94a3b8; font-weight: 600;">住所</span>
-                                    <div style="color: #cbd5e1; margin-top: 4px; word-break: break-word;">${order.RequesterAddress || '-'}</div>
+                                    <span style="color: #6b7280; font-weight: 600;">住所</span>
+                                    <div style="color: #374151; margin-top: 4px; word-break: break-word;">${order.RequesterAddress || '-'}</div>
                                 </div>
                                 ${order.TrackingId ? `
                                     <div>
-                                        <span style="color: #94a3b8; font-weight: 600;">🔗 追跡ID</span>
+                                        <span style="color: #6b7280; font-weight: 600;">🔗 追跡ID</span>
                                         <div style="color: #3b82f6; margin-top: 4px; font-family: monospace; cursor: pointer; font-weight: 600;" 
                                              onclick="openTrackingLink('${order.TrackingId}', '${order.TrackingService || 'other'}')">
                                             ${order.TrackingId}
@@ -5250,8 +5293,8 @@ async function openMyPage() {
                                     </div>
                                 ` : ''}
                                 <div>
-                                    <span style="color: #94a3b8; font-weight: 600;">備考</span>
-                                    <div style="color: #cbd5e1; margin-top: 4px;">${order.Message ? order.Message.substring(0, 30) + (order.Message.length > 30 ? '...' : '') : '-'}</div>
+                                    <span style="color: #6b7280; font-weight: 600;">備考</span>
+                                    <div style="color: #374151; margin-top: 4px;">${order.Message ? order.Message.substring(0, 30) + (order.Message.length > 30 ? '...' : '') : '-'}</div>
                                 </div>
                             </div>
                         </div>
@@ -5261,7 +5304,7 @@ async function openMyPage() {
             
             ordersHtml = `
                 <div>
-                    <h3 style="color: #fff; margin: 0 0 18px 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <h3 style="color: #1f2937; margin: 0 0 18px 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
                         <i class="fas fa-box-open" style="color: #3b82f6; font-size: 20px;"></i>
                         注文一覧
                         <span style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 600;">
@@ -5273,18 +5316,18 @@ async function openMyPage() {
             `;
         } else {
             ordersHtml = `
-                <div style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-                           border: 1px dashed rgba(148, 163, 184, 0.5); border-radius: 12px; padding: 50px 30px; 
+                <div style="background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 12px; padding: 50px 30px; 
                            text-align: center; margin: 30px 0;">
-                    <i class="fas fa-inbox" style="font-size: 56px; color: #64748b; margin-bottom: 16px; display: block; opacity: 0.5;"></i>
-                    <h3 style="color: #cbd5e1; margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">注文履歴がありません</h3>
-                    <p style="color: #64748b; margin: 0; font-size: 14px;">新しい注文を作成して、ここで追跡できます</p>
+                    <i class="fas fa-inbox" style="font-size: 56px; color: #d1d5db; margin-bottom: 16px; display: block; opacity: 0.7;"></i>
+                    <h3 style="color: #6b7280; margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">注文履歴がありません</h3>
+                    <p style="color: #9ca3af; margin: 0; font-size: 14px;">新しい注文を作成して、ここで追跡できます</p>
                 </div>
             `;
         }
         
         myPageContent.innerHTML = `
-            <div style="padding: 30px 20px; color: #fff;">
+            ${animationStyle}
+            <div style="padding: 30px 20px; color: #1f2937; background: #ffffff;">
                 ${headerHtml}
                 ${totalOrders > 0 ? statsHtml : ''}
                 ${accountInfoHtml}
@@ -5299,11 +5342,10 @@ async function openMyPage() {
         console.error('Error opening My Page:', error);
         const myPageContent = document.getElementById('myPageContent');
         myPageContent.innerHTML = `
-            <div style="padding: 30px 20px; color: #ef4444; 
-                       background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(239,68,68,0.05) 100%);
-                       border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; margin: 20px;">
+            <div style="padding: 30px 20px; color: #991b1b; background: #fef2f2;
+                       border: 1px solid #fecaca; border-radius: 12px; margin: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                 <h3 style="margin: 0 0 10px 0; font-size: 18px; font-weight: 700;">❌ エラーが発生しました</h3>
-                <p style="margin: 0; font-size: 14px; color: #fecaca;">${error.message}</p>
+                <p style="margin: 0; font-size: 14px; color: #dc2626;">${error.message}</p>
             </div>
         `;
     }
