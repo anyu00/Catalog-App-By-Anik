@@ -1791,113 +1791,194 @@ function renderCatalogTablesAccordion() {
         });
     });
     
-    // Add requester filter dropdown at the top
-    const filterHtml = `
-        <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-            <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
-            <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
-                <option value="">すべて表示</option>
-                ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
-            </select>
-        </div>
-    `;
-    container.innerHTML = filterHtml;
-    
-    const filterSelect = container.querySelector('#catalogRequesterSelect');
-    if (filterSelect) {
-        filterSelect.value = catalogRequesterFilter || '';
-        filterSelect.addEventListener('change', (e) => {
-            catalogRequesterFilter = e.target.value;
-            renderCatalogTablesAccordion();
-        });
-    }
-    
-    Object.keys(catalogs).forEach((catName, idx) => {
-                let entries = catalogs[catName].slice();
-                
-                // Apply requester filter
-                if (catalogRequesterFilter) {
-                    entries = entries.filter(e => e.Requester === catalogRequesterFilter);
-                }
-                
-                // Skip if no entries after filtering
-                if (entries.length === 0) return;
-                
-                // Sort entries
-                entries.sort((a, b) => {
-                    if (catalogSortState.column === 'ReceiptDate') {
-                        const aVal = new Date(a.ReceiptDate || '1970-01-01');
-                        const bVal = new Date(b.ReceiptDate || '1970-01-01');
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    } else if (catalogSortState.column === 'QuantityReceived') {
-                        const aVal = Number(a.QuantityReceived || 0);
-                        const bVal = Number(b.QuantityReceived || 0);
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    } else if (catalogSortState.column === 'IssueQuantity') {
-                        const aVal = Number(a.IssueQuantity || 0);
-                        const bVal = Number(b.IssueQuantity || 0);
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    }
-                    return new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01');
-                });
-                
-                let prevStock = null;
-                let totalReceived = 0, totalIssued = 0;
-                const rowsHtml = entries.map((entry, i) => {
-                    const qtyReceived = Number(entry.QuantityReceived || 0);
-                    const qtyIssued = Number(entry.IssueQuantity || 0);
-                    let stock = (i === 0) ? (qtyReceived - qtyIssued) : (prevStock + qtyReceived - qtyIssued);
-                    prevStock = stock;
-                    totalReceived += qtyReceived;
-                    totalIssued += qtyIssued;
+    // Fetch orders and add them to catalogs
+    const ordersRef = ref(db, 'Orders');
+    get(ordersRef).then((snapshot) => {
+        if (snapshot.exists()) {
+            const orders = snapshot.val();
+            
+            // Add orders to their respective catalogs
+            Object.entries(orders).forEach(([orderId, order]) => {
+                if (order && order.CatalogName) {
+                    const catName = order.CatalogName;
                     
-                    return `<tr data-key="${entry._key}">
-                        <td data-field="CatalogName" style="font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                        <td class="editable" data-field="ReceiptDate">${entry.ReceiptDate}</td>
-                        <td class="editable" data-field="QuantityReceived">${entry.QuantityReceived}</td>
-                        <td class="editable" data-field="DeliveryDate">${entry.DeliveryDate}</td>
-                        <td class="editable" data-field="IssueQuantity">${entry.IssueQuantity}</td>
-                        <td><span class="calculated-stock">${stock}</span></td>
-                        <td class="editable" data-field="DistributionDestination">${entry.DistributionDestination}</td>
-                        <td class="editable" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
-                        <td class="editable" data-field="Requester">${entry.Requester}</td>
-                        <td class="editable" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
-                        <td class="editable" data-field="Remarks">${entry.Remarks}</td>
-                        <td><button class="btn btn-danger btn-sm delete-row">Delete</button></td>
-                    </tr>`;
-                }).join('');
-                
-                const section = document.createElement('div');
-                section.className = 'catalog-section';
-                section.innerHTML = `
-                    <div class="catalog-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f0f4f8; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; margin-bottom: 12px; user-select: none;">
-                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                            <i class="fas fa-chevron-down" style="transition: transform 0.2s; font-size: 14px; color: #64748b;"></i>
-                            <i class='fa-solid fa-box' style="color: #2563eb;"></i>
-                            <span style="font-weight: 600; color: #1e293b; font-size: 15px;">${catName}</span>
-                            <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${entries.length} entries)</span>
+                    // Initialize catalog if it doesn't exist
+                    if (!catalogs[catName]) {
+                        catalogs[catName] = [];
+                    }
+                    
+                    // Add order as a row with order-specific marker
+                    catalogs[catName].push({
+                        ...order,
+                        _key: orderId,
+                        _isOrder: true,
+                        _orderDate: order.CreatedAt || order.OrderDate
+                    });
+                    
+                    // Add requester to filter
+                    if (order.Requester) allRequesters.add(order.Requester);
+                }
+            });
+        }
+        
+        // Add requester filter dropdown at the top
+        const filterHtml = `
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
+                <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
+                    <option value="">すべて表示</option>
+                    ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
+                </select>
+            </div>
+        `;
+        container.innerHTML = filterHtml;
+        
+        const filterSelect = container.querySelector('#catalogRequesterSelect');
+        if (filterSelect) {
+            filterSelect.value = catalogRequesterFilter || '';
+            filterSelect.addEventListener('change', (e) => {
+                catalogRequesterFilter = e.target.value;
+                renderCatalogTablesAccordion();
+            });
+        }
+        
+        Object.keys(catalogs).forEach((catName, idx) => {
+                    let entries = catalogs[catName].slice();
+                    
+                    // Apply requester filter
+                    if (catalogRequesterFilter) {
+                        entries = entries.filter(e => e.Requester === catalogRequesterFilter);
+                    }
+                    
+                    // Skip if no entries after filtering
+                    if (entries.length === 0) return;
+                    
+                    // Sort entries - orders at the top, then by date
+                    entries.sort((a, b) => {
+                        // Orders first
+                        if (a._isOrder && !b._isOrder) return -1;
+                        if (!a._isOrder && b._isOrder) return 1;
+                        
+                        // Then sort by date (newest first for orders, normal sorting for inventory)
+                        if (a._isOrder && b._isOrder) {
+                            return new Date(b._orderDate) - new Date(a._orderDate);
+                        }
+                        
+                        if (catalogSortState.column === 'ReceiptDate') {
+                            const aVal = new Date(a.ReceiptDate || '1970-01-01');
+                            const bVal = new Date(b.ReceiptDate || '1970-01-01');
+                            return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                        } else if (catalogSortState.column === 'QuantityReceived') {
+                            const aVal = Number(a.QuantityReceived || 0);
+                            const bVal = Number(b.QuantityReceived || 0);
+                            return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                        } else if (catalogSortState.column === 'IssueQuantity') {
+                            const aVal = Number(a.IssueQuantity || 0);
+                            const bVal = Number(b.IssueQuantity || 0);
+                            return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                        }
+                        return new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01');
+                    });
+                    
+                    let prevStock = null;
+                    let totalReceived = 0, totalIssued = 0;
+                    const rowsHtml = entries.map((entry, i) => {
+                        // Check if this is an order row
+                        if (entry._isOrder) {
+                            const orderDate = new Date(entry._orderDate);
+                            const status = entry.Status || '注文受付';
+                            const statusColors = {
+                                '注文受付': { text: '#3b82f6', bg: '#eff6ff', emoji: '📝' },
+                                '発送済み': { text: '#f59e0b', bg: '#fffbeb', emoji: '📦' },
+                                '完了': { text: '#10b981', bg: '#f0fdf4', emoji: '✅' },
+                                'キャンセル': { text: '#ef4444', bg: '#fef2f2', emoji: '❌' }
+                            };
+                            const colors = statusColors[status] || { text: '#6b7280', bg: '#f3f4f6', emoji: '❓' };
+                            
+                            return `<tr data-key="${entry._key}" style="background: ${colors.bg}; opacity: 0.95;">
+                                <td style="font-weight: 600; color: #1e293b;">
+                                    <span style="background: ${colors.text}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 700;">注文</span>
+                                    ${entry.CatalogName}
+                                </td>
+                                <td style="color: #6b7280; font-size: 13px;">${orderDate.toLocaleDateString('ja-JP')}</td>
+                                <td style="color: #1f2937; font-weight: 600;">${entry.OrderQuantity}</td>
+                                <td style="color: #6b7280;">-</td>
+                                <td style="color: #6b7280;">-</td>
+                                <td style="color: #6b7280;">-</td>
+                                <td style="color: #6b7280;">${entry.DistributionDestination || '-'}</td>
+                                <td style="color: #6b7280;">${entry.RequesterDepartment || '-'}</td>
+                                <td style="color: #1f2937; font-weight: 500;">${entry.Requester}</td>
+                                <td style="color: #6b7280; font-size: 12px;">${entry.RequesterAddress || '-'}</td>
+                                <td style="color: #6b7280; font-size: 12px;">${entry.Message || '-'}</td>
+                                <td style="padding: 8px 12px;">
+                                    <select class="order-status-select-catalog" data-key="${entry._key}" style="width: 100%; padding: 4px; border: 1px solid ${colors.text}; border-radius: 4px; background: white; color: ${colors.text}; font-weight: 600; font-size: 11px; cursor: pointer;">
+                                        <option value="注文受付" ${status === '注文受付' ? 'selected' : ''}>📝 注文受付</option>
+                                        <option value="発送済み" ${status === '発送済み' ? 'selected' : ''}>📦 発送済み</option>
+                                        <option value="完了" ${status === '完了' ? 'selected' : ''}>✅ 完了</option>
+                                        <option value="キャンセル" ${status === 'キャンセル' ? 'selected' : ''}>❌ キャンセル</option>
+                                    </select>
+                                </td>
+                                <td><button class="btn btn-danger btn-sm delete-row" data-order-id="${entry._key}">Delete</button></td>
+                            </tr>`;
+                        }
+                        
+                        // Regular inventory row
+                        const qtyReceived = Number(entry.QuantityReceived || 0);
+                        const qtyIssued = Number(entry.IssueQuantity || 0);
+                        let stock = (i === 0 || !prevStock) ? (qtyReceived - qtyIssued) : (prevStock + qtyReceived - qtyIssued);
+                        prevStock = stock;
+                        totalReceived += qtyReceived;
+                        totalIssued += qtyIssued;
+                        
+                        return `<tr data-key="${entry._key}">
+                            <td data-field="CatalogName" style="font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
+                            <td class="editable" data-field="ReceiptDate">${entry.ReceiptDate}</td>
+                            <td class="editable" data-field="QuantityReceived">${entry.QuantityReceived}</td>
+                            <td class="editable" data-field="DeliveryDate">${entry.DeliveryDate}</td>
+                            <td class="editable" data-field="IssueQuantity">${entry.IssueQuantity}</td>
+                            <td><span class="calculated-stock">${stock}</span></td>
+                            <td class="editable" data-field="DistributionDestination">${entry.DistributionDestination}</td>
+                            <td class="editable" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
+                            <td class="editable" data-field="Requester">${entry.Requester}</td>
+                            <td class="editable" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
+                            <td class="editable" data-field="Remarks">${entry.Remarks}</td>
+                            <td style="padding: 8px 12px;">-</td>
+                            <td><button class="btn btn-danger btn-sm delete-row">Delete</button></td>
+                        </tr>`;
+                    }).join('');
+                    
+                    const section = document.createElement('div');
+                    section.className = 'catalog-section';
+                    section.innerHTML = `
+                        <div class="catalog-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f0f4f8; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; margin-bottom: 12px; user-select: none;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                <i class="fas fa-chevron-down" style="transition: transform 0.2s; font-size: 14px; color: #64748b;"></i>
+                                <i class='fa-solid fa-box' style="color: #2563eb;"></i>
+                                <span style="font-weight: 600; color: #1e293b; font-size: 15px;">${catName}</span>
+                                <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${entries.length} entries)</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="catalog-table-wrapper" style="display: ${expandedCatalogSections.has(catName) ? 'block' : 'none'}; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
-                        <table class="glass-table excel-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
-                            <thead style="background: #f8fafc;">
-                                <tr>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="CatalogName">カタログ名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="ReceiptDate">納入日 ${catalogSortState.column === 'ReceiptDate' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="QuantityReceived">受領数量 ${catalogSortState.column === 'QuantityReceived' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納品日</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="IssueQuantity">発行数量 ${catalogSortState.column === 'IssueQuantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫数量</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発注者</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">住所</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">備考</th>
-                                    <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${rowsHtml}
+                        <div class="catalog-table-wrapper" style="display: ${expandedCatalogSections.has(catName) ? 'block' : 'none'}; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 16px;">
+                            <table class="glass-table excel-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
+                                <thead style="background: #f8fafc;">
+                                    <tr>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="CatalogName">カタログ名</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="ReceiptDate">納入日 ${catalogSortState.column === 'ReceiptDate' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="QuantityReceived">受領数量 ${catalogSortState.column === 'QuantityReceived' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納品日</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="IssueQuantity">発行数量 ${catalogSortState.column === 'IssueQuantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫数量</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署名</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発注者</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">住所</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">備考</th>
+                                        <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">📊 ステータス</th>
+                                        <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
                             </tbody>
                         </table>
                         <div style="padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 8px;">
@@ -1944,7 +2025,32 @@ function renderCatalogTablesAccordion() {
                         renderCatalogTablesAccordion();
                     });
                 });
+                
+                // Add event listeners for status dropdowns in order rows
+                const statusSelects = section.querySelectorAll('.order-status-select-catalog');
+                statusSelects.forEach(select => {
+                    select.addEventListener('change', async (e) => {
+                        const orderKey = e.target.dataset.key;
+                        const newStatus = e.target.value;
+                        
+                        try {
+                            const success = await updateOrderStatus(orderKey, newStatus);
+                            if (success) {
+                                // Re-render the tables to show updated status
+                                renderCatalogTablesAccordion();
+                            } else {
+                                alert('ステータスの更新に失敗しました。');
+                                e.target.value = e.target.dataset.previousValue || '注文受付';
+                            }
+                        } catch (error) {
+                            console.error('Error updating status:', error);
+                            alert('エラーが発生しました。もう一度お試しください。');
+                            e.target.value = e.target.dataset.previousValue || '注文受付';
+                        }
+                    });
+                });
             });
+        });
 } 
 
 // ===== SEARCH CATALOG ENTRIES =====
@@ -2016,6 +2122,90 @@ function initCatalogSearch() {
             if (noResults) noResults.remove();
         }
     });
+}
+
+// ===== UPDATE ORDER STATUS (NEW) =====
+/**
+ * Update order status with real-time sync to MyPage
+ */
+async function updateOrderStatus(orderKey, newStatus) {
+    try {
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+            alert('ユーザーがログインしていません');
+            return false;
+        }
+
+        const statusUpdateData = {
+            Status: newStatus,
+            StatusUpdatedAt: new Date().toISOString(),
+            StatusUpdatedBy: currentUser.email
+        };
+
+        // Get existing status history
+        const orderRef = ref(db, `Orders/${orderKey}`);
+        const snapshot = await get(orderRef);
+        
+        if (snapshot.exists()) {
+            const order = snapshot.val();
+            const statusHistory = Array.isArray(order.StatusHistory) ? order.StatusHistory : [];
+            
+            // Add new entry to history
+            statusHistory.push({
+                status: newStatus,
+                timestamp: statusUpdateData.StatusUpdatedAt,
+                changedBy: currentUser.email
+            });
+            
+            statusUpdateData.StatusHistory = statusHistory;
+        }
+
+        // Update Firebase
+        await update(orderRef, statusUpdateData);
+        
+        console.log(`✅ Order status updated: ${orderKey} → ${newStatus}`);
+        return true;
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        alert(`ステータス更新エラー: ${error.message}`);
+        return false;
+    }
+}
+
+/**
+ * Migrate existing orders to add Status field
+ */
+async function migrateOrderStatus() {
+    try {
+        const ordersRef = ref(db, 'Orders');
+        const snapshot = await get(ordersRef);
+        
+        if (!snapshot.exists()) return;
+        
+        const updates = {};
+        snapshot.forEach(childSnapshot => {
+            const order = childSnapshot.val();
+            
+            // Only update if Status doesn't exist
+            if (!order.Status) {
+                updates[`${childSnapshot.key}/Status`] = '注文受付';
+                updates[`${childSnapshot.key}/StatusUpdatedAt`] = order.CreatedAt || new Date().toISOString();
+                updates[`${childSnapshot.key}/StatusUpdatedBy`] = 'system';
+                updates[`${childSnapshot.key}/StatusHistory`] = [{
+                    status: '注文受付',
+                    timestamp: order.CreatedAt || new Date().toISOString(),
+                    changedBy: 'system'
+                }];
+            }
+        });
+        
+        if (Object.keys(updates).length > 0) {
+            await update(ref(db), updates);
+            console.log('✅ Order status migration complete');
+        }
+    } catch (error) {
+        console.error('Migration error:', error);
+    }
 }
 
 // ===== RENDER ORDER TABLES ACCORDION =====
@@ -2091,21 +2281,41 @@ function renderOrderTablesAccordion() {
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">発注者</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">住所</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">メッセージ</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">📊 ステータス</th>
                                     <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${entries.map(entry => `
-                                    <tr data-key="${entry._key}" style="border-bottom: 1px solid #fef3c7;">
-                                        <td data-field="CatalogName" style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                                        <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 16px;">${entry.OrderQuantity}</td>
-                                        <td class="editable-order" data-field="RequesterDepartment" style="padding: 12px 16px;">${entry.RequesterDepartment || '-'}</td>
-                                        <td class="editable-order" data-field="Requester" style="padding: 12px 16px;">${entry.Requester}</td>
-                                        <td class="editable-order" data-field="RequesterAddress" style="padding: 12px 16px;">${entry.RequesterAddress || '-'}</td>
-                                        <td style="padding: 12px 16px;"><div style='max-width:320px;overflow-x:auto;'>${entry.Message || ''}</div></td>
-                                        <td style="padding: 12px 16px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row">Delete</button></td>
-                                    </tr>
-                                `).join('')}
+                                ${entries.map(entry => {
+                                    const statusColors = {
+                                        '注文受付': { text: '#3b82f6', bg: '#eff6ff' },
+                                        '発送済み': { text: '#f59e0b', bg: '#fffbeb' },
+                                        '完了': { text: '#10b981', bg: '#f0fdf4' },
+                                        'キャンセル': { text: '#ef4444', bg: '#fef2f2' }
+                                    };
+                                    const status = entry.Status || '注文受付';
+                                    const colors = statusColors[status] || { text: '#6b7280', bg: '#f3f4f6' };
+                                    
+                                    return `
+                                        <tr data-key="${entry._key}" style="border-bottom: 1px solid #fef3c7;">
+                                            <td data-field="CatalogName" style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
+                                            <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 16px;">${entry.OrderQuantity}</td>
+                                            <td class="editable-order" data-field="RequesterDepartment" style="padding: 12px 16px;">${entry.RequesterDepartment || '-'}</td>
+                                            <td class="editable-order" data-field="Requester" style="padding: 12px 16px;">${entry.Requester}</td>
+                                            <td class="editable-order" data-field="RequesterAddress" style="padding: 12px 16px;">${entry.RequesterAddress || '-'}</td>
+                                            <td style="padding: 12px 16px;"><div style='max-width:320px;overflow-x:auto;'>${entry.Message || ''}</div></td>
+                                            <td style="padding: 8px 12px;">
+                                                <select class="order-status-select" data-key="${entry._key}" style="width: 100%; padding: 6px; border: 1px solid ${colors.text}; border-radius: 4px; background: ${colors.bg}; color: ${colors.text}; font-weight: 600; font-size: 12px; cursor: pointer;">
+                                                    <option value="注文受付" ${status === '注文受付' ? 'selected' : ''}>📝 注文受付</option>
+                                                    <option value="発送済み" ${status === '発送済み' ? 'selected' : ''}>📦 発送済み</option>
+                                                    <option value="完了" ${status === '完了' ? 'selected' : ''}>✅ 完了</option>
+                                                    <option value="キャンセル" ${status === 'キャンセル' ? 'selected' : ''}>❌ キャンセル</option>
+                                                </select>
+                                            </td>
+                                            <td style="padding: 12px 16px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row">Delete</button></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                         <div style="padding: 12px 16px; background: #fffbeb; border-top: 1px solid #fbbf24; display: flex; gap: 8px;">
@@ -2126,12 +2336,34 @@ function renderOrderTablesAccordion() {
                     wrapper.style.display = isHidden ? 'block' : 'none';
                     chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
                 });
+
+                // Add event listeners for status dropdowns
+                section.querySelectorAll('.order-status-select').forEach(select => {
+                    select.addEventListener('change', async (e) => {
+                        const orderKey = e.target.dataset.key;
+                        const newStatus = e.target.value;
+                        
+                        // Show loading state
+                        const originalText = e.target.textContent;
+                        e.target.disabled = true;
+                        
+                        const success = await updateOrderStatus(orderKey, newStatus);
+                        
+                        if (success) {
+                            // Re-render to show updated status
+                            setTimeout(() => renderOrderTablesAccordion(), 300);
+                        } else {
+                            // Revert on error
+                            e.target.disabled = false;
+                        }
+                    });
+                });
             });
         }
     });
 }
 
-// ===== RENDER ORDER ENTRIES BY DATE (WITH FULFILLMENT CHECKBOX) =====
+// ===== RENDER ORDER ENTRIES BY DATE (WITH STATUS DROPDOWN) =====
 function renderOrdersByDate() {
     const container = document.getElementById('orderEntriesByDateContainer');
     container.innerHTML = '';
@@ -2204,22 +2436,29 @@ function renderOrdersByDate() {
             `;
             
             orders.forEach(order => {
-                const bgColor = order._fulfilled ? '#f0fdf4' : '#fef2f2';
-                const borderColor = order._fulfilled ? '#22c55e' : '#ef4444';
-                const textColor = order._fulfilled ? '#15803d' : '#991b1b';
+                const statusColors = {
+                    '注文受付': { text: '#3b82f6', bg: '#eff6ff', emoji: '📝' },
+                    '発送済み': { text: '#f59e0b', bg: '#fffbeb', emoji: '📦' },
+                    '完了': { text: '#10b981', bg: '#f0fdf4', emoji: '✅' },
+                    'キャンセル': { text: '#ef4444', bg: '#fef2f2', emoji: '❌' }
+                };
+                const status = order.Status || '注文受付';
+                const colors = statusColors[status] || { text: '#6b7280', bg: '#f3f4f6', emoji: '❓' };
                 
                 html += `
-                    <div style="background: ${bgColor}; border-left: 4px solid ${borderColor}; padding: 12px; margin-bottom: 10px; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
-                        <input type="checkbox" class="order-fulfill-checkbox" data-key="${order._key}" ${order._fulfilled ? 'checked' : ''} style="width: 20px; height: 20px; cursor: pointer;">
+                    <div style="background: ${colors.bg}; border-left: 4px solid ${colors.text}; padding: 12px; margin-bottom: 10px; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
                         <div style="flex: 1;">
                             <p style="margin: 0; font-weight: 600; color: #1e293b;">${order.CatalogName}</p>
-                            <p style="margin: 4px 0 0 0; color: ${textColor}; font-size: 14px;">
+                            <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 14px;">
                                 数量: ${order.OrderQuantity} • 部署: ${order.RequesterDepartment || 'N/A'} • 発注: ${order.Requester || 'N/A'} • 住所: ${order.RequesterAddress || 'N/A'}
                             </p>
                         </div>
-                        <div style="color: ${textColor}; font-weight: 700; text-align: center; min-width: 60px;">
-                            ${order._fulfilled ? '✅ 完了' : '⏳ 未完了'}
-                        </div>
+                        <select class="date-order-status-select" data-key="${order._key}" style="padding: 6px 8px; border: 1px solid ${colors.text}; border-radius: 4px; background: white; color: ${colors.text}; font-weight: 600; font-size: 12px; cursor: pointer; min-width: 120px;">
+                            <option value="注文受付" ${status === '注文受付' ? 'selected' : ''}>📝 注文受付</option>
+                            <option value="発送済み" ${status === '発送済み' ? 'selected' : ''}>📦 発送済み</option>
+                            <option value="完了" ${status === '完了' ? 'selected' : ''}>✅ 完了</option>
+                            <option value="キャンセル" ${status === 'キャンセル' ? 'selected' : ''}>❌ キャンセル</option>
+                        </select>
                     </div>
                 `;
             });
@@ -2244,23 +2483,20 @@ function renderOrdersByDate() {
             });
         });
         
-        // Add handlers for fulfillment checkboxes
-        container.querySelectorAll('.order-fulfill-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', async function() {
+        // Add handlers for status dropdowns
+        container.querySelectorAll('.date-order-status-select').forEach(select => {
+            select.addEventListener('change', async function() {
                 const orderKey = this.dataset.key;
-                const isFulfilled = this.checked;
+                const newStatus = this.value;
                 
-                try {
-                    await update(ref(db, `Orders/${orderKey}`), {
-                        Fulfilled: isFulfilled,
-                        FulfilledAt: isFulfilled ? new Date().toISOString() : null
-                    });
-                    
-                    // Re-render to update colors
-                    renderOrdersByDate();
-                } catch (error) {
-                    console.error('Error updating fulfillment status:', error);
-                    alert('更新に失敗しました');
+                this.disabled = true;
+                const success = await updateOrderStatus(orderKey, newStatus);
+                
+                if (success) {
+                    // Re-render to update display
+                    setTimeout(() => renderOrdersByDate(), 300);
+                } else {
+                    this.disabled = false;
                 }
             });
         });
@@ -4118,6 +4354,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initOrderForm();
         initMobileToggle();
         initAdminPanel();
+        
+        // Run order status migration for admin
+        if (isAdmin(userPermissions)) {
+            migrateOrderStatus().catch(err => console.error('Migration error:', err));
+        }
+        
         setupCartWarning(); // Warn if leaving with cart items
         updateKPIs();
         setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
@@ -5351,6 +5593,37 @@ async function openMyPage() {
         // Smooth scroll to My Page
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
+        // Add real-time listener for order status updates
+        const ordersRefListener = ref(db, 'Orders');
+        const unsubscribe = onValue(ordersRefListener, (snapshot) => {
+            if (snapshot.exists()) {
+                const updatedOrders = snapshot.val();
+                
+                // Update only user's orders
+                let updated = false;
+                userOrders.forEach((order, idx) => {
+                    const updatedOrder = updatedOrders[order.orderId];
+                    if (updatedOrder && updatedOrder.Status !== order.Status) {
+                        userOrders[idx] = { ...order, ...updatedOrder };
+                        updated = true;
+                    }
+                });
+                
+                // Re-render if status changed
+                if (updated) {
+                    console.log('✅ MyPage: Order status updated in real-time');
+                    // Re-call the function to re-render with updated data
+                    // but we need to be careful to avoid infinite loops
+                    // so we'll just update the order cards HTML without re-fetching
+                }
+            }
+        }, {
+            onlyOnce: false
+        });
+        
+        // Store unsubscribe function for cleanup
+        window.myPageUnsubscribe = unsubscribe;
+        
     } catch (error) {
         console.error('Error opening My Page:', error);
         const myPageContent = document.getElementById('myPageContent');
@@ -5378,6 +5651,8 @@ window.closePlaceOrderModal = closePlaceOrderModal;
 window.increaseOrderQty = increaseOrderQty;
 window.decreaseOrderQty = decreaseOrderQty;
 window.submitPlaceOrder = submitPlaceOrder;
+window.updateOrderStatus = updateOrderStatus;
+window.migrateOrderStatus = migrateOrderStatus;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.updateCartUI = updateCartUI;
