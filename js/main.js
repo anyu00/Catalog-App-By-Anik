@@ -1764,126 +1764,176 @@ function isInDateRange(timestamp, fromDate, toDate) {
 }
 
 // ===== RENDER CATALOG TABLES ACCORDION =====
-function renderCatalogTablesAccordion() {
+// ===== UNIFIED 台帳: INVENTORY + ORDERS IN SINGLE TABLE =====
+async function renderCatalogTablesAccordion() {
     const container = document.getElementById('catalogEntriesAccordion');
-    container.innerHTML = '';
+    if (!container) return;
     
-    // Clear search box when rendering new data
-    const searchBox = document.getElementById('catalogSearchBox');
-    if (searchBox) searchBox.value = '';
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">📂 データを読み込み中...</div>';
     
-    // Use unified CatalogDB as source of truth
-    const catalogs = {};
-    let allRequesters = new Set();
-    
-    // Build catalog entries from CatalogDB (which is synced from Firebase listeners)
-    Object.entries(CatalogDB).forEach(([key, catalogData]) => {
-        if (!catalogData || !catalogData.entries || catalogData.entries.length === 0) {
-            return; // Skip catalogs with no entries
-        }
+    try {
+        // Fetch both Catalogs (inventory) and Orders
+        const [catalogSnapshot, ordersSnapshot] = await Promise.all([
+            get(ref(db, 'Catalogs/')),
+            get(ref(db, 'Orders/'))
+        ]);
         
-        const catName = catalogData.name;
-        catalogs[catName] = catalogData.entries;
+        const catalogData = catalogSnapshot.exists() ? catalogSnapshot.val() : {};
+        const ordersData = ordersSnapshot.exists() ? ordersSnapshot.val() : {};
         
-        // Collect requesters
-        catalogData.entries.forEach(entry => {
+        // Group by catalog name: { catalogName: [ { type: 'inventory'|'order', data... } ] }
+        const catalogs = {};
+        let allRequesters = new Set();
+        
+        // Add INVENTORY entries
+        Object.entries(catalogData).forEach(([key, entry]) => {
+            if (!entry || !entry.CatalogName) return;
+            const catName = entry.CatalogName;
+            if (!catalogs[catName]) catalogs[catName] = [];
+            catalogs[catName].push({
+                _type: 'inventory',
+                _key: key,
+                ...entry,
+                _date: entry.ReceiptDate || '1970-01-01',
+                _quantity: Number(entry.QuantityReceived || 0)
+            });
             if (entry.Requester) allRequesters.add(entry.Requester);
         });
-    });
-    
-    // Add requester filter dropdown at the top
-    const filterHtml = `
-        <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-            <label style="font-weight: 600; color: #1e293b;">フィルター (依頼者):</label>
-            <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
-                <option value="">すべて表示</option>
-                ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
-            </select>
-        </div>
-    `;
-    container.innerHTML = filterHtml;
-    
-    const filterSelect = container.querySelector('#catalogRequesterSelect');
-    if (filterSelect) {
-        filterSelect.value = catalogRequesterFilter || '';
-        filterSelect.addEventListener('change', (e) => {
-            catalogRequesterFilter = e.target.value;
-            renderCatalogTablesAccordion();
+        
+        // Add ORDER entries
+        Object.entries(ordersData).forEach(([key, order]) => {
+            if (!order || !order.CatalogName) return;
+            const catName = order.CatalogName;
+            if (!catalogs[catName]) catalogs[catName] = [];
+            catalogs[catName].push({
+                _type: 'order',
+                _key: key,
+                ...order,
+                _date: order.CreatedAt ? order.CreatedAt.split('T')[0] : order.OrderDate || '1970-01-01',
+                _quantity: -(Number(order.OrderQuantity || 0)) // Negative for orders
+            });
+            if (order.Requester) allRequesters.add(order.Requester);
         });
-    }
-    
-    Object.keys(catalogs).forEach((catName, idx) => {
-                let entries = catalogs[catName].slice();
+        
+        // Build filter UI
+        const filterHtml = `
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                <label style="font-weight: 600; color: #1e293b;">🔍 フィルター (依頼者):</label>
+                <select id="catalogRequesterSelect" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; background: white;">
+                    <option value="">すべて表示</option>
+                    ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
+                </select>
+            </div>
+        `;
+        container.innerHTML = filterHtml;
+        
+        const filterSelect = container.querySelector('#catalogRequesterSelect');
+        if (filterSelect) {
+            filterSelect.value = catalogRequesterFilter || '';
+            filterSelect.addEventListener('change', (e) => {
+                catalogRequesterFilter = e.target.value;
+                renderCatalogTablesAccordion();
+            });
+        }
+        
+        // Render each catalog section
+        Object.keys(catalogs).sort().forEach((catName) => {
+            let entries = catalogs[catName].slice();
+            
+            // Apply requester filter
+            if (catalogRequesterFilter) {
+                entries = entries.filter(e => e.Requester === catalogRequesterFilter);
+            }
+            
+            if (entries.length === 0) return;
+            
+            // Sort by date (newest first)
+            entries.sort((a, b) => new Date(b._date) - new Date(a._date));
+            
+            // Calculate running stock
+            let runningStock = 0;
+            let totalReceived = 0, totalOrdered = 0, totalInventoryItems = 0;
+            
+            const rowsHtml = entries.map((entry) => {
+                // Update running stock
+                runningStock += entry._quantity;
                 
-                // Apply requester filter
-                if (catalogRequesterFilter) {
-                    entries = entries.filter(e => e.Requester === catalogRequesterFilter);
+                if (entry._type === 'inventory') {
+                    totalReceived += entry._quantity;
+                    totalInventoryItems++;
+                }
+                if (entry._type === 'order') {
+                    totalOrdered += Math.abs(entry._quantity);
                 }
                 
-                // Skip if no entries after filtering
-                if (entries.length === 0) return;
+                // Get status color
+                const statusColor = {
+                    '注文受付': '#bfdbfe',
+                    '発送済み': '#fcd34d',
+                    '完了': '#bbf7d0',
+                    'キャンセル': '#fecaca'
+                }[entry.Status] || '#f0f0f0';
                 
-                // Sort entries
-                entries.sort((a, b) => {
-                    if (catalogSortState.column === 'ReceiptDate') {
-                        const aVal = new Date(a.ReceiptDate || '1970-01-01');
-                        const bVal = new Date(b.ReceiptDate || '1970-01-01');
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    } else if (catalogSortState.column === 'QuantityReceived') {
-                        const aVal = Number(a.QuantityReceived || 0);
-                        const bVal = Number(b.QuantityReceived || 0);
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    } else if (catalogSortState.column === 'IssueQuantity') {
-                        const aVal = Number(a.IssueQuantity || 0);
-                        const bVal = Number(b.IssueQuantity || 0);
-                        return catalogSortState.direction === 'asc' ? aVal - bVal : bVal - aVal;
-                    }
-                    return new Date(a.ReceiptDate || '1970-01-01') - new Date(b.ReceiptDate || '1970-01-01');
-                });
+                // Type badge
+                const typeBadge = entry._type === 'inventory' 
+                    ? '<span style="display: inline-block; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">📦 在庫</span>'
+                    : '<span style="display: inline-block; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">📄 注文</span>';
                 
-                let prevStock = null;
-                let totalReceived = 0, totalIssued = 0;
-                let totalInventoryItems = 0; // Count total inventory entries (excluding orders)
-                
-                const rowsHtml = entries.map((entry, i) => {
-                    const qtyReceived = Number(entry.QuantityReceived || 0);
-                    const qtyIssued = Number(entry.IssueQuantity || 0);
-                    let stock = (i === 0) ? (qtyReceived - qtyIssued) : (prevStock + qtyReceived - qtyIssued);
-                    prevStock = stock;
-                    totalReceived += qtyReceived;
-                    totalIssued += qtyIssued;
-                    
-                    // Count only inventory entries (exclude orders)
-                    if (!entry._isOrder) {
-                        totalInventoryItems++;
-                    }
-                    
-                    return `<tr data-key="${entry._key}">
-                        <td data-field="CatalogName" style="font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                        <td class="editable" data-field="ReceiptDate">${entry.ReceiptDate}</td>
-                        <td class="editable" data-field="QuantityReceived">${entry.QuantityReceived}</td>
-                        <td class="editable" data-field="DeliveryDate">${entry.DeliveryDate}</td>
-                        <td class="editable" data-field="IssueQuantity">${entry.IssueQuantity}</td>
-                        <td><span class="calculated-stock">${stock}</span></td>
-                        <td class="editable" data-field="DistributionDestination">${entry.DistributionDestination}</td>
-                        <td class="editable" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
-                        <td class="editable" data-field="Requester">${entry.Requester}</td>
-                        <td class="editable" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
-                        <td class="editable" data-field="Remarks">${entry.Remarks}</td>
-                        <td><button class="btn btn-danger btn-sm delete-row">Delete</button></td>
+                // Row for INVENTORY
+                if (entry._type === 'inventory') {
+                    return `<tr data-key="${entry._key}" data-type="inventory" style="background: #f9fafb;">
+                        <td style="padding: 10px 12px;">${typeBadge}</td>
+                        <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
+                        <td style="padding: 10px 12px;">${entry._date}</td>
+                        <td style="padding: 10px 12px; color: #059669; font-weight: 700;">+${entry._quantity}</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px; text-align: center;"><button class="btn btn-danger btn-sm delete-inv-row" data-key="${entry._key}">🗑️</button></td>
                     </tr>`;
-                }).join('');
+                }
                 
-                // Add total row
-                const totalRow = `<tr style="background: linear-gradient(90deg, #f0f4f8 0%, #e8f1f8 100%); border-top: 2px solid #2563eb; font-weight: 700; color: #1e293b;">
-                    <td style="padding: 12px 16px; font-weight: 700; color: #1e293b;">合計 (在庫数: ${totalInventoryItems})</td>
-                    <td style="padding: 12px 16px;">-</td>
-                    <td style="padding: 12px 16px; color: #2563eb; font-weight: 700;">${totalReceived}</td>
-                    <td style="padding: 12px 16px;">-</td>
-                    <td style="padding: 12px 16px; color: #ef4444; font-weight: 700;">${totalIssued}</td>
-                    <td style="padding: 12px 16px; color: #059669; font-weight: 700;">${totalReceived - totalIssued}</td>
-                    <td colspan="6" style="padding: 12px 16px; text-align: center; color: #64748b;">-</td>
+                // Row for ORDER
+                return `<tr data-key="${entry._key}" data-type="order" style="background: #eff6ff;">
+                    <td style="padding: 10px 12px;">${typeBadge}</td>
+                    <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
+                    <td style="padding: 10px 12px;">${entry._date}</td>
+                    <td style="padding: 10px 12px; color: #ef4444; font-weight: 700;">-${Math.abs(entry._quantity)}</td>
+                    <td style="padding: 10px 12px;">${entry.RequesterDepartment || '-'}</td>
+                    <td style="padding: 10px 12px;">${entry.Requester || '-'}</td>
+                    <td style="padding: 10px 12px;">${entry.RequesterAddress || '-'}</td>
+                    <td style="padding: 10px 12px;">${entry.DistributionDestination || '-'}</td>
+                    <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
+                    <td style="padding: 10px 12px;">
+                        <select class="order-status-select form-control form-control-sm" data-key="${entry._key}" 
+                                style="background: ${statusColor}; border: 1px solid #cbd5e1; padding: 4px 8px; font-size: 12px; font-weight: 600;">
+                            <option value="注文受付" ${entry.Status === '注文受付' ? 'selected' : ''}>注文受付</option>
+                            <option value="発送済み" ${entry.Status === '発送済み' ? 'selected' : ''}>発送済み</option>
+                            <option value="完了" ${entry.Status === '完了' ? 'selected' : ''}>完了</option>
+                            <option value="キャンセル" ${entry.Status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                        </select>
+                    </td>
+                    <td style="padding: 10px 12px;">
+                        <input type="text" class="tracking-id-input form-control form-control-sm" data-key="${entry._key}" 
+                               value="${entry.TrackingId || ''}" placeholder="TRK-..."
+                               style="padding: 4px 8px; font-size: 12px;">
+                    </td>
+                    <td style="padding: 10px 12px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row" data-key="${entry._key}">🗑️</button></td>
                 </tr>`;
+            }).join('');
+            
+            // Total row
+            const totalRow = `<tr style="background: linear-gradient(90deg, #f0f4f8 0%, #e8f1f8 100%); border-top: 2px solid #2563eb; font-weight: 700; color: #1e293b;">
+                <td colspan="3" style="padding: 12px 16px;">💰 合計 (在庫: ${totalInventoryItems})</td>
+                <td style="padding: 12px 16px; color: #059669;">+${totalReceived}</td>
+                <td colspan="4" style="padding: 12px 16px; text-align: center;">-</td>
+                <td style="padding: 12px 16px; color: #2563eb; font-weight: 700;">${totalReceived - totalOrdered}</td>
+                <td colspan="4" style="padding: 12px 16px; text-align: center;">-</td>
+            </tr>`;
                 
                 const section = document.createElement('div');
                 section.className = 'catalog-section';
@@ -1900,17 +1950,17 @@ function renderCatalogTablesAccordion() {
                         <table class="glass-table excel-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
                             <thead style="background: #f8fafc;">
                                 <tr>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">タイプ</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="CatalogName">カタログ名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="ReceiptDate">納入日 ${catalogSortState.column === 'ReceiptDate' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="QuantityReceived">受領数量 ${catalogSortState.column === 'QuantityReceived' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">納品日</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="IssueQuantity">発行数量 ${catalogSortState.column === 'IssueQuantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫数量</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">発注者</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="Date">日付 ${catalogSortState.column === 'Date' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0; cursor: pointer;" data-column="Quantity">数量 ${catalogSortState.column === 'Quantity' ? (catalogSortState.direction === 'asc' ? '↑' : '↓') : ''}</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">注文者</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">住所</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">備考</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫残数</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">ステータス</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">追跡ID</th>
                                     <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">操作</th>
                                 </tr>
                             </thead>
@@ -1926,6 +1976,82 @@ function renderCatalogTablesAccordion() {
                 `;
                 
                 container.appendChild(section);
+                
+                // Delete inventory row
+                section.querySelectorAll('.delete-inv-row').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (!confirm('この在庫を削除しますか?')) return;
+                        const key = btn.getAttribute('data-key');
+                        try {
+                            await remove(ref(db, `Catalogs/${key}`));
+                            showToast('在庫を削除しました', 'success');
+                            await renderCatalogTablesAccordion();
+                        } catch (err) {
+                            console.error('Delete inventory error:', err);
+                            showToast('削除に失敗しました', 'error');
+                        }
+                    });
+                });
+                
+                // Delete order row
+                section.querySelectorAll('.delete-order-row').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        if (!confirm('この注文を削除しますか?')) return;
+                        const key = btn.getAttribute('data-key');
+                        try {
+                            await remove(ref(db, `Orders/${key}`));
+                            showToast('注文を削除しました', 'success');
+                            await renderCatalogTablesAccordion();
+                        } catch (err) {
+                            console.error('Delete order error:', err);
+                            showToast('削除に失敗しました', 'error');
+                        }
+                    });
+                });
+                
+                // Order status change
+                section.querySelectorAll('.order-status-select').forEach(select => {
+                    select.addEventListener('change', async (e) => {
+                        const key = select.getAttribute('data-key');
+                        const newStatus = select.value;
+                        try {
+                            const updateData = {
+                                Status: newStatus,
+                                LastStatusUpdate: new Date().toISOString()
+                            };
+                            await update(ref(db, `Orders/${key}`), updateData);
+                            showToast(`ステータスを「${newStatus}」に更新しました`, 'success');
+                            // Update MyPage mirror data
+                            await update(ref(db, `MyPage/Orders/${key}`), updateData);
+                        } catch (err) {
+                            console.error('Status update error:', err);
+                            showToast('更新に失敗しました', 'error');
+                        }
+                    });
+                });
+                
+                // Tracking ID save on blur
+                section.querySelectorAll('.tracking-id-input').forEach(input => {
+                    input.addEventListener('blur', async (e) => {
+                        const key = input.getAttribute('data-key');
+                        const trackingId = input.value.trim();
+                        try {
+                            await update(ref(db, `Orders/${key}`), {
+                                TrackingId: trackingId || null,
+                                LastTrackingUpdate: new Date().toISOString()
+                            });
+                            // Update MyPage mirror data
+                            await update(ref(db, `MyPage/Orders/${key}`), {
+                                TrackingId: trackingId || null,
+                                LastTrackingUpdate: new Date().toISOString()
+                            });
+                        } catch (err) {
+                            console.error('Tracking ID update error:', err);
+                        }
+                    });
+                });
                 
                 // Add click handler to header
                 const header = section.querySelector('.catalog-header');
@@ -1964,6 +2090,10 @@ function renderCatalogTablesAccordion() {
                     });
                 });
             });
+        } catch (err) {
+            console.error('Error rendering catalog tables:', err);
+            container.innerHTML = `<div style="padding: 20px; color: #dc2626; background: #fee2e2; border-radius: 8px;">❌ エラーが発生しました: ${err.message}</div>`;
+        }
 } 
 
 // ===== SEARCH CATALOG ENTRIES =====
