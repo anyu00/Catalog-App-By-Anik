@@ -960,26 +960,38 @@ async function loadPlaceOrderProducts() {
                     }
                 });
                 
-                // Track stock per name (for compatibility)
+                // Track stock per name (ledger-compatible: received only here)
                 if (!stockByName[name]) stockByName[name] = { received: 0, issued: 0 };
                 stockByName[name].received += Number(entry.QuantityReceived || 0);
                 stockByName[name].issued += Number(entry.IssueQuantity || 0);
             });
             
-            // Update stock in CatalogDB
+            // Update stock in CatalogDB (will subtract orders below)
             Object.entries(CatalogDB).forEach(([key, catData]) => {
                 if (stockByName[catData.name]) {
-                    catData.stock = stockByName[catData.name].received - stockByName[catData.name].issued;
+                    // Ledger uses inventory receipts and orders, not IssueQuantity.
+                    catData.stock = stockByName[catData.name].received;
+                    catData._stockBase = catData.stock; // store base before order subtraction
                 }
             });
             
             console.log('[CATALOG LOAD] Loaded', Object.keys(catalogData).length, 'catalog entries');
         }
         
-        // Load Orders for popularity sorting
+        // Load Orders and subtract OrderQuantity from stock to match ledger 在庫残数
         if (ordersSnapshot.exists()) {
             window.Orders = ordersSnapshot.val() || {};
             console.log('[CATALOG LOAD] Loaded', Object.keys(window.Orders).length, 'orders for popularity');
+            
+            // Subtract order quantities from stock
+            const orderedByName = {};
+            Object.entries(window.Orders).forEach(([orderId, order]) => {
+                if (!order || !order.CatalogName) return;
+                orderedByName[order.CatalogName] = (orderedByName[order.CatalogName] || 0) + Number(order.OrderQuantity || 0);
+            });
+            Object.entries(CatalogDB).forEach(([key, catData]) => {
+                catData.stock = (catData.stock || 0) - (orderedByName[catData.name] || 0);
+            });
         } else {
             window.Orders = {};
         }
@@ -1064,7 +1076,7 @@ function setupCatalogRealTimeListener() {
                     }
                 });
                 
-                // Calculate stock
+                // Calculate stock base (ledger-compatible: receipts only)
                 if (!stockByName[name]) stockByName[name] = { received: 0, issued: 0 };
                 stockByName[name].received += Number(entry.QuantityReceived || 0);
                 stockByName[name].issued += Number(entry.IssueQuantity || 0);
@@ -1075,12 +1087,12 @@ function setupCatalogRealTimeListener() {
                 }
             });
             
-            // Update stock and discontinued in CatalogDB
+            // Update stock and discontinued in CatalogDB (base: received only)
             Object.entries(CatalogDB).forEach(([key, catData]) => {
                 if (stockByName[catData.name]) {
-                    catData.stock = stockByName[catData.name].received - stockByName[catData.name].issued;
+                    catData._stockBase = stockByName[catData.name].received;
                 } else {
-                    catData.stock = 0;
+                    catData._stockBase = 0;
                 }
                 // ✓ NEW: Set discontinued flag
                 catData.discontinued = discontinuedByName[catData.name] || false;
@@ -1088,15 +1100,44 @@ function setupCatalogRealTimeListener() {
         } else {
             // No catalog entries - reset all stocks
             Object.values(CatalogDB).forEach(cat => {
+                cat._stockBase = 0;
                 cat.stock = 0;
                 cat.entries = [];
                 cat.discontinued = false; // ✓ NEW: Reset discontinued flag
             });
         }
         
+        // Apply current order quantities to get final stock matching ledger 在庫残数
+        _applyOrderStockToAllCatalogs();
         syncAllPages();
     }, (error) => {
         console.warn('[SYNC LISTENER] Error on catalog entries:', error);
+    });
+
+    // Listen for Orders changes to keep stock in sync with ledger
+    const ordersRef = ref(db, 'Orders');
+    onValue(ordersRef, (snapshot) => {
+        console.log('[SYNC LISTENER] Orders changed - updating stock to match ledger');
+        window.Orders = snapshot.exists() ? snapshot.val() : {};
+        _applyOrderStockToAllCatalogs();
+        syncAllPages();
+    }, (error) => {
+        console.warn('[SYNC LISTENER] Error on orders:', error);
+    });
+}
+
+// Helper: subtract all OrderQuantity totals from base stock so order page matches ledger 在庫残数
+function _applyOrderStockToAllCatalogs() {
+    const orderedByName = {};
+    if (window.Orders) {
+        Object.entries(window.Orders).forEach(([orderId, order]) => {
+            if (!order || !order.CatalogName) return;
+            orderedByName[order.CatalogName] = (orderedByName[order.CatalogName] || 0) + Number(order.OrderQuantity || 0);
+        });
+    }
+    Object.entries(CatalogDB).forEach(([key, catData]) => {
+        const base = catData._stockBase !== undefined ? catData._stockBase : (catData.stock || 0);
+        catData.stock = base - (orderedByName[catData.name] || 0);
     });
 }
 
