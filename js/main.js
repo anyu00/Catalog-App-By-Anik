@@ -398,41 +398,20 @@ function initTabSwitching() {
 
 // ===== CATALOG FORM =====
 function initCatalogForm() {
-    document.getElementById('CatalogName').addEventListener('change', async function() {
-        // Use unified CatalogDB instead of querying Firebase directly
-        let lastStock = 0;
-        let hasEntries = false;
-        
-        // Find catalog in CatalogDB and get its current stock
-        Object.entries(CatalogDB).forEach(([key, catalogData]) => {
-            if (catalogData.name === this.value) {
-                lastStock = catalogData.stock || 0;
-                hasEntries = catalogData.entries && catalogData.entries.length > 0;
-            }
-        });
-        
-        document.getElementById('StockQuantity').value = lastStock;
-        document.getElementById('StockQuantity').readOnly = hasEntries;
-    });
-    
     document.getElementById('Insbtn').addEventListener('click', async function() {
         const form = document.getElementById('catalogEntryForm');
         const data = {
             CatalogName: form.CatalogName.value,
             ReceiptDate: form.ReceiptDate.value,
             QuantityReceived: Number(form.QuantityReceived.value),
-            DeliveryDate: form.DeliveryDate.value,
-            IssueQuantity: Number(form.IssueQuantity.value),
-            StockQuantity: Number(form.StockQuantity.value),
-            DistributionDestination: form.DistributionDestination.value,
-            RequesterDepartment: form.RequesterDepartment.value,
-            Requester: form.Requester.value,
-            RequesterAddress: form.RequesterAddress.value,
             Remarks: form.Remarks.value,
-            Discontinued: form.Discontinued.checked || false,  // ✓ NEW: Add discontinued flag
+            // Keep compatibility fields for downstream calculations and renderers.
+            IssueQuantity: 0,
+            StockQuantity: Number(form.QuantityReceived.value),
+            Discontinued: false,
         };
         
-        if (!data.CatalogName || !data.ReceiptDate || !data.DeliveryDate || !data.DistributionDestination || !data.Requester) {
+        if (!data.CatalogName || !data.ReceiptDate || !data.QuantityReceived) {
             alert('必須項目を入力してください');
             return;
         }
@@ -440,8 +419,8 @@ function initCatalogForm() {
         try {
             const newId = data.CatalogName + "_" + Date.now();
             await set(ref(db, "Catalogs/" + newId), data);
-            await logAuditEvent('ADD_CATALOG', `Added: ${data.CatalogName} (Qty: ${data.StockQuantity})`, currentUser?.email);
-            await logMovement(data.CatalogName, 0, data.StockQuantity, 'INITIAL_RECEIPT');
+            await logAuditEvent('ADD_CATALOG', `Added: ${data.CatalogName} (Qty: ${data.QuantityReceived})`, currentUser?.email);
+            await logMovement(data.CatalogName, 0, data.QuantityReceived, 'INITIAL_RECEIPT');
             alert("カタログエントリを登録しました");
             form.reset();
             renderCatalogTablesAccordion();
