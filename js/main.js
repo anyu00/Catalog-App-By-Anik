@@ -2234,6 +2234,7 @@ async function renderCatalogTablesAccordion() {
                         <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px;">-</td>
+                        <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
                         <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px;">-</td>
@@ -2250,6 +2251,7 @@ async function renderCatalogTablesAccordion() {
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="Requester">${entry.Requester || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="Message">${entry.Message || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="DistributionDestination">${entry.DistributionDestination || '-'}</td>
                     <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
                     <td style="padding: 10px 12px;">
@@ -2274,9 +2276,9 @@ async function renderCatalogTablesAccordion() {
             const totalRow = `<tr style="background: linear-gradient(90deg, #f0f4f8 0%, #e8f1f8 100%); border-top: 2px solid #2563eb; font-weight: 700; color: #1e293b;">
                 <td colspan="3" style="padding: 12px 16px;">💰 合計 (在庫: ${totalInventoryItems})</td>
                 <td style="padding: 12px 16px; color: #059669;">+${totalReceived}</td>
-                <td colspan="4" style="padding: 12px 16px; text-align: center;">-</td>
+                <td colspan="5" style="padding: 12px 16px; text-align: center;">-</td>
                 <td style="padding: 12px 16px; color: #2563eb; font-weight: 700;">${totalReceived - totalOrdered}</td>
-                <td colspan="4" style="padding: 12px 16px; text-align: center;">-</td>
+                <td colspan="3" style="padding: 12px 16px; text-align: center;">-</td>
             </tr>`;
                 
                 const section = document.createElement('div');
@@ -2301,6 +2303,7 @@ async function renderCatalogTablesAccordion() {
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">部署</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">注文者</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">住所</th>
+                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">メモ</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">配布先</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">在庫残数</th>
                                     <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #64748b; border-bottom: 2px solid #e2e8f0;">ステータス</th>
