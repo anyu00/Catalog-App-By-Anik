@@ -1883,9 +1883,9 @@ async function renderCatalogTablesAccordion() {
                 if (entry._type === 'inventory') {
                     return `<tr data-key="${entry._key}" data-type="inventory" style="background: #f9fafb;">
                         <td style="padding: 10px 12px;">${typeBadge}</td>
-                        <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                        <td style="padding: 10px 12px;">${entry._date}</td>
-                        <td style="padding: 10px 12px; color: #059669; font-weight: 700;">+${entry._quantity}</td>
+                        <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; cursor: pointer;" class="editable" data-field="CatalogName">${entry.CatalogName}</td>
+                        <td style="padding: 10px 12px; cursor: pointer;" class="editable" data-field="ReceiptDate">${entry._date}</td>
+                        <td style="padding: 10px 12px; color: #059669; font-weight: 700; cursor: pointer;" class="editable" data-field="QuantityReceived">+${entry._quantity}</td>
                         <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px;">-</td>
                         <td style="padding: 10px 12px;">-</td>
@@ -1900,13 +1900,13 @@ async function renderCatalogTablesAccordion() {
                 // Row for ORDER
                 return `<tr data-key="${entry._key}" data-type="order" style="background: #eff6ff;">
                     <td style="padding: 10px 12px;">${typeBadge}</td>
-                    <td style="padding: 10px 12px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                    <td style="padding: 10px 12px;">${entry._date}</td>
-                    <td style="padding: 10px 12px; color: #ef4444; font-weight: 700;">-${Math.abs(entry._quantity)}</td>
-                    <td style="padding: 10px 12px;">${entry.RequesterDepartment || '-'}</td>
-                    <td style="padding: 10px 12px;">${entry.Requester || '-'}</td>
-                    <td style="padding: 10px 12px;">${entry.RequesterAddress || '-'}</td>
-                    <td style="padding: 10px 12px;">${entry.DistributionDestination || '-'}</td>
+                    <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; cursor: pointer;" class="editable-order" data-field="CatalogName">${entry.CatalogName}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="CreatedAt">${entry._date}</td>
+                    <td style="padding: 10px 12px; color: #ef4444; font-weight: 700; cursor: pointer;" class="editable-order" data-field="OrderQuantity">-${Math.abs(entry._quantity)}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="Requester">${entry.Requester || '-'}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
+                    <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="DistributionDestination">${entry.DistributionDestination || '-'}</td>
                     <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
                     <td style="padding: 10px 12px;">
                         <select class="order-status-select form-control form-control-sm" data-key="${entry._key}" 
@@ -2488,7 +2488,7 @@ $(document).on('click', '.excel-table .delete-row', async function() {
     }
 });
 
-$(document).on('click', '.excel-order-table .editable-order', function() {
+$(document).on('click', '.excel-table .editable-order', function() {
     if ($(this).find('input').length) return;
     const td = $(this);
     const oldValue = td.text();
@@ -2516,7 +2516,7 @@ $(document).on('click', '.excel-order-table .editable-order', function() {
     }).on('blur', saveEdit);
 });
 
-$(document).on('click', '.excel-order-table .delete-order-row', async function() {
+$(document).on('click', '.excel-table .delete-order-row', async function() {
     const tr = $(this).closest('tr');
     const key = tr.data('key');
     if (confirm('削除しますか？')) {
@@ -2525,7 +2525,7 @@ $(document).on('click', '.excel-order-table .delete-order-row', async function()
             const order = snapshot.val();
             await remove(ref(db, 'Orders/' + key));
             await logAuditEvent('DELETE_ORDER', `Deleted order for: ${order?.CatalogName}`, currentUser?.email);
-            renderOrderTablesAccordion();
+            await renderCatalogTablesAccordion();
         } catch (error) {
             console.error('Delete error:', error);
         }
