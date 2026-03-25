@@ -429,6 +429,7 @@ function initCatalogForm() {
             Requester: form.Requester.value,
             RequesterAddress: form.RequesterAddress.value,
             Remarks: form.Remarks.value,
+            Discontinued: form.Discontinued.checked || false,  // ✓ NEW: Add discontinued flag
         };
         
         if (!data.CatalogName || !data.ReceiptDate || !data.DeliveryDate || !data.DistributionDestination || !data.Requester) {
@@ -942,6 +943,7 @@ function setupCatalogRealTimeListener() {
         if (snapshot.exists()) {
             const catalogData = snapshot.val();
             const stockByName = {};
+            const discontinuedByName = {}; // ✓ NEW: Track discontinued status
             
             // Reset entries in CatalogDB
             Object.values(CatalogDB).forEach(cat => cat.entries = []);
@@ -963,21 +965,29 @@ function setupCatalogRealTimeListener() {
                 if (!stockByName[name]) stockByName[name] = { received: 0, issued: 0 };
                 stockByName[name].received += Number(entry.QuantityReceived || 0);
                 stockByName[name].issued += Number(entry.IssueQuantity || 0);
+                
+                // ✓ NEW: Track discontinued flag (if ANY entry is discontinued, mark it)
+                if (entry.Discontinued === true) {
+                    discontinuedByName[name] = true;
+                }
             });
             
-            // Update stock in CatalogDB
+            // Update stock and discontinued in CatalogDB
             Object.entries(CatalogDB).forEach(([key, catData]) => {
                 if (stockByName[catData.name]) {
                     catData.stock = stockByName[catData.name].received - stockByName[catData.name].issued;
                 } else {
                     catData.stock = 0;
                 }
+                // ✓ NEW: Set discontinued flag
+                catData.discontinued = discontinuedByName[catData.name] || false;
             });
         } else {
             // No catalog entries - reset all stocks
             Object.values(CatalogDB).forEach(cat => {
                 cat.stock = 0;
                 cat.entries = [];
+                cat.discontinued = false; // ✓ NEW: Reset discontinued flag
             });
         }
         
@@ -1435,10 +1445,55 @@ function openPlaceOrderModal(itemKey) {
     document.getElementById('placeOrderModalAddress').value = defaultAddress;
     document.getElementById('placeOrderModalMessage').value = '';
     
-    // Display current stock from CatalogDB
+    // ✓ NEW: Display enhanced stock status and validate availability
     const currentStock = CatalogDB[itemKey]?.stock || 0;
-    const stockStatus = currentStock > 0 ? `在庫あり: ${currentStock}個` : '絶版';
-    document.getElementById('placeOrderModalStock').textContent = stockStatus;
+    const isDiscontinued = CatalogDB[itemKey]?.discontinued || false;
+    const submitBtn = document.getElementById('placeOrderSubmitBtn');
+    const stockStatusElement = document.getElementById('placeOrderModalStock');
+    
+    let stockStatus = '';
+    let isAvailable = true;
+    
+    if (isDiscontinued) {
+        stockStatus = '⚠️ 廃止品';
+        isAvailable = false;
+    } else if (currentStock === 0) {
+        stockStatus = '⚠️ 絶版 (在庫なし)';
+        isAvailable = false;
+    } else if (currentStock < 5) {
+        stockStatus = `⚠️ 在庫わずか: ${currentStock}個`;
+        isAvailable = true; // Still available but low stock warning
+    } else {
+        stockStatus = `✅ 在庫あり: ${currentStock}個`;
+        isAvailable = true;
+    }
+    
+    stockStatusElement.textContent = stockStatus;
+    stockStatusElement.style.fontWeight = '700';
+    stockStatusElement.style.padding = '8px 12px';
+    stockStatusElement.style.borderRadius = '6px';
+    
+    if (!isAvailable) {
+        stockStatusElement.style.background = '#fee2e2';
+        stockStatusElement.style.color = '#dc2626';
+    } else if (currentStock < 5) {
+        stockStatusElement.style.background = '#fef3c7';
+        stockStatusElement.style.color = '#d97706';
+    } else {
+        stockStatusElement.style.background = '#dcfce7';
+        stockStatusElement.style.color = '#16a34a';
+    }
+    
+    // ✓ NEW: Disable/Enable submit button based on availability
+    submitBtn.disabled = !isAvailable;
+    if (isAvailable) {
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+    } else {
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'この商品は注文できません。商品企画室にお問い合わせください。';
+    }
     
     // Show modal and backdrop
     document.getElementById('placeOrderModalBackdrop').style.display = 'block';
@@ -1455,6 +1510,9 @@ function increaseOrderQty() {
     const input = document.getElementById('placeOrderModalQty');
     input.value = Math.max(1, parseInt(input.value) + 1);
     
+    // ✓ NEW: Check if quantity now exceeds stock
+    validateQuantityAgainstStock();
+    
     // Animations and feedback
     input.classList.add('quantity-pop');
     playSound('click');
@@ -1466,11 +1524,143 @@ function decreaseOrderQty() {
     const input = document.getElementById('placeOrderModalQty');
     input.value = Math.max(1, parseInt(input.value) - 1);
     
+    // ✓ NEW: Check if quantity is now valid
+    validateQuantityAgainstStock();
+    
     // Animations and feedback
     input.classList.add('quantity-pop');
     playSound('click');
     triggerHaptic('light');
     setTimeout(() => input.classList.remove('quantity-pop'), 400);
+}
+
+/**
+ * ✓ NEW: Validate quantity against current stock and update button state
+ */
+function validateQuantityAgainstStock() {
+    if (!currentOrderItemKey) return;
+    
+    const quantity = parseInt(document.getElementById('placeOrderModalQty').value) || 1;
+    const catalogData = CatalogDB[currentOrderItemKey];
+    const currentStock = catalogData?.stock || 0;
+    const isDiscontinued = catalogData?.discontinued || false;
+    const submitBtn = document.getElementById('placeOrderSubmitBtn');
+    
+    // If discontinued, stay disabled
+    if (isDiscontinued) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        return;
+    }
+    
+    // If out of stock, stay disabled
+    if (currentStock === 0) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        return;
+    }
+    
+    // If quantity exceeds stock, disable button
+    if (quantity > currentStock) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = `在庫が不足しています (${currentStock}個のみ)`;
+    } else {
+        // All good, enable button
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.title = '注文確認';
+    }
+}
+
+/**
+ * Validate cart item availability (stock and discontinued status)
+ * @returns {isValid: boolean, reason: string}
+ */
+function validateCartItemAvailability(itemKey, requestedQuantity) {
+    const item = CatalogDB[itemKey];
+    
+    if (!item) {
+        return { isValid: false, reason: 'カタログが見つかりません' };
+    }
+    
+    const catalogName = item.name;
+    const currentStock = item.stock || 0;
+    const isDiscontinued = item.discontinued || false;
+    
+    // Check if discontinued
+    if (isDiscontinued) {
+        return { 
+            isValid: false, 
+            reason: `「${catalogName}」は廃止品です。\n\n商品企画室にお問い合わせください。`,
+            type: 'discontinued'
+        };
+    }
+    
+    // Check if out of stock (絶版)
+    if (currentStock === 0) {
+        return { 
+            isValid: false, 
+            reason: `「${catalogName}」は現在絶版です。\n\n商品企画室にお問い合わせください。`,
+            type: 'out_of_stock'
+        };
+    }
+    
+    // Check if insufficient inventory
+    if (currentStock < requestedQuantity) {
+        return { 
+            isValid: false, 
+            reason: `「${catalogName}」は${currentStock}個のみ在庫があります。\n(ご請求: ${requestedQuantity}個)\n\n商品企画室にお問い合わせください。`,
+            type: 'insufficient_stock'
+        };
+    }
+    
+    // All checks passed
+    return { isValid: true, reason: '' };
+}
+
+/**
+ * Show inventory validation error modal
+ */
+function showInventoryValidationError(message) {
+    // Create error modal if it doesn't exist
+    if (!document.getElementById('inventoryValidationErrorModal')) {
+        const modal = document.createElement('div');
+        modal.id = 'inventoryValidationErrorModal';
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border: 2px solid #dc2626; border-radius: 12px;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-bottom: 2px solid #dc2626;">
+                        <h5 class="modal-title" style="color: #dc2626; font-weight: 700;">
+                            <i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>申し訳ございません
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 24px; color: #1e293b; font-size: 15px; line-height: 1.6;">
+                        <p id="inventoryValidationErrorMessage" style="margin: 0; white-space: pre-wrap;"></p>
+                    </div>
+                    <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 16px;">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">閉じる</button>
+                        <a href="mailto:shohin@example.com" class="btn btn-primary">
+                            <i class="fas fa-envelope" style="margin-right: 8px;"></i>商品企画室に連絡
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Update message and show modal
+    document.getElementById('inventoryValidationErrorMessage').textContent = message;
+    $('#inventoryValidationErrorModal').modal('show');
 }
 
 async function submitPlaceOrder() {
@@ -1495,6 +1685,15 @@ async function submitPlaceOrder() {
     if (quantity < 1) {
         alert('注文数量を入力してください');
         return;
+    }
+    
+    // ✓ NEW: Validate inventory availability
+    const validation = validateCartItemAvailability(currentOrderItemKey, quantity);
+    if (!validation.isValid) {
+        showInventoryValidationError(validation.reason);
+        playSound('error');
+        triggerHaptic('error');
+        return; // Block adding to cart
     }
     
     try {
