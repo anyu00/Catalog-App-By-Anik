@@ -1614,7 +1614,7 @@ function validateCartItemAvailability(itemKey, requestedQuantity) {
     if (currentStock < requestedQuantity) {
         return { 
             isValid: false, 
-            reason: `「${catalogName}」は${currentStock}個のみ在庫があります。\n(ご請求: ${requestedQuantity}個)\n\n商品企画室にお問い合わせください。`,
+            reason: `「${catalogName}」の在庫は${currentStock}冊(枚)のため、ご要求の数量をお渡しすることができません。（ご要求数:${requestedQuantity}冊(枚)）\n\n商品企画室にお問い合わせください。`,
             type: 'insufficient_stock'
         };
     }
