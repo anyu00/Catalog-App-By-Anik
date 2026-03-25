@@ -1843,6 +1843,8 @@ function renderCatalogTablesAccordion() {
                 
                 let prevStock = null;
                 let totalReceived = 0, totalIssued = 0;
+                let totalInventoryItems = 0; // Count total inventory entries (excluding orders)
+                
                 const rowsHtml = entries.map((entry, i) => {
                     const qtyReceived = Number(entry.QuantityReceived || 0);
                     const qtyIssued = Number(entry.IssueQuantity || 0);
@@ -1850,6 +1852,11 @@ function renderCatalogTablesAccordion() {
                     prevStock = stock;
                     totalReceived += qtyReceived;
                     totalIssued += qtyIssued;
+                    
+                    // Count only inventory entries (exclude orders)
+                    if (!entry._isOrder) {
+                        totalInventoryItems++;
+                    }
                     
                     return `<tr data-key="${entry._key}">
                         <td data-field="CatalogName" style="font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
@@ -1866,6 +1873,17 @@ function renderCatalogTablesAccordion() {
                         <td><button class="btn btn-danger btn-sm delete-row">Delete</button></td>
                     </tr>`;
                 }).join('');
+                
+                // Add total row
+                const totalRow = `<tr style="background: linear-gradient(90deg, #f0f4f8 0%, #e8f1f8 100%); border-top: 2px solid #2563eb; font-weight: 700; color: #1e293b;">
+                    <td style="padding: 12px 16px; font-weight: 700; color: #1e293b;">合計 (在庫数: ${totalInventoryItems})</td>
+                    <td style="padding: 12px 16px;">-</td>
+                    <td style="padding: 12px 16px; color: #2563eb; font-weight: 700;">${totalReceived}</td>
+                    <td style="padding: 12px 16px;">-</td>
+                    <td style="padding: 12px 16px; color: #ef4444; font-weight: 700;">${totalIssued}</td>
+                    <td style="padding: 12px 16px; color: #059669; font-weight: 700;">${totalReceived - totalIssued}</td>
+                    <td colspan="6" style="padding: 12px 16px; text-align: center; color: #64748b;">-</td>
+                </tr>`;
                 
                 const section = document.createElement('div');
                 section.className = 'catalog-section';
@@ -1898,6 +1916,7 @@ function renderCatalogTablesAccordion() {
                             </thead>
                             <tbody>
                                 ${rowsHtml}
+                                ${totalRow}
                             </tbody>
                         </table>
                         <div style="padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; gap: 8px;">
