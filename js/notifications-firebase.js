@@ -464,18 +464,53 @@ function renderNotificationItem(notif) {
     const bgColor = notif.read ? '#fff' : colors[notif.priority];
     const borderColor = borderColors[notif.priority];
     
-    // Build details section if available
+    // ✓ NEW: Build enhanced details section with all order information
     let detailsHTML = '';
     if (notif.details) {
         const details = notif.details;
         detailsHTML = '<div style="margin-top:8px; padding:8px; background:#f1f5f9; border-radius:4px; font-size:12px; line-height:1.6;">';
         
-        if (details.catalogName) detailsHTML += `<div><strong>カタログ:</strong> ${details.catalogName}</div>`;
-        if (details.quantity) detailsHTML += `<div><strong>数量:</strong> ${details.quantity}</div>`;
-        if (details.requester) detailsHTML += `<div><strong>注文者:</strong> ${details.requester}</div>`;
+        // Show order count and date
+        if (details.items) detailsHTML += `<div style="font-weight:600; margin-bottom:6px; color:#1f2937;">📋 注文: ${details.items}件</div>`;
         if (details.date) detailsHTML += `<div><strong>日付:</strong> ${details.date}</div>`;
-        if (details.location) detailsHTML += `<div><strong>場所:</strong> ${details.location}</div>`;
-        if (details.items) detailsHTML += `<div><strong>アイテム数:</strong> ${details.items}</div>`;
+        if (details.requester) detailsHTML += `<div><strong>注文者:</strong> ${details.requester}</div>`;
+        
+        // ✓ NEW: Show individual order details if orders array exists
+        if (details.orders && Array.isArray(details.orders) && details.orders.length > 0) {
+            detailsHTML += `<div style="margin-top:8px; border-top:1px solid #cbd5e1; padding-top:8px;">`;
+            details.orders.forEach((order, idx) => {
+                detailsHTML += `
+                    <div style="margin-bottom:8px; padding:6px; background:#fff; border-left:2px solid #3b82f6; border-radius:2px;">
+                        <div><strong>${idx + 1}. ${order.catalogName}</strong></div>
+                        <div>数量: <strong>${order.quantity}</strong>冊(枚)</div>
+                        <div>発注者: ${order.requester || '-'}</div>
+                        <div>部署: ${order.department || '-'}</div>
+                        ${order.address ? `<div>住所: ${order.address}</div>` : ''}
+                        ${order.message ? `<div>備考: ${order.message}</div>` : ''}
+                    </div>
+                `;
+            });
+            detailsHTML += `</div>`;
+        }
+        
+        // Show link to 台帳
+        if (details.orderIds && Array.isArray(details.orderIds)) {
+            const orderIdJson = JSON.stringify(details.orderIds);
+            detailsHTML += `
+                <div style="margin-top:8px; text-align:center;">
+                    <button onclick="navigateToTaichouAndHighlightOrders(${orderIdJson})" style="
+                        background:#3b82f6;
+                        color:white;
+                        border:none;
+                        padding:6px 12px;
+                        border-radius:4px;
+                        cursor:pointer;
+                        font-size:11px;
+                        font-weight:600;
+                    ">📋 台帳を確認</button>
+                </div>
+            `;
+        }
         
         detailsHTML += '</div>';
     }

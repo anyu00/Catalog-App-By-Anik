@@ -755,6 +755,18 @@ async function checkoutCart() {
         playSound('success');
         triggerHaptic('success');
         
+        // ✓ NEW: Build detailed order information for notification
+        const ordersDetails = shoppingCart.map((item, idx) => ({
+            catalogName: item.catalogName,
+            quantity: item.quantity,
+            department: item.department,
+            requester: item.requester,
+            address: item.address,
+            message: item.message,
+            addressType: item.addressType,
+            addressValue: item.addressValue
+        }));
+        
         addNotification({
             type: 'order',
             priority: 'info',
@@ -763,7 +775,9 @@ async function checkoutCart() {
             details: {
                 items: shoppingCart.length,
                 date: new Date().toLocaleDateString('ja-JP'),
-                requester: currentUser?.email || 'Unknown'
+                requester: currentUser?.email || 'Unknown',
+                orderIds: orderIds,  // ✓ NEW: Pass order IDs for linking
+                orders: ordersDetails  // ✓ NEW: Pass all order details
             }
         });
         
@@ -798,6 +812,95 @@ async function checkoutCart() {
         checkoutBtn.innerHTML = '<i class="fa-solid fa-check"></i> 一括注文';
     }
 }
+
+/**
+ * ✓ NEW: Navigate to 台帳 page and highlight specific order rows
+ * @param {Array<string>} orderIds - Order IDs to highlight
+ */
+function navigateToTaichouAndHighlightOrders(orderIds) {
+    if (!orderIds || orderIds.length === 0) {
+        console.warn('No order IDs provided');
+        return;
+    }
+    
+    // Store order IDs to highlight when page loads
+    window.highlightOrderIds = orderIds;
+    
+    // Click the catalogEntries tab to navigate
+    const tabBtn = document.querySelector('[data-tab="catalogEntries"]');
+    if (tabBtn) {
+        tabBtn.click();
+        
+        // After tab switches, scroll and highlight orders
+        setTimeout(() => {
+            highlightOrderRows(orderIds);
+        }, 300);
+    } else {
+        console.warn('catalogEntries tab not found');
+    }
+}
+
+/**
+ * ✓ NEW: Highlight order rows in the unified 台帳 table
+ * @param {Array<string>} orderIds - Order IDs to highlight
+ */
+function highlightOrderRows(orderIds) {
+    if (!orderIds || orderIds.length === 0) return;
+    
+    // Find all table rows with order-type data
+    const rows = document.querySelectorAll('table tbody tr[data-type="order"]');
+    
+    let highlightedCount = 0;
+    rows.forEach(row => {
+        const rowKey = row.getAttribute('data-key');
+        
+        // Check if this row's key is in our orderIds list
+        if (orderIds.includes(rowKey)) {
+            // Add highlight animation
+            row.style.background = 'linear-gradient(90deg, #fef3c7 0%, #fef08a 100%)';
+            row.style.boxShadow = '0 0 8px rgba(251, 191, 36, 0.4)';
+            row.style.animation = 'pulse 2s infinite';
+            
+            // Scroll to first highlighted row
+            if (highlightedCount === 0) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            
+            highlightedCount++;
+            
+            // Remove highlight after 5 seconds
+            setTimeout(() => {
+                row.style.animation = 'none';
+                row.style.background = '#eff6ff';
+                row.style.boxShadow = 'none';
+            }, 5000);
+        }
+    });
+    
+    console.log(`✅ Highlighted ${highlightedCount} order row(s)`);
+}
+
+/**
+ * ✓ NEW: Add pulse animation to CSS if not already present
+ */
+function ensureHighlightAnimation() {
+    let styleEl = document.getElementById('highlight-animation-style');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'highlight-animation-style';
+        styleEl.innerHTML = `
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+}
+
+// Call on load
+ensureHighlightAnimation();
+
 
 async function loadPlaceOrderProducts() {
     try {
@@ -1908,6 +2011,7 @@ window.updateCartQty = updateCartQty;
 window.clearCart = clearCart;
 window.checkoutCart = checkoutCart;
 window.updateCartUI = updateCartUI;
+window.navigateToTaichouAndHighlightOrders = navigateToTaichouAndHighlightOrders;  // ✓ NEW
 
 // ===== ORDER FORM =====
 function initOrderForm() {
