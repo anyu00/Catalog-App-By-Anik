@@ -320,16 +320,24 @@ function initializeCatalogSelects() {
 function initTabSwitching() {
     // Single unified tab handler for all navigation buttons
     const topNavBtns = document.querySelectorAll('.nav-link-btn');
-    topNavBtns.forEach(btn => {
+    console.log('🔧 initTabSwitching called - found', topNavBtns.length, 'nav buttons');
+    
+    topNavBtns.forEach((btn, idx) => {
+        console.log(`  Button ${idx}:`, btn.getAttribute('data-tab'), btn.className);
         btn.addEventListener('click', function() {
             const tab = this.getAttribute('data-tab');
+            console.log('📍 Tab clicked:', tab);
             
             // Hide all tabs
             document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
             
             // Show selected tab
             const tabElement = document.getElementById('tab-' + tab);
-            if (tabElement) tabElement.style.display = 'block';
+            console.log('  Tab element found:', !!tabElement);
+            if (tabElement) {
+                tabElement.style.display = 'block';
+                console.log('  ✅ Tab shown:', tab);
+            }
             
             // Update active state for all buttons
             topNavBtns.forEach(b => {
@@ -4538,6 +4546,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Small delay to ensure permissions are fully loaded
         await new Promise(resolve => setTimeout(resolve, 100));
 
+        // Initialize tab switching FIRST so handlers are ready for auto-click
+        initTabSwitching();
+
         // Filter tabs based on permissions
         await filterTabsByPermissions(userPermissions);
 
@@ -4573,7 +4584,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Initialize app components
         initializeCatalogSelects();
-        initTabSwitching();
         initCatalogForm();
         initOrderForm();
         initAdminPanel();
