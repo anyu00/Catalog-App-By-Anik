@@ -1139,13 +1139,18 @@ function _applyOrderStockToAllCatalogs() {
  * Sync all pages when any catalog data changes
  */
 function syncAllPages() {
-    console.log('[SYNC ALL] Syncing Place Order, Catalog Entries, and Order Entries pages');
+    console.log('[SYNC ALL] Syncing all pages including analytics');
     renderPlaceOrderProductGrid();
     if (window.renderCatalogTablesAccordion) {
         window.renderCatalogTablesAccordion();
     }
     if (window.renderOrderTablesAccordion) {
         window.renderOrderTablesAccordion();
+    }
+    // Also refresh analytics if the tab is currently visible
+    const analyticsTab = document.getElementById('tab-analytics');
+    if (analyticsTab && analyticsTab.style.display !== 'none') {
+        setTimeout(fetchAndRenderAnalytics, 200);
     }
 }
 
@@ -3495,12 +3500,17 @@ function fetchAndRenderAnalytics() {
     // Use CatalogDB for catalog data (already has real-time sync)
     const catalogData = {};
     Object.values(CatalogDB).forEach(catalogInfo => {
-        if (catalogInfo.entries) {
-            Object.entries(catalogInfo.entries).forEach(([key, entry]) => {
+        if (catalogInfo.entries && catalogInfo.entries.length > 0) {
+            // Use entry._key (the real Firebase key) to avoid array-index collisions
+            // across different catalogs which would silently overwrite each other
+            catalogInfo.entries.forEach((entry) => {
+                const key = entry._key;
+                if (!key) return;
                 catalogData[key] = {
                     ...entry,
                     CatalogName: catalogInfo.name,
-                    StockQuantity: entry.StockQuantity || catalogInfo.stock || 0
+                    // Use live stock from CatalogDB — matches ledger 在庫残数 exactly
+                    StockQuantity: catalogInfo.stock !== undefined ? catalogInfo.stock : (entry.StockQuantity || 0)
                 };
             });
         }
@@ -3553,21 +3563,31 @@ function setupOrdersListenerForAnalytics() {
 
 // Setup listener for CatalogDB changes to refresh analytics
 function setupCatalogDBListenerForAnalytics() {
-    const catalogsRef = ref(db, 'Catalogs/');
-    onValue(catalogsRef, (snapshot) => {
-        console.log('[ANALYTICS] Catalogs changed, CatalogDB will be updated by main listener');
-        
-        // Auto-refresh analytics if tab is visible
+    // Helper: refresh analytics if the tab is currently visible.
+    // Delay of 200ms lets the main CatalogDB listeners process changes first.
+    function refreshAnalyticsIfVisible() {
         const analyticsTab = document.getElementById('tab-analytics');
         if (analyticsTab && analyticsTab.style.display !== 'none') {
-            console.log('[ANALYTICS] Auto-refreshing due to Catalogs change');
-            // Small delay to ensure CatalogDB is updated
-            setTimeout(() => {
-                fetchAndRenderAnalytics();
-            }, 100);
+            setTimeout(fetchAndRenderAnalytics, 200);
         }
+    }
+
+    // Watch Catalogs/ (inventory intake records — stock changes, entry adds/deletes)
+    const catalogsRef = ref(db, 'Catalogs/');
+    onValue(catalogsRef, (snapshot) => {
+        console.log('[ANALYTICS] Catalogs changed — refreshing analytics');
+        refreshAnalyticsIfVisible();
     }, (error) => {
         console.error('[ANALYTICS] Error listening to Catalogs:', error);
+    });
+
+    // Also watch CatalogNames/ so renames and admin-panel add/delete trigger analytics refresh
+    const catalogNamesRef = ref(db, 'CatalogNames/');
+    onValue(catalogNamesRef, (snapshot) => {
+        console.log('[ANALYTICS] CatalogNames changed — refreshing analytics');
+        refreshAnalyticsIfVisible();
+    }, (error) => {
+        console.error('[ANALYTICS] Error listening to CatalogNames:', error);
     });
 }
 
