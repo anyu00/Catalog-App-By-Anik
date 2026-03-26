@@ -1109,6 +1109,44 @@ function _applyOrderStockToAllCatalogs() {
     });
 }
 
+// ===== AUDIT LOG REAL-TIME LISTENER =====
+function setupAuditLogRealTimeListener() {
+    if (window._auditLogListenerActive) return;
+    window._auditLogListenerActive = true;
+    console.log('[AUDIT LOG LISTENER] Setting up real-time listener for audit log');
+    
+    const auditLogRef = ref(db, 'AuditLog');
+    onValue(auditLogRef, (snapshot) => {
+        console.log('[AUDIT LOG LISTENER] Audit log changed');
+        // Refresh audit log if the tab is visible
+        const auditTab = document.getElementById('tab-auditLog');
+        if (auditTab && auditTab.style.display !== 'none') {
+            renderAuditLog();
+        }
+    }, (error) => {
+        console.warn('[AUDIT LOG LISTENER] Error:', error);
+    });
+}
+
+// ===== MOVEMENT HISTORY REAL-TIME LISTENER =====
+function setupMovementHistoryRealTimeListener() {
+    if (window._movementHistoryListenerActive) return;
+    window._movementHistoryListenerActive = true;
+    console.log('[MOVEMENT HISTORY LISTENER] Setting up real-time listener for movement history');
+    
+    const movementHistoryRef = ref(db, 'MovementHistory');
+    onValue(movementHistoryRef, (snapshot) => {
+        console.log('[MOVEMENT HISTORY LISTENER] Movement history changed');
+        // Refresh movement history if the tab is visible
+        const movementTab = document.getElementById('tab-movementHistory');
+        if (movementTab && movementTab.style.display !== 'none') {
+            renderMovementHistory();
+        }
+    }, (error) => {
+        console.warn('[MOVEMENT HISTORY LISTENER] Error:', error);
+    });
+}
+
 /**
  * Sync all pages when any catalog data changes
  */
@@ -1125,6 +1163,16 @@ function syncAllPages() {
     const analyticsTab = document.getElementById('tab-analytics');
     if (analyticsTab && analyticsTab.style.display !== 'none') {
         setTimeout(fetchAndRenderAnalytics, 200);
+    }
+    // Also refresh audit log if the tab is currently visible
+    const auditTab = document.getElementById('tab-auditLog');
+    if (auditTab && auditTab.style.display !== 'none') {
+        setTimeout(renderAuditLog, 200);
+    }
+    // Also refresh movement history if the tab is currently visible
+    const movementTab = document.getElementById('tab-movementHistory');
+    if (movementTab && movementTab.style.display !== 'none') {
+        setTimeout(renderMovementHistory, 200);
     }
 }
 
@@ -4575,6 +4623,10 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadCatalogNamesFromFirebase();
         await enrichCatalogNamesAcrossApp();
         setupCatalogRealTimeListener();
+        
+        // Setup real-time listeners for audit log and movement history
+        setupAuditLogRealTimeListener();
+        setupMovementHistoryRealTimeListener();
 
         // Initialize notification system
         initNotificationSystem();
