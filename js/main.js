@@ -318,32 +318,45 @@ function initializeCatalogSelects() {
 
 // ===== TAB SWITCHING =====
 function initTabSwitching() {
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+    // Single unified tab handler for all navigation buttons
+    const topNavBtns = document.querySelectorAll('.nav-link-btn');
+    topNavBtns.forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            document.querySelectorAll('.tab-section').forEach(tab => tab.style.display = 'none');
-            const tabName = this.getAttribute('data-tab');
-            const tab = document.getElementById('tab-' + tabName);
-            if (tab) tab.style.display = 'block';
+            const tab = this.getAttribute('data-tab');
+            
+            // Hide all tabs
+            document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
+            
+            // Show selected tab
+            const tabElement = document.getElementById('tab-' + tab);
+            if (tabElement) tabElement.style.display = 'block';
+            
+            // Update active state for all buttons
+            topNavBtns.forEach(b => {
+                if (b.getAttribute('data-tab') === tab) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
             
             // Lazy-load expensive components
-            if (tabName === 'stockCalendar' && !window.calendarInitialized) {
+            if (tab === 'stockCalendar' && !window.calendarInitialized) {
                 initializeCalendar();
                 window.calendarInitialized = true;
             }
-            if (tabName === 'catalogEntries') {
+            if (tab === 'catalogEntries') {
                 renderCatalogTablesAccordion();
                 setTimeout(() => initCatalogSearch(), 100);
             }
-            if (tabName === 'orderEntries') {
+            if (tab === 'orderEntries') {
                 setupOrderViewToggle();
                 renderOrderTablesAccordion();
             }
-            if (tabName === 'placeOrder') {
+            if (tab === 'placeOrder') {
                 loadPlaceOrderProducts();
             }
-            if (tabName === 'analytics') {
+            if (tab === 'analytics') {
                 document.getElementById('analyticsDateRangeCard').style.display = 'block';
                 fetchAndRenderAnalytics();
             } else {
@@ -352,53 +365,6 @@ function initTabSwitching() {
             }
         });
     });
-    
-    // Default display handled by filterTabsByPermissions instead of hardcoding here
-    const topNavBtns = document.querySelectorAll('.nav-link-btn');
-        topNavBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.getAttribute('data-tab');
-                
-                // Hide all tabs
-                document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
-                
-                // Show selected tab
-                const tabElement = document.getElementById('tab-' + tab);
-                if (tabElement) tabElement.style.display = 'block';
-                
-                // Update active states
-                topNavBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
-                    if (b.getAttribute('data-tab') === tab) {
-                        b.classList.add('active');
-                    } else {
-                        b.classList.remove('active');
-                    }
-                });
-                
-                // Lazy-load expensive components
-                if (tab === 'stockCalendar' && !window.calendarInitialized) {
-                    initializeCalendar();
-                    window.calendarInitialized = true;
-                }
-                if (tab === 'catalogEntries') {
-                    renderCatalogTablesAccordion();
-                    setTimeout(() => initCatalogSearch(), 100);
-                }
-                if (tab === 'orderEntries') {
-                    setupOrderViewToggle();
-                    renderOrderTablesAccordion();
-                }
-                if (tab === 'analytics') {
-                    document.getElementById('analyticsDateRangeCard').style.display = 'block';
-                    fetchAndRenderAnalytics();
-                } else {
-                    const dateCard = document.getElementById('analyticsDateRangeCard');
-                    if (dateCard) dateCard.style.display = 'none';
-                }
-            });
-        });
     document.getElementById('analyticsDateRangeCard').style.display = 'none';
 }
 
@@ -4342,23 +4308,6 @@ document.getElementById('analyticsDatePreset').addEventListener('change', functi
 document.getElementById('analyticsDateStart')?.addEventListener('change', fetchAndRenderAnalytics);
 document.getElementById('analyticsDateEnd')?.addEventListener('change', fetchAndRenderAnalytics);
 
-// ===== MOBILE HAMBURGER TOGGLE =====
-function initMobileToggle() {
-    const toggle = document.getElementById('hamburgerToggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.getElementById('mobileOverlay');
-    
-    toggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('show');
-    });
-    
-    overlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('show');
-    });
-}
-
 // ===== LANGUAGE SWITCHING =====
 function initLanguageToggle() {
     console.log('Initializing language toggle...');
@@ -4417,8 +4366,8 @@ function updateLanguageButtonState() {
 function updateUILanguage() {
     console.log('Updating UI language to:', i18n.getLanguage());
     
-    // Update sidebar buttons with icons
-    const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.topnav-btn)');
+    // Update navigation buttons with icons
+    const navBtns = document.querySelectorAll('.nav-link-btn');
     const btnKeys = ['sidebar.manage', 'sidebar.order', 'sidebar.entries', 'sidebar.orders', 
                      'sidebar.calendar', 'sidebar.history', 'sidebar.audit', 'sidebar.analytics', 'sidebar.admin'];
     
@@ -4627,7 +4576,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initTabSwitching();
         initCatalogForm();
         initOrderForm();
-        initMobileToggle();
         initAdminPanel();
         setupCartWarning(); // Warn if leaving with cart items
         updateKPIs();
@@ -4650,7 +4598,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         // Wire tab click events for audit log and movement history
-        document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+        document.querySelectorAll('.nav-link-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const tab = this.getAttribute('data-tab');
                 if (tab === 'auditLog') {
@@ -4689,8 +4637,8 @@ async function filterTabsByPermissions(permissions) {
     const accessibleTabs = [];
     const lockedTabs = [];
 
-    // Filter both sidebar and top nav buttons
-    document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+    // Filter navigation buttons
+    document.querySelectorAll('.nav-link-btn').forEach(btn => {
         const tabId = btn.getAttribute('data-tab');
         const tabConfig_item = tabConfig[tabId];
         let hasReadAccess = false;
@@ -4781,7 +4729,7 @@ async function filterTabsByPermissions(permissions) {
     console.log('🔍 Looking for Order (注文) button to auto-click...');
     
     // Try to find placeOrder button specifically
-    const placeOrderBtn = document.querySelector('.sidebar-nav-btn[data-tab="placeOrder"]:not(.tab-locked)');
+    const placeOrderBtn = document.querySelector('.nav-link-btn[data-tab="placeOrder"]:not(.tab-locked)');
     
     if (placeOrderBtn) {
         console.log('✅ Order button found and accessible - auto-clicking');
@@ -4792,9 +4740,9 @@ async function filterTabsByPermissions(permissions) {
         console.log('⚠️ Order button not accessible, finding first accessible tab...');
         // Order page not accessible - find first accessible tab
         let firstVisibleBtn = null;
-        const sidebarBtns = document.querySelectorAll('.sidebar-nav-btn:not(.nav-link-btn)');
+        const navBtns = document.querySelectorAll('.nav-link-btn');
         
-        for (const btn of sidebarBtns) {
+        for (const btn of navBtns) {
             if (!btn.classList.contains('tab-locked')) {
                 firstVisibleBtn = btn;
                 break;

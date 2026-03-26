@@ -22,150 +22,7 @@ body {
     display: flex;
 }
 
-/* Sidebar Styling */
-.sidebar {
-    display: none;
-    width: 240px;
-    min-width: 220px;
-    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 0;
-    box-shadow: 2px 0 16px rgba(31,38,135,0.2);
-    z-index: 10;
-}
 
-.sidebar .sidebar-title {
-    font-size: 1.6rem;
-    font-weight: 700;
-    padding: 36px 24px 24px 32px;
-    color: #ffffff;
-    letter-spacing: 1px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* User Profile Section */
-.sidebar-user-profile {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 24px;
-    background: rgba(224, 234, 252, 0.08);
-    margin: 16px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(224, 234, 252, 0.15);
-}
-
-.sidebar-user-profile .user-avatar {
-    font-size: 1.8rem;
-    min-width: 40px;
-    text-align: center;
-}
-
-.sidebar-user-profile .user-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.sidebar-user-profile .user-email {
-    font-size: 0.9rem;
-    color: #e0eafc;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.sidebar-user-profile .user-role {
-    font-size: 0.75rem;
-    color: #a8afcc;
-    margin-top: 2px;
-}
-
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 32px 0 0 0;
-}
-
-.sidebar-nav-btn {
-    background: none;
-    border: none;
-    color: rgba(255, 255, 255, 0.9);
-    text-align: left;
-    padding: 14px 32px;
-    font-size: 1.08rem;
-    font-weight: 500;
-    border-radius: 0 24px 24px 0;
-    margin-right: 12px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-}
-
-.sidebar-nav-btn.active, .sidebar-nav-btn:hover {
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 1) 100%);
-    color: #1e40af;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* Locked Tab Styling */
-.sidebar-nav-btn.tab-locked {
-    opacity: 0.5;
-    color: rgba(255, 255, 255, 0.5);
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.sidebar-nav-btn.tab-locked::after {
-    content: ' 🔒';
-    font-size: 1.1em;
-    margin-left: 4px;
-}
-
-.sidebar-nav-btn.tab-locked:hover {
-    opacity: 0.65;
-    background: rgba(255, 255, 255, 0.05) !important;
-    cursor: pointer;
-    pointer-events: auto !important;
-}
-
-.sidebar-actions {
-    margin-top: auto;
-    padding: 24px 32px 32px 32px;
-    display: flex;
-    gap: 16px;
-    justify-content: flex-start;
-}
-
-.sidebar-actions .icon-btn {
-    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    color: #ffffff;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.sidebar-actions .icon-btn:hover {
-    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
-    color: #1e40af;
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
 
 /* User Display in Top Bar */
 .user-display {
@@ -860,54 +717,10 @@ canvas {
     padding: 16px;
 }
 
-/* Mobile Overlay */
-.mobile-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    z-index: 1040;
-    display: none;
-}
-
-.mobile-overlay.show {
-    display: block;
-}
-
 /* Mobile & Responsive */
 @media (max-width: 900px) {
     body {
         flex-direction: column;
-    }
-
-    .sidebar {
-        display: flex !important;
-        position: fixed;
-        left: -280px;
-        top: 0;
-        height: 100vh;
-        width: 260px;
-        min-width: 0;
-        transition: left 0.22s ease;
-        z-index: 1050;
-    }
-
-    .sidebar.open {
-        left: 0;
-    }
-
-    .sidebar .sidebar-title {
-        font-size: 1.1rem;
-        padding: 18px 8px 12px 8px;
-    }
-
-    .sidebar-nav-btn {
-        font-size: 0.95rem;
-        padding: 10px 8px;
-        border-radius: 0 12px 12px 0;
-    }
-
-    .sidebar-actions {
-        display: none;
     }
 
     .main-content-shell {
@@ -1482,20 +1295,6 @@ canvas {
     }
     
     /* Mobile overlay for sidebar */
-    .mobile-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.4);
-        z-index: 1040;
-        display: none !important;
-    }
-    
-    .mobile-overlay.show {
-        display: block !important;
-    }
     
     /* Improve tab/form spacing on mobile */
     .glass-cards {
@@ -1568,11 +1367,6 @@ canvas {
 
 /* iPhone/iPad specific (Landscape) */
 @media (max-width: 1024px) and (orientation: landscape) {
-    .sidebar-nav-btn {
-        padding: 10px 16px;
-        font-size: 14px;
-    }
-    
     .main-content {
         padding-bottom: 60px;
     }
