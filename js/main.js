@@ -242,6 +242,12 @@ async function enrichCatalogNamesAcrossApp() {
         }
 
         await update(ref(db), rootUpdates);
+        // Sync enriched names to local CatalogDB so dropdowns are correct immediately at startup
+        renamePairs.forEach(({ oldName, enrichedName }) => {
+            Object.values(CatalogDB).forEach(cat => {
+                if (cat.name === oldName) cat.name = enrichedName;
+            });
+        });
         console.log(`[CATALOG ENRICH] Updated ${renamePairs.length} catalog names across app`);
     } catch (error) {
         console.warn('[CATALOG ENRICH] Error enriching catalog names:', error);
@@ -900,15 +906,19 @@ async function loadPlaceOrderProducts() {
         const catalogsSnapshot = await get(ref(db, 'Catalogs'));
         const ordersSnapshot = await get(ref(db, 'Orders'));
         
-        // Initialize CatalogDB from CatalogNames
-        if (namesSnapshot.exists()) {
-            Object.entries(namesSnapshot.val()).forEach(([key, name]) => {
-                if (!CatalogDB[key]) {
-                    CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
-                }
-                CatalogDB[key].name = name;
-            });
-            console.log('[CATALOG LOAD] Loaded', Object.keys(namesSnapshot.val()).length, 'catalog names');
+        // Initialize CatalogDB from CatalogNames — purge deleted entries first
+        const currentNames = namesSnapshot.exists() ? namesSnapshot.val() : {};
+        Object.keys(CatalogDB).forEach(key => {
+            if (!currentNames[key]) delete CatalogDB[key];
+        });
+        Object.entries(currentNames).forEach(([key, name]) => {
+            if (!CatalogDB[key]) {
+                CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+            }
+            CatalogDB[key].name = name;
+        });
+        if (Object.keys(currentNames).length > 0) {
+            console.log('[CATALOG LOAD] Loaded', Object.keys(currentNames).length, 'catalog names');
         }
         
         // Add images to CatalogDB
@@ -988,6 +998,9 @@ async function loadPlaceOrderProducts() {
  * Updates the unified CatalogDB whenever any catalog data changes
  */
 function setupCatalogRealTimeListener() {
+    // Guard: only attach listeners once — prevents duplicate Firebase subscriptions
+    if (window._catalogRealTimeListenerActive) return;
+    window._catalogRealTimeListenerActive = true;
     console.log('[SYNC SETUP] Initializing real-time catalog listeners');
     
     const catalogNamesRef = ref(db, 'CatalogNames');
@@ -997,15 +1010,17 @@ function setupCatalogRealTimeListener() {
     // Listen for catalog name changes
     onValue(catalogNamesRef, (snapshot) => {
         console.log('[SYNC LISTENER] Catalog names changed');
-        if (snapshot.exists()) {
-            const names = snapshot.val();
-            Object.entries(names).forEach(([key, name]) => {
-                if (!CatalogDB[key]) {
-                    CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
-                }
-                CatalogDB[key].name = name;
-            });
-        }
+        const names = snapshot.exists() ? snapshot.val() : {};
+        // Purge CatalogDB entries that were deleted in Firebase
+        Object.keys(CatalogDB).forEach(key => {
+            if (!names[key]) delete CatalogDB[key];
+        });
+        Object.entries(names).forEach(([key, name]) => {
+            if (!CatalogDB[key]) {
+                CatalogDB[key] = { key, name, image: '', stock: 0, entries: [] };
+            }
+            CatalogDB[key].name = name;
+        });
         
         initializeCatalogSelects();
         syncAllPages();
@@ -4576,9 +4591,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setupOrdersListenerForAnalytics();
         setupCatalogDBListenerForAnalytics();
 
-        // Load catalog names from Firebase
+        // Load catalog names from Firebase and start real-time sync immediately
         await loadCatalogNamesFromFirebase();
         await enrichCatalogNamesAcrossApp();
+        setupCatalogRealTimeListener();
 
         // Initialize notification system
         initNotificationSystem();

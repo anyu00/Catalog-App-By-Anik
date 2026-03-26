@@ -164,8 +164,7 @@ async function loadAnalyticsSettingsUI() {
     const catalogNamesData = catalogNamesSnapshot.exists() ? catalogNamesSnapshot.val() : {};
     
     const catalogNames = Object.values(catalogNamesData)
-      .map(item => item.name)
-      .filter(name => name)
+      .filter(item => item && typeof item === 'string' && item.trim().length > 0)
       .sort();
     
     const container = document.getElementById('perItemOverridesContainer');
@@ -970,24 +969,27 @@ async function saveCatalogImages() {
           // Extract URL from HTML or plain URL
           imageUrl = extractImageUrl(imageUrl);
           console.log(`After extraction (${catalogName}):`, imageUrl);
-          // Store images in separate CatalogImages node
           catalogImages[key] = imageUrl;
           updateCount++;
+        } else {
+          // Explicitly null → removes this key in Firebase (handles cleared inputs)
+          catalogImages[key] = null;
         }
       }
     });
     
     console.log(`Total updates: ${updateCount}`, catalogImages);
     
-    if (updateCount === 0) {
-      showNotification('画像URLを入力してください', 'warning');
+    if (Object.keys(catalogImages).length === 0) {
+      showNotification('カタログが見つかりません', 'warning');
       saveBtn.disabled = false;
       saveBtn.textContent = '画像設定を保存';
       return;
     }
     
     console.log('Sending update to Firebase at /CatalogImages/...');
-    await set(ref(db, 'CatalogImages'), catalogImages);
+    // Use update() not set() — only touches keys we processed, never wipes unrelated entries
+    await update(ref(db, 'CatalogImages'), catalogImages);
     console.log('Firebase update successful!');
     showNotification('画像設定を保存しました', 'success');
     
