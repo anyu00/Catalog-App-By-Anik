@@ -336,9 +336,15 @@ function initTabSwitching() {
             btn.classList.add('active');
 
             // Lazy-load expensive components
-            if (tab === 'stockCalendar' && !window.calendarInitialized) {
-                initializeCalendar();
-                window.calendarInitialized = true;
+            if (tab === 'stockCalendar') {
+                if (!window.calendarInitialized) {
+                    initializeCalendar();
+                    window.calendarInitialized = true;
+                }
+                setTimeout(() => {
+                    renderMovementHistory();
+                    renderAuditLog();
+                }, 100);
             }
             if (tab === 'placeOrder') {
                 loadPlaceOrderProducts();
@@ -4578,18 +4584,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // Wire tab click events for audit log and movement history
-        document.querySelectorAll('.topnav-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tab = this.getAttribute('data-tab');
-                if (tab === 'auditLog') {
-                    setTimeout(renderAuditLog, 100);
-                } else if (tab === 'movementHistory') {
-                    setTimeout(renderMovementHistory, 100);
-                }
-            });
-        });
-
         // Setup logout handler
         setupLogoutHandler();
 
@@ -4627,8 +4621,17 @@ async function filterTabsByPermissions(permissions) {
         let lockReason = '';
 
         if (tabConfig_item) {
-            // Check permission normally for all tabs (including movementHistory and auditLog)
-            if (permissions[tabConfig_item.permission]) {
+            // Merged tab: allow opening calendar tab if user can read calendar OR history OR audit.
+            if (tabId === 'stockCalendar') {
+                const canReadCalendar = permissions.stockCalendar?.read === true;
+                const canReadHistory = permissions.movementHistory?.read === true;
+                const canReadAudit = permissions.auditLog?.read === true;
+                hasReadAccess = canReadCalendar || canReadHistory || canReadAudit;
+                if (!hasReadAccess) {
+                    isLocked = true;
+                    lockReason = 'READ';
+                }
+            } else if (permissions[tabConfig_item.permission]) {
                 if (permissions[tabConfig_item.permission].read === true) {
                     hasReadAccess = true;
                 } else {
