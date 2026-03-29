@@ -1,6 +1,6 @@
 {
-  "name": "カタログ管理ダッシュボード",
-  "short_name": "カタログ管理",
+  "name": "油研カタ",
+  "short_name": "油研カタ",
   "description": "カタログ管理と注文システム",
   "start_url": "/index.html",
   "scope": "/",

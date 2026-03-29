@@ -296,6 +296,35 @@ body {
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
+.app-brand {
+    font-weight: 800;
+    color: #ffffff;
+    font-size: 18px;
+    letter-spacing: 0.2px;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    animation: brandSlideIn 520ms ease-out both, brandPulseGlow 3.4s ease-in-out 620ms infinite;
+}
+
+@keyframes brandSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes brandPulseGlow {
+    0%, 100% {
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+    }
+    50% {
+        text-shadow: 0 2px 10px rgba(255, 255, 255, 0.32);
+    }
+}
+
 /* Option A - Top Nav Buttons */
 .nav-link-btn {
     padding: 8px 16px;
@@ -310,9 +339,36 @@ body {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     white-space: nowrap;
     flex-shrink: 0;
+    animation: topnavItemFade 320ms ease-out both;
 }
 .nav-link-btn:hover { background: rgba(0, 0, 0, 0.1); color: #ffffff; filter: brightness(1.15); }
 .nav-link-btn.active { background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%); color: #1e40af; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); font-weight: 700; }
+
+@keyframes topnavItemFade {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.topnav-btn:nth-of-type(1) { animation-delay: 40ms; }
+.topnav-btn:nth-of-type(2) { animation-delay: 80ms; }
+.topnav-btn:nth-of-type(3) { animation-delay: 120ms; }
+.topnav-btn:nth-of-type(4) { animation-delay: 160ms; }
+.topnav-btn:nth-of-type(5) { animation-delay: 200ms; }
+.topnav-btn:nth-of-type(6) { animation-delay: 240ms; }
+.topnav-btn:nth-of-type(7) { animation-delay: 280ms; }
+
+@media (prefers-reduced-motion: reduce) {
+    .app-brand,
+    .nav-link-btn {
+        animation: none !important;
+    }
+}
 
 /* Responsive Top Navigation Container */
 .topnav-buttons-container {
