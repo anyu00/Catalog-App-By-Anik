@@ -1409,7 +1409,7 @@ function renderPlaceOrderProductGrid() {
         
         card.innerHTML = `
             <img src="${imageUrl || placeholderSvg}" style="width:100%; height:140px; object-fit:cover; border-radius:6px; background:#f0f0f0; margin-bottom:10px;" onerror="this.src='${placeholderSvg}'">
-            <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${catalogName}</p>
+            <p style="font-size:0.9rem; font-weight:600; margin:8px 0 5px 0; color:#333; white-space:normal; overflow:visible; text-overflow:clip; word-break:break-word;">${catalogName}</p>
             <p style="font-size:1.1rem; font-weight:700; margin:0; color:${stockColor};">${stockStatus}</p>
             ${orderCountDisplay}
             ${userIsAdmin ? `
@@ -2114,6 +2114,11 @@ function initOrderForm() {
 let catalogSortState = { column: null, direction: 'asc' };
 let catalogRequesterFilter = null;
 let orderRequesterFilter = null;
+let orderStatusFilter = null;
+let orderSearchFilter = '';
+let orderDateRangeFilter = { from: null, to: null };
+let orderEntriesPage = 1;
+const ORDER_ENTRIES_PAGE_SIZE = 30;
 let auditDateRange = { from: null, to: null };
 let movementDateRange = { from: null, to: null };
 let expandedCatalogSections = new Set(); // Track which accordion sections are expanded
@@ -2597,113 +2602,324 @@ function initCatalogSearch() {
 // ===== RENDER ORDER TABLES ACCORDION =====
 function renderOrderTablesAccordion() {
     const container = document.getElementById('orderEntriesAccordion');
-    container.innerHTML = '';
+    if (!container) return;
+
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">📂 注文データを読み込み中...</div>';
     const orderRef = ref(db, 'Orders/');
     get(orderRef).then((snapshot) => {
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            const catalogs = {};
-            
-            // Collect all requesters for filter dropdown
-            let allRequesters = new Set();
-            
-            for (const key in data) {
-                const catName = data[key].CatalogName;
-                if (!catalogs[catName]) catalogs[catName] = [];
-                catalogs[catName].push({ ...data[key], _key: key });
-                if (data[key].Requester) allRequesters.add(data[key].Requester);
-            }
-            
-            // Add requester filter dropdown at the top
-            const filterHtml = `
-                <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
-                    <label style="font-weight: 600; color: #1e293b;">フィルター (発注者):</label>
-                    <select id="orderRequesterSelect" style="padding: 8px 12px; border: 1px solid #fbbf24; border-radius: 6px; font-size: 14px; background: white;">
-                        <option value="">すべて表示</option>
-                        ${Array.from(allRequesters).sort().map(r => `<option value="${r}">${r}</option>`).join('')}
-                    </select>
-                </div>
-            `;
-            container.innerHTML = filterHtml;
-            
-            const filterSelect = container.querySelector('#orderRequesterSelect');
-            if (filterSelect) {
-                filterSelect.value = orderRequesterFilter || '';
-                filterSelect.addEventListener('change', (e) => {
-                    orderRequesterFilter = e.target.value;
-                    renderOrderTablesAccordion();
-                });
-            }
-            
-            Object.keys(catalogs).forEach((catName, idx) => {
-                let entries = catalogs[catName].slice();
-                
-                // Apply requester filter
-                if (orderRequesterFilter) {
-                    entries = entries.filter(e => e.Requester === orderRequesterFilter);
-                }
-                
-                // Skip if no entries after filtering
-                if (entries.length === 0) return;
-                
-                const section = document.createElement('div');
-                section.className = 'order-section';
-                section.innerHTML = `
-                    <div class="order-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; cursor: pointer; margin-bottom: 12px; user-select: none;">
-                        <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                            <i class="fas fa-chevron-down" style="transition: transform 0.2s; font-size: 14px; color: #b45309;"></i>
-                            <i class='fa-solid fa-cart-shopping' style="color: #f59e0b;"></i>
-                            <span style="font-weight: 600; color: #1e293b; font-size: 15px;">${catName}</span>
-                            <span style="margin-left: auto; color: #64748b; font-size: 13px;">(${entries.length} orders)</span>
-                        </div>
-                    </div>
-                    <div class="order-table-wrapper" style="display: none; overflow-x: auto; border: 1px solid #fbbf24; border-radius: 8px; margin-bottom: 16px;">
-                        <table class="glass-table excel-order-table" data-catalog="${catName}" style="width: 100%; border-collapse: collapse;">
-                            <thead style="background: #fffbeb;">
-                                <tr>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">カタログ名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">注文数量</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">部署名</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">発注者</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">住所</th>
-                                    <th style="padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">メッセージ</th>
-                                    <th style="padding: 12px 16px; text-align: center; font-size: 12px; font-weight: 700; color: #92400e; border-bottom: 2px solid #fbbf24;">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${entries.map(entry => `
-                                    <tr data-key="${entry._key}" style="border-bottom: 1px solid #fef3c7;">
-                                        <td data-field="CatalogName" style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${entry.CatalogName}</td>
-                                        <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 16px;">${entry.OrderQuantity}</td>
-                                        <td class="editable-order" data-field="RequesterDepartment" style="padding: 12px 16px;">${entry.RequesterDepartment || '-'}</td>
-                                        <td class="editable-order" data-field="Requester" style="padding: 12px 16px;">${entry.Requester}</td>
-                                        <td class="editable-order" data-field="RequesterAddress" style="padding: 12px 16px;">${entry.RequesterAddress || '-'}</td>
-                                        <td style="padding: 12px 16px;"><div style='max-width:320px;overflow-x:auto;'>${entry.Message || ''}</div></td>
-                                        <td style="padding: 12px 16px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row">Delete</button></td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                        <div style="padding: 12px 16px; background: #fffbeb; border-top: 1px solid #fbbf24; display: flex; gap: 8px;">
-                            <button class="btn btn-success btn-sm add-order-row" data-catalog="${catName}">➕ 新規注文を追加</button>
-                        </div>
-                    </div>
-                `;
-                
-                container.appendChild(section);
-                
-                // Add click handler to header
-                const header = section.querySelector('.order-header');
-                const wrapper = section.querySelector('.order-table-wrapper');
-                const chevron = header.querySelector('.fa-chevron-down');
-                
-                header.addEventListener('click', () => {
-                    const isHidden = wrapper.style.display === 'none';
-                    wrapper.style.display = isHidden ? 'block' : 'none';
-                    chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-                });
+        const data = snapshot.exists() ? snapshot.val() : {};
+        const orders = Object.entries(data).map(([key, order]) => {
+            const createdAt = order.CreatedAt || (order.OrderDate ? `${order.OrderDate}T00:00:00` : null) || new Date().toISOString();
+            const statusHistory = buildOrderStatusHistory(order);
+            const lastHistory = statusHistory.length > 0 ? statusHistory[statusHistory.length - 1] : null;
+            return {
+                ...order,
+                _key: key,
+                _createdAt: createdAt,
+                _createdAtMs: new Date(createdAt).getTime() || 0,
+                _statusHistory: statusHistory,
+                _lastStatusUpdate: lastHistory?.timestamp || order.LastStatusUpdate || createdAt,
+                _isCancelled: isCancelledOrderStatus(order.Status)
+            };
+        }).sort((a, b) => b._createdAtMs - a._createdAtMs);
+
+        const allRequesters = Array.from(new Set(orders.map(order => order.Requester).filter(Boolean))).sort();
+        const allStatuses = ['注文受付', '発送済み', '完了', 'キャンセル'];
+
+        let filteredOrders = orders.slice();
+        if (orderRequesterFilter) {
+            filteredOrders = filteredOrders.filter(order => order.Requester === orderRequesterFilter);
+        }
+        if (orderStatusFilter) {
+            filteredOrders = filteredOrders.filter(order => (order.Status || '') === orderStatusFilter);
+        }
+        if (orderSearchFilter && orderSearchFilter.trim()) {
+            const keyword = orderSearchFilter.trim().toLowerCase();
+            filteredOrders = filteredOrders.filter(order => {
+                const rowText = [
+                    order.CatalogName,
+                    order.RequesterDepartment,
+                    order.Requester,
+                    order.RequesterAddress,
+                    order.Message,
+                    order.TrackingId,
+                    order._key
+                ].join(' ').toLowerCase();
+                return rowText.includes(keyword);
             });
         }
+        if (orderDateRangeFilter.from) {
+            const fromDate = new Date(orderDateRangeFilter.from);
+            filteredOrders = filteredOrders.filter(order => new Date(order._createdAt) >= fromDate);
+        }
+        if (orderDateRangeFilter.to) {
+            const toDate = new Date(orderDateRangeFilter.to);
+            toDate.setHours(23, 59, 59, 999);
+            filteredOrders = filteredOrders.filter(order => new Date(order._createdAt) <= toDate);
+        }
+
+        const totalOrders = filteredOrders.length;
+        const totalQty = filteredOrders.reduce((sum, order) => sum + Number(order.OrderQuantity || 0), 0);
+        const pendingCount = filteredOrders.filter(order => (order.Status || '') === '注文受付').length;
+        const shippedCount = filteredOrders.filter(order => (order.Status || '') === '発送済み').length;
+        const completedCount = filteredOrders.filter(order => (order.Status || '') === '完了').length;
+        const cancelledCount = filteredOrders.filter(order => isCancelledOrderStatus(order.Status)).length;
+
+        const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDER_ENTRIES_PAGE_SIZE));
+        if (orderEntriesPage > totalPages) orderEntriesPage = totalPages;
+        const pageStart = (orderEntriesPage - 1) * ORDER_ENTRIES_PAGE_SIZE;
+        const pageRows = filteredOrders.slice(pageStart, pageStart + ORDER_ENTRIES_PAGE_SIZE);
+
+        const rowsHtml = pageRows.map(order => {
+            const statusColor = {
+                '注文受付': '#bfdbfe',
+                '発送済み': '#fde68a',
+                '完了': '#bbf7d0',
+                'キャンセル': '#f9a8d4'
+            }[order.Status] || '#f1f5f9';
+            const rowBg = order._isCancelled ? '#fce7f3' : '#ffffff';
+            const statusTrail = order._statusHistory.slice(-2).map(entry => {
+                return `<div style="font-size: 11px; color: #64748b;">${entry.status} • ${formatStatusHistoryTimestamp(entry.timestamp)}</div>`;
+            }).join('');
+
+            return `
+                <tr data-key="${order._key}" style="background: ${rowBg}; border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px 10px; white-space: nowrap; color: #475569; font-size: 12px;">${formatStatusHistoryTimestamp(order._createdAt)}</td>
+                    <td data-field="CatalogName" style="padding: 12px 10px; font-weight: 700; color: #1e293b;">${order.CatalogName || '-'}</td>
+                    <td class="editable-order" data-field="OrderQuantity" style="padding: 12px 10px; font-weight: 700; color: ${order._isCancelled ? '#be185d' : '#ef4444'};">${order.OrderQuantity || 0}</td>
+                    <td class="editable-order" data-field="Requester" style="padding: 12px 10px;">${order.Requester || '-'}</td>
+                    <td class="editable-order" data-field="RequesterDepartment" style="padding: 12px 10px;">${order.RequesterDepartment || '-'}</td>
+                    <td style="padding: 12px 10px; max-width: 260px;"><div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${order.RequesterAddress || '-'}">${order.RequesterAddress || '-'}</div></td>
+                    <td style="padding: 12px 10px; min-width: 200px;">
+                        <select class="order-status-select form-control form-control-sm" data-key="${order._key}" style="background: ${statusColor}; border: 1px solid #cbd5e1; font-size: 12px; font-weight: 700; margin-bottom: 6px;">
+                            <option value="注文受付" ${(order.Status || '') === '注文受付' ? 'selected' : ''}>注文受付</option>
+                            <option value="発送済み" ${(order.Status || '') === '発送済み' ? 'selected' : ''}>発送済み</option>
+                            <option value="完了" ${(order.Status || '') === '完了' ? 'selected' : ''}>完了</option>
+                            <option value="キャンセル" ${(order.Status || '') === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
+                        </select>
+                        <div style="font-size: 11px; color: #475569;">最終更新: ${formatStatusHistoryTimestamp(order._lastStatusUpdate)}</div>
+                    </td>
+                    <td style="padding: 12px 10px; min-width: 220px;">
+                        ${statusTrail || '<div style="font-size: 11px; color: #94a3b8;">履歴なし</div>'}
+                    </td>
+                    <td style="padding: 12px 10px; min-width: 150px;">
+                        <input type="text" class="tracking-id-input form-control form-control-sm" data-key="${order._key}" value="${order.TrackingId || ''}" placeholder="TRK-..." style="font-size: 12px;">
+                    </td>
+                    <td style="padding: 12px 10px; max-width: 260px;"><div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${order.Message || '-'}">${order.Message || '-'}</div></td>
+                    <td style="padding: 12px 10px; text-align: center;"><button class="btn btn-danger btn-sm delete-order-row" data-key="${order._key}">削除</button></td>
+                </tr>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div style="display: grid; gap: 14px; margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #1e40af; font-weight: 700;">総注文</div><div style="font-size: 22px; font-weight: 800; color: #1e3a8a;">${totalOrders}</div></div>
+                    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #92400e; font-weight: 700;">処理中</div><div style="font-size: 22px; font-weight: 800; color: #92400e;">${pendingCount}</div></div>
+                    <div style="background: #fffbeb; border: 1px solid #fbbf24; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #b45309; font-weight: 700;">発送済み</div><div style="font-size: 22px; font-weight: 800; color: #92400e;">${shippedCount}</div></div>
+                    <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #166534; font-weight: 700;">完了</div><div style="font-size: 22px; font-weight: 800; color: #15803d;">${completedCount}</div></div>
+                    <div style="background: #fce7f3; border: 1px solid #f9a8d4; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #9d174d; font-weight: 700;">キャンセル</div><div style="font-size: 22px; font-weight: 800; color: #9d174d;">${cancelledCount}</div></div>
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #334155; font-weight: 700;">合計数量</div><div style="font-size: 22px; font-weight: 800; color: #0f172a;">${totalQty}</div></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: end; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px;">
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">検索</label>
+                        <input type="text" id="orderSearchInput" class="form-control form-control-sm" placeholder="カタログ / 発注者 / 住所 / 追跡ID" value="${orderSearchFilter || ''}">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">発注者</label>
+                        <select id="orderRequesterSelect" class="form-control form-control-sm">
+                            <option value="">すべて</option>
+                            ${allRequesters.map(r => `<option value="${r}" ${orderRequesterFilter === r ? 'selected' : ''}>${r}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">ステータス</label>
+                        <select id="orderStatusSelect" class="form-control form-control-sm">
+                            <option value="">すべて</option>
+                            ${allStatuses.map(s => `<option value="${s}" ${orderStatusFilter === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">開始日</label>
+                        <input type="date" id="orderDateFrom" class="form-control form-control-sm" value="${orderDateRangeFilter.from || ''}">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:4px;">終了日</label>
+                        <input type="date" id="orderDateTo" class="form-control form-control-sm" value="${orderDateRangeFilter.to || ''}">
+                    </div>
+                    <button id="orderFilterResetBtn" class="btn btn-outline-secondary btn-sm">リセット</button>
+                </div>
+            </div>
+
+            <div style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff;">
+                <table class="glass-table excel-table excel-order-table" style="width: 100%; border-collapse: collapse; min-width: 1420px;">
+                    <thead style="background: #f8fafc;">
+                        <tr>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">作成日時</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">カタログ</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">数量</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">発注者</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">部署</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">住所</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">ステータス</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">履歴(最新2件)</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">追跡ID</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">メモ</th>
+                            <th style="padding: 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 12px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml || `<tr><td colspan="11" style="padding: 36px; text-align: center; color: #64748b;">条件に一致する注文がありません</td></tr>`}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <div style="color: #64748b; font-size: 13px;">${filteredOrders.length} 件中 ${filteredOrders.length === 0 ? 0 : pageStart + 1} - ${Math.min(pageStart + ORDER_ENTRIES_PAGE_SIZE, filteredOrders.length)} 件を表示</div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="orderPrevPageBtn" class="btn btn-sm btn-outline-secondary" ${orderEntriesPage <= 1 ? 'disabled' : ''}>前へ</button>
+                    <div style="display: flex; align-items: center; padding: 0 8px; color: #334155; font-size: 13px;">${orderEntriesPage} / ${totalPages}</div>
+                    <button id="orderNextPageBtn" class="btn btn-sm btn-outline-secondary" ${orderEntriesPage >= totalPages ? 'disabled' : ''}>次へ</button>
+                </div>
+            </div>
+        `;
+
+        const searchInput = document.getElementById('orderSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                orderSearchFilter = e.target.value;
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const requesterSelect = document.getElementById('orderRequesterSelect');
+        if (requesterSelect) {
+            requesterSelect.addEventListener('change', (e) => {
+                orderRequesterFilter = e.target.value || null;
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const statusSelect = document.getElementById('orderStatusSelect');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', (e) => {
+                orderStatusFilter = e.target.value || null;
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const fromInput = document.getElementById('orderDateFrom');
+        if (fromInput) {
+            fromInput.addEventListener('change', (e) => {
+                orderDateRangeFilter.from = e.target.value || null;
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const toInput = document.getElementById('orderDateTo');
+        if (toInput) {
+            toInput.addEventListener('change', (e) => {
+                orderDateRangeFilter.to = e.target.value || null;
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const resetBtn = document.getElementById('orderFilterResetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                orderRequesterFilter = null;
+                orderStatusFilter = null;
+                orderSearchFilter = '';
+                orderDateRangeFilter = { from: null, to: null };
+                orderEntriesPage = 1;
+                renderOrderTablesAccordion();
+            });
+        }
+
+        const prevBtn = document.getElementById('orderPrevPageBtn');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (orderEntriesPage > 1) {
+                    orderEntriesPage -= 1;
+                    renderOrderTablesAccordion();
+                }
+            });
+        }
+
+        const nextBtn = document.getElementById('orderNextPageBtn');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                if (orderEntriesPage < totalPages) {
+                    orderEntriesPage += 1;
+                    renderOrderTablesAccordion();
+                }
+            });
+        }
+
+        // Keep status / tracking updates synchronized with ledger and My Page history.
+        container.querySelectorAll('.order-status-select').forEach(select => {
+            select.addEventListener('change', async () => {
+                const key = select.getAttribute('data-key');
+                const newStatus = select.value;
+                const changedAt = new Date().toISOString();
+                const actorEmail = getCurrentUser()?.email || currentUser?.email || 'system';
+
+                try {
+                    const orderSnapshot = await get(ref(db, `Orders/${key}`));
+                    if (!orderSnapshot.exists()) {
+                        throw new Error('注文が見つかりません');
+                    }
+
+                    const currentOrderData = orderSnapshot.val();
+                    if ((currentOrderData.Status || '') === newStatus) {
+                        window.showToast('ステータスは変更されていません', 'info');
+                        return;
+                    }
+
+                    const nextStatusHistory = appendOrderStatusHistory(currentOrderData, newStatus, actorEmail, changedAt);
+                    const updateData = {
+                        Status: newStatus,
+                        LastStatusUpdate: changedAt,
+                        StatusHistory: nextStatusHistory
+                    };
+
+                    await update(ref(db, `Orders/${key}`), updateData);
+                    await update(ref(db, `MyPage/Orders/${key}`), updateData);
+                    window.showToast(`✅ ステータスを「${newStatus}」に更新しました`, 'success');
+                    renderOrderTablesAccordion();
+                } catch (error) {
+                    console.error('Status update error (order table):', error);
+                    window.showToast('❌ ステータス更新に失敗しました', 'error');
+                }
+            });
+        });
+
+        container.querySelectorAll('.tracking-id-input').forEach(input => {
+            input.addEventListener('blur', async () => {
+                const key = input.getAttribute('data-key');
+                const trackingId = input.value.trim();
+                try {
+                    const payload = {
+                        TrackingId: trackingId || null,
+                        LastTrackingUpdate: new Date().toISOString()
+                    };
+                    await update(ref(db, `Orders/${key}`), payload);
+                    await update(ref(db, `MyPage/Orders/${key}`), payload);
+                } catch (error) {
+                    console.error('Tracking update error (order table):', error);
+                }
+            });
+        });
+    }).catch((error) => {
+        console.error('Error loading order entries:', error);
+        container.innerHTML = `<div style="padding: 20px; border-radius: 8px; background: #fee2e2; color: #b91c1c;">❌ 注文台帳の読み込みに失敗しました: ${error.message}</div>`;
     });
 }
 
