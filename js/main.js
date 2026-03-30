@@ -322,6 +322,59 @@ function isCancelledOrderStatus(status) {
     return normalizedStatus === 'キャンセル' || normalizedStatus === 'cancelled' || normalizedStatus === 'canceled';
 }
 
+function buildOrderStatusHistory(order) {
+    if (order && Array.isArray(order.StatusHistory) && order.StatusHistory.length > 0) {
+        return order.StatusHistory
+            .filter(entry => entry && entry.status && entry.timestamp)
+            .sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
+    }
+
+    if (!order || !order.Status) {
+        return [];
+    }
+
+    return [{
+        status: order.Status,
+        timestamp: order.LastStatusUpdate || order.CreatedAt || order.OrderDate || new Date().toISOString(),
+        changedBy: order.UserEmail || order.Requester || 'system'
+    }];
+}
+
+function appendOrderStatusHistory(order, newStatus, changedBy, timestampIso) {
+    const history = buildOrderStatusHistory(order);
+    const previousStatus = String(order?.Status || '').trim();
+    const nextStatus = String(newStatus || '').trim();
+
+    if (!nextStatus) {
+        return history;
+    }
+
+    if (previousStatus === nextStatus && history.length > 0) {
+        return history;
+    }
+
+    history.push({
+        status: nextStatus,
+        timestamp: timestampIso,
+        changedBy: changedBy || 'system'
+    });
+
+    return history;
+}
+
+function formatStatusHistoryTimestamp(timestamp) {
+    if (!timestamp) {
+        return '-';
+    }
+
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) {
+        return String(timestamp);
+    }
+
+    return `${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 function activateTopTab(tab) {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
@@ -2189,6 +2242,7 @@ async function renderCatalogTablesAccordion() {
             const rowsHtml = entries.map((entry) => {
                 const effectiveQuantity = entry._type === 'order' && !entry._affectsStock ? 0 : entry._quantity;
                 const isCancelledOrder = entry._type === 'order' && !entry._affectsStock;
+                const statusHistory = entry._type === 'order' ? buildOrderStatusHistory(entry) : [];
 
                 // Update running stock
                 runningStock += effectiveQuantity;
@@ -2217,6 +2271,16 @@ async function renderCatalogTablesAccordion() {
                     ? 'padding: 10px 12px; color: #be185d; font-weight: 700;'
                     : 'padding: 10px 12px; color: #2563eb; font-weight: 700;';
                 const cancelledHint = isCancelledOrder ? ' <span style="font-size: 11px; color: #9d174d; font-weight: 700;">(集計外)</span>' : '';
+                const statusHistoryHtml = statusHistory.length > 0
+                    ? `<div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+                        ${statusHistory.map(historyEntry => `
+                            <div style="font-size: 11px; color: #475569; line-height: 1.35; background: rgba(255,255,255,0.72); border-radius: 6px; padding: 4px 6px; border: 1px solid #e2e8f0;">
+                                <div style="font-weight: 700; color: #334155;">${historyEntry.status}</div>
+                                <div>${formatStatusHistoryTimestamp(historyEntry.timestamp)}</div>
+                            </div>
+                        `).join('')}
+                    </div>`
+                    : '<div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">履歴なし</div>';
                 
                 // Type badge
                 const typeBadge = entry._type === 'inventory' 
@@ -2262,6 +2326,7 @@ async function renderCatalogTablesAccordion() {
                             <option value="完了" ${entry.Status === '完了' ? 'selected' : ''}>完了</option>
                             <option value="キャンセル" ${entry.Status === 'キャンセル' ? 'selected' : ''}>キャンセル</option>
                         </select>
+                        ${statusHistoryHtml}
                     </td>
                     <td style="padding: 10px 12px;">
                         <input type="text" class="tracking-id-input form-control form-control-sm" data-key="${entry._key}" 
@@ -2363,10 +2428,25 @@ async function renderCatalogTablesAccordion() {
                     select.addEventListener('change', async (e) => {
                         const key = select.getAttribute('data-key');
                         const newStatus = select.value;
+                        const changedAt = new Date().toISOString();
+                        const actorEmail = getCurrentUser()?.email || currentUser?.email || 'system';
                         try {
+                            const orderSnapshot = await get(ref(db, `Orders/${key}`));
+                            if (!orderSnapshot.exists()) {
+                                throw new Error('注文が見つかりません');
+                            }
+
+                            const currentOrderData = orderSnapshot.val();
+                            if ((currentOrderData.Status || '') === newStatus) {
+                                showToast('ステータスは変更されていません', 'info');
+                                return;
+                            }
+
+                            const nextStatusHistory = appendOrderStatusHistory(currentOrderData, newStatus, actorEmail, changedAt);
                             const updateData = {
                                 Status: newStatus,
-                                LastStatusUpdate: new Date().toISOString()
+                                LastStatusUpdate: changedAt,
+                                StatusHistory: nextStatusHistory
                             };
                             await update(ref(db, `Orders/${key}`), updateData);
                             showToast(`ステータスを「${newStatus}」に更新しました`, 'success');
@@ -5643,11 +5723,9 @@ async function openMyPage() {
                 }[order.Status] || '❓';
                 
                 // Build status history timeline
-                const statusHistory = order.StatusHistory && Array.isArray(order.StatusHistory) ? order.StatusHistory : 
-                                     (order.Status ? [{status: order.Status, timestamp: order.CreatedAt || order.OrderDate, changedBy: 'system'}] : []);
+                const statusHistory = buildOrderStatusHistory(order);
                 
                 const statusTimelineHtml = statusHistory.map((entry, i) => {
-                    const statusDate = new Date(entry.timestamp);
                     const histColor = {
                         '注文受付': '#3b82f6',
                         'キャンセル': '#ef4444',
@@ -5671,7 +5749,10 @@ async function openMyPage() {
                             <div style="flex: 1; padding-top: 4px;">
                                 <div style="color: #1f2937; font-size: 14px; font-weight: 600;">${entry.status}</div>
                                 <div style="color: #6b7280; font-size: 12px; margin-top: 2px;">
-                                    ${statusDate.toLocaleDateString('ja-JP')} ${statusDate.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})}
+                                    ${formatStatusHistoryTimestamp(entry.timestamp)}
+                                </div>
+                                <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">
+                                    ${entry.changedBy ? `更新者: ${entry.changedBy}` : '更新者: system'}
                                 </div>
                             </div>
                         </div>
