@@ -317,53 +317,64 @@ function initializeCatalogSelects() {
 }
 
 // ===== TAB SWITCHING =====
+function activateTopTab(tab) {
+    const topNavBtns = document.querySelectorAll('.topnav-btn');
+
+    // Hide all tabs first to avoid mixed states
+    document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
+
+    // Show selected tab
+    const tabElement = document.getElementById('tab-' + tab);
+    if (tabElement) tabElement.style.display = 'block';
+
+    // Update active state in topbar only
+    topNavBtns.forEach(b => b.classList.remove('active'));
+    const activeBtn = document.querySelector(`.topnav-btn[data-tab="${tab}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Lazy-load expensive components
+    if (tab === 'stockCalendar') {
+        if (!window.calendarInitialized) {
+            initializeCalendar();
+            window.calendarInitialized = true;
+        }
+        setTimeout(() => {
+            renderMovementHistory();
+            renderAuditLog();
+        }, 100);
+    }
+    if (tab === 'placeOrder') {
+        if (!window._placeOrderLoading) {
+            window._placeOrderLoading = true;
+            loadPlaceOrderProducts().finally(() => {
+                window._placeOrderLoading = false;
+            });
+        }
+    }
+    if (tab === 'catalogEntries') {
+        renderCatalogTablesAccordion();
+        setTimeout(() => initCatalogSearch(), 100);
+    }
+    if (tab === 'orderEntries') {
+        setupOrderViewToggle();
+        renderOrderTablesAccordion();
+    }
+    if (tab === 'analytics') {
+        document.getElementById('analyticsDateRangeCard').style.display = 'block';
+        fetchAndRenderAnalytics();
+    } else {
+        const dateCard = document.getElementById('analyticsDateRangeCard');
+        if (dateCard) dateCard.style.display = 'none';
+    }
+}
+
 function initTabSwitching() {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
     topNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const tab = btn.getAttribute('data-tab');
-
-            // Hide all tabs
-            document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
-
-            // Show selected tab
-            const tabElement = document.getElementById('tab-' + tab);
-            if (tabElement) tabElement.style.display = 'block';
-
-            // Update active state in topbar only
-            topNavBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Lazy-load expensive components
-            if (tab === 'stockCalendar') {
-                if (!window.calendarInitialized) {
-                    initializeCalendar();
-                    window.calendarInitialized = true;
-                }
-                setTimeout(() => {
-                    renderMovementHistory();
-                    renderAuditLog();
-                }, 100);
-            }
-            if (tab === 'placeOrder') {
-                loadPlaceOrderProducts();
-            }
-            if (tab === 'catalogEntries') {
-                renderCatalogTablesAccordion();
-                setTimeout(() => initCatalogSearch(), 100);
-            }
-            if (tab === 'orderEntries') {
-                setupOrderViewToggle();
-                renderOrderTablesAccordion();
-            }
-            if (tab === 'analytics') {
-                document.getElementById('analyticsDateRangeCard').style.display = 'block';
-                fetchAndRenderAnalytics();
-            } else {
-                const dateCard = document.getElementById('analyticsDateRangeCard');
-                if (dateCard) dateCard.style.display = 'none';
-            }
+            activateTopTab(tab);
         });
     });
 
@@ -4499,6 +4510,9 @@ function updateUILanguage() {
 
 // ===== INITIALIZE ON DOM READY =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide all tabs on first paint to prevent flicker before startup tab is resolved
+    document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
+
     // Check authentication state before initializing app
     onAuthStateChanged(async (user) => {
         if (!user) {
@@ -4525,8 +4539,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Small delay to ensure permissions are fully loaded
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Filter tabs based on permissions
-        await filterTabsByPermissions(userPermissions);
+        // Filter tabs based on permissions and resolve startup tab
+        const startupTab = await filterTabsByPermissions(userPermissions);
 
         // Display user info
         updateUserDisplay(user);
@@ -4564,6 +4578,22 @@ document.addEventListener('DOMContentLoaded', () => {
         initCatalogForm();
         initOrderForm();
         initAdminPanel();
+
+        // Preload required data before showing startup tab (no flicker startup)
+        if (startupTab === 'placeOrder') {
+            if (!window._placeOrderLoading) {
+                window._placeOrderLoading = true;
+                await loadPlaceOrderProducts().finally(() => {
+                    window._placeOrderLoading = false;
+                });
+            }
+        }
+
+        // Reveal only the resolved startup tab after setup and preload
+        if (startupTab) {
+            activateTopTab(startupTab);
+        }
+
         setupCartWarning(); // Warn if leaving with cart items
         updateKPIs();
         setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
@@ -4688,32 +4718,19 @@ async function filterTabsByPermissions(permissions) {
         }
     });
 
-    // Auto-click Order (注文) tab on login if accessible, otherwise first accessible tab
-    console.log('🔍 Looking for Order (注文) button to auto-click...');
-    
-    // Try to find placeOrder button specifically
-    const placeOrderBtn = document.querySelector('.topnav-btn[data-tab="placeOrder"]:not(.tab-locked)');
-    
-    if (placeOrderBtn) {
-        console.log('✅ Order button found and accessible - auto-clicking');
-        setTimeout(() => {
-            placeOrderBtn.click();
-        }, 100);
+    // Resolve startup tab: prefer Order (注文), otherwise first accessible tab
+    const startupTab = accessibleTabs.includes('placeOrder')
+        ? 'placeOrder'
+        : (accessibleTabs[0] || null);
+
+    if (!startupTab) {
+        console.warn('❌ User has no accessible tabs');
+        showNoAccessMessage();
     } else {
-        console.log('⚠️ Order button not accessible, finding first accessible tab...');
-        // Order page not accessible - find first accessible tab
-        const firstVisibleBtn = document.querySelector('.topnav-btn:not(.tab-locked)');
-        
-        if (firstVisibleBtn) {
-            const tabId = firstVisibleBtn.getAttribute('data-tab');
-            console.log('✅ Activating first accessible tab:', tabId);
-            firstVisibleBtn.click();  
-        } else {
-            // User has NO accessible tabs - show helpful message
-            console.warn('❌ User has no accessible tabs');
-            showNoAccessMessage();
-        }
+        console.log('✅ Resolved startup tab:', startupTab);
     }
+
+    return startupTab;
 }
 
 // ===== SHOW NO ACCESS MESSAGE =====
