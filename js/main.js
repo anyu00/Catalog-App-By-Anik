@@ -317,6 +317,11 @@ function initializeCatalogSelects() {
 }
 
 // ===== TAB SWITCHING =====
+function isCancelledOrderStatus(status) {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+    return normalizedStatus === 'キャンセル' || normalizedStatus === 'cancelled' || normalizedStatus === 'canceled';
+}
+
 function activateTopTab(tab) {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
@@ -952,10 +957,11 @@ async function loadPlaceOrderProducts() {
             window.Orders = ordersSnapshot.val() || {};
             console.log('[CATALOG LOAD] Loaded', Object.keys(window.Orders).length, 'orders for popularity');
             
-            // Subtract order quantities from stock
+            // Subtract only active order quantities from stock; cancelled orders restore stock.
             const orderedByName = {};
             Object.entries(window.Orders).forEach(([orderId, order]) => {
                 if (!order || !order.CatalogName) return;
+                if (isCancelledOrderStatus(order.Status)) return;
                 orderedByName[order.CatalogName] = (orderedByName[order.CatalogName] || 0) + Number(order.OrderQuantity || 0);
             });
             Object.entries(CatalogDB).forEach(([key, catData]) => {
@@ -1106,6 +1112,7 @@ function _applyOrderStockToAllCatalogs() {
     if (window.Orders) {
         Object.entries(window.Orders).forEach(([orderId, order]) => {
             if (!order || !order.CatalogName) return;
+            if (isCancelledOrderStatus(order.Status)) return;
             orderedByName[order.CatalogName] = (orderedByName[order.CatalogName] || 0) + Number(order.OrderQuantity || 0);
         });
     }
@@ -2127,13 +2134,15 @@ async function renderCatalogTablesAccordion() {
         Object.entries(ordersData).forEach(([key, order]) => {
             if (!order || !order.CatalogName) return;
             const catName = order.CatalogName;
+            const isCancelled = isCancelledOrderStatus(order.Status);
             if (!catalogs[catName]) catalogs[catName] = [];
             catalogs[catName].push({
                 _type: 'order',
                 _key: key,
                 ...order,
                 _date: order.CreatedAt ? order.CreatedAt.split('T')[0] : order.OrderDate || '1970-01-01',
-                _quantity: -(Number(order.OrderQuantity || 0)) // Negative for orders
+                _quantity: -(Number(order.OrderQuantity || 0)),
+                _affectsStock: !isCancelled
             });
             if (order.Requester) allRequesters.add(order.Requester);
         });
@@ -2178,14 +2187,17 @@ async function renderCatalogTablesAccordion() {
             let totalReceived = 0, totalOrdered = 0, totalInventoryItems = 0;
             
             const rowsHtml = entries.map((entry) => {
+                const effectiveQuantity = entry._type === 'order' && !entry._affectsStock ? 0 : entry._quantity;
+                const isCancelledOrder = entry._type === 'order' && !entry._affectsStock;
+
                 // Update running stock
-                runningStock += entry._quantity;
+                runningStock += effectiveQuantity;
                 
                 if (entry._type === 'inventory') {
                     totalReceived += entry._quantity;
                     totalInventoryItems++;
                 }
-                if (entry._type === 'order') {
+                if (entry._type === 'order' && entry._affectsStock) {
                     totalOrdered += Math.abs(entry._quantity);
                 }
                 
@@ -2194,8 +2206,17 @@ async function renderCatalogTablesAccordion() {
                     '注文受付': '#bfdbfe',
                     '発送済み': '#fcd34d',
                     '完了': '#bbf7d0',
-                    'キャンセル': '#fecaca'
+                    'キャンセル': '#f9a8d4'
                 }[entry.Status] || '#f0f0f0';
+
+                const rowBackground = isCancelledOrder ? '#fce7f3' : '#eff6ff';
+                const quantityStyle = isCancelledOrder
+                    ? 'color: #be185d; font-weight: 700; text-decoration: line-through; cursor: pointer;'
+                    : 'color: #ef4444; font-weight: 700; cursor: pointer;';
+                const runningStockStyle = isCancelledOrder
+                    ? 'padding: 10px 12px; color: #be185d; font-weight: 700;'
+                    : 'padding: 10px 12px; color: #2563eb; font-weight: 700;';
+                const cancelledHint = isCancelledOrder ? ' <span style="font-size: 11px; color: #9d174d; font-weight: 700;">(集計外)</span>' : '';
                 
                 // Type badge
                 const typeBadge = entry._type === 'inventory' 
@@ -2222,17 +2243,17 @@ async function renderCatalogTablesAccordion() {
                 }
                 
                 // Row for ORDER
-                return `<tr data-key="${entry._key}" data-type="order" style="background: #eff6ff;">
+                return `<tr data-key="${entry._key}" data-type="order" style="background: ${rowBackground};">
                     <td style="padding: 10px 12px;">${typeBadge}</td>
                     <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; cursor: pointer;" class="editable-order" data-field="CatalogName">${entry.CatalogName}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="CreatedAt">${entry._date}</td>
-                    <td style="padding: 10px 12px; color: #ef4444; font-weight: 700; cursor: pointer;" class="editable-order" data-field="OrderQuantity">-${Math.abs(entry._quantity)}</td>
+                    <td style="padding: 10px 12px; ${quantityStyle}" class="editable-order" data-field="OrderQuantity">-${Math.abs(entry._quantity)}${cancelledHint}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterDepartment">${entry.RequesterDepartment || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="Requester">${entry.Requester || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="RequesterAddress">${entry.RequesterAddress || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="Message">${entry.Message || '-'}</td>
                     <td style="padding: 10px 12px; cursor: pointer;" class="editable-order" data-field="DistributionDestination">${entry.DistributionDestination || '-'}</td>
-                    <td style="padding: 10px 12px; color: #2563eb; font-weight: 700;">${runningStock}</td>
+                    <td style="${runningStockStyle}">${runningStock}</td>
                     <td style="padding: 10px 12px;">
                         <select class="order-status-select form-control form-control-sm" data-key="${entry._key}" 
                                 style="background: ${statusColor}; border: 1px solid #cbd5e1; padding: 4px 8px; font-size: 12px; font-weight: 600;">
