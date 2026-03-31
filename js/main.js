@@ -4825,6 +4825,41 @@ function updateUILanguage() {
     }, 100);
 }
 
+async function getUserPermissionsWithRetry(userId, maxAttempts = 4, delayMs = 800) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const permissions = await getUserPermissions(userId);
+        if (permissions) {
+            if (attempt > 1) {
+                console.log(`[STARTUP] Permissions loaded on retry #${attempt}`);
+            }
+            return permissions;
+        }
+
+        if (attempt < maxAttempts) {
+            console.warn(`[STARTUP] Permissions unavailable (attempt ${attempt}/${maxAttempts}), retrying...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+
+    return null;
+}
+
+function recoverStartupTabDisplay(preferredTab = 'placeOrder') {
+    const visibleTab = Array.from(document.querySelectorAll('.tab-section')).find(tab => tab.style.display !== 'none');
+    if (visibleTab) return;
+
+    const fallbackTab = document.getElementById(`tab-${preferredTab}`) || document.querySelector('.tab-section');
+    if (fallbackTab) {
+        fallbackTab.style.display = 'block';
+    }
+
+    const preferredBtn = document.querySelector(`.topnav-btn[data-tab="${preferredTab}"]`);
+    if (preferredBtn) {
+        document.querySelectorAll('.topnav-btn').forEach(btn => btn.classList.remove('active'));
+        preferredBtn.classList.add('active');
+    }
+}
+
 // ===== INITIALIZE ON DOM READY =====
 document.addEventListener('DOMContentLoaded', () => {
     // Hide all tabs on first paint to prevent flicker before startup tab is resolved
@@ -4837,104 +4872,116 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = 'login.html';
             return;
         }
+        let startupTab = 'placeOrder';
 
-        // Store current user globally
-        currentUser = user;
+        try {
+            // Store current user globally
+            currentUser = user;
 
-        // Update last login timestamp
-        await updateLastLogin(user.uid);
+            // Update last login timestamp (non-blocking for startup)
+            try {
+                await updateLastLogin(user.uid);
+            } catch (error) {
+                console.warn('[STARTUP] Could not update last login:', error?.message || error);
+            }
 
-        // Fetch user permissions
-        userPermissions = await getUserPermissions(user.uid);
+            // Fetch user permissions with retry to handle first-load race conditions
+            userPermissions = await getUserPermissionsWithRetry(user.uid);
 
-        if (!userPermissions) {
-            console.error('Failed to load user permissions');
-            showNotification('Error loading permissions. Please refresh the page.', 'error');
-            return;
-        }
+            if (!userPermissions) {
+                console.error('Failed to load user permissions after retries');
+                showNotification('権限の読み込みが遅れています。数秒後に再試行してください。', 'error');
+                recoverStartupTabDisplay('placeOrder');
+                return;
+            }
 
-        // Small delay to ensure permissions are fully loaded
-        await new Promise(resolve => setTimeout(resolve, 100));
+            // Small delay to ensure permissions are fully loaded
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Filter tabs based on permissions and resolve startup tab
-        const startupTab = await filterTabsByPermissions(userPermissions);
+            // Filter tabs based on permissions and resolve startup tab
+            startupTab = await filterTabsByPermissions(userPermissions);
 
-        // Display user info
-        updateUserDisplay(user);
+            // Display user info
+            updateUserDisplay(user);
 
-        // Initialize language toggle
-        initLanguageToggle();
-        
-        // Apply current language to all UI elements
-        updateUILanguage();
+            // Initialize language toggle
+            initLanguageToggle();
+            
+            // Apply current language to all UI elements
+            updateUILanguage();
 
-        // Load analytics settings
-        await loadAnalyticsSettings();
-        
-        // Setup real-time listener for analytics settings
-        setupAnalyticsSettingsListener();
-        
-        // Setup real-time listeners for analytics data
-        setupOrdersListenerForAnalytics();
-        setupCatalogDBListenerForAnalytics();
+            // Load analytics settings
+            await loadAnalyticsSettings();
+            
+            // Setup real-time listener for analytics settings
+            setupAnalyticsSettingsListener();
+            
+            // Setup real-time listeners for analytics data
+            setupOrdersListenerForAnalytics();
+            setupCatalogDBListenerForAnalytics();
 
-        // Load catalog names from Firebase and start real-time sync immediately
-        await loadCatalogNamesFromFirebase();
-        await enrichCatalogNamesAcrossApp();
-        setupCatalogRealTimeListener();
+            // Load catalog names from Firebase and start real-time sync immediately
+            await loadCatalogNamesFromFirebase();
+            await enrichCatalogNamesAcrossApp();
+            setupCatalogRealTimeListener();
 
-        // Initialize notification system
-        initNotificationSystem();
-        
-        // Initialize FCM for push notifications (when tab is closed)
-        await initializeFCM(user);
-        
-        // Initialize app components
-        initializeCatalogSelects();
-        initTabSwitching();
-        initCatalogForm();
-        initOrderForm();
-        initAdminPanel();
+            // Initialize notification system
+            initNotificationSystem();
+            
+            // Initialize FCM for push notifications (when tab is closed)
+            await initializeFCM(user);
+            
+            // Initialize app components
+            initializeCatalogSelects();
+            initTabSwitching();
+            initCatalogForm();
+            initOrderForm();
+            initAdminPanel();
 
-        // Preload required data before showing startup tab (no flicker startup)
-        if (startupTab === 'placeOrder') {
-            if (!window._placeOrderLoading) {
-                window._placeOrderLoading = true;
-                await loadPlaceOrderProducts().finally(() => {
-                    window._placeOrderLoading = false;
+            // Preload required data before showing startup tab (no flicker startup)
+            if (startupTab === 'placeOrder') {
+                if (!window._placeOrderLoading) {
+                    window._placeOrderLoading = true;
+                    await loadPlaceOrderProducts().finally(() => {
+                        window._placeOrderLoading = false;
+                    });
+                }
+            }
+
+            // Reveal only the resolved startup tab after setup and preload
+            if (startupTab) {
+                activateTopTab(startupTab);
+            }
+
+            setupCartWarning(); // Warn if leaving with cart items
+            updateKPIs();
+            setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
+            
+            // Wire calendar event modal close button
+            const closeEventModalBtn = document.getElementById('closeEventModal');
+            if (closeEventModalBtn) {
+                closeEventModalBtn.addEventListener('click', closeCalendarEventModal);
+            }
+            
+            // Close modal when clicking outside of it
+            const calendarEventModal = document.getElementById('calendarEventModal');
+            if (calendarEventModal) {
+                calendarEventModal.addEventListener('click', (e) => {
+                    if (e.target === calendarEventModal) {
+                        closeCalendarEventModal();
+                    }
                 });
             }
-        }
+            
+            // Setup logout handler
+            setupLogoutHandler();
 
-        // Reveal only the resolved startup tab after setup and preload
-        if (startupTab) {
-            activateTopTab(startupTab);
+            console.log('✓ Application initialized | User:', user.email);
+        } catch (error) {
+            console.error('[STARTUP] Initialization failed:', error);
+            showNotification('初期化中に一時的なエラーが発生しました。再読込してください。', 'error');
+            recoverStartupTabDisplay(startupTab || 'placeOrder');
         }
-
-        setupCartWarning(); // Warn if leaving with cart items
-        updateKPIs();
-        setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
-        
-        // Wire calendar event modal close button
-        const closeEventModalBtn = document.getElementById('closeEventModal');
-        if (closeEventModalBtn) {
-            closeEventModalBtn.addEventListener('click', closeCalendarEventModal);
-        }
-        
-        // Close modal when clicking outside of it
-        const calendarEventModal = document.getElementById('calendarEventModal');
-        if (calendarEventModal) {
-            calendarEventModal.addEventListener('click', (e) => {
-                if (e.target === calendarEventModal) {
-                    closeCalendarEventModal();
-                }
-            });
-        }
-        
-        // Setup logout handler
-        setupLogoutHandler();
-
-        console.log('✓ Application initialized | User:', user.email);
     });  
 });
 

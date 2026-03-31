@@ -23,7 +23,7 @@ function extractImageUrl(input) {
         return imgMatch[1].trim();
     }
     
-    // HTML anchor tag
+    // HTML anchor tag: what tags 
     const hrefMatch = input.match(/href=["']([^"']+)["']/);
     if (hrefMatch && hrefMatch[1]) {
         return hrefMatch[1].trim();
