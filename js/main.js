@@ -375,6 +375,320 @@ function formatStatusHistoryTimestamp(timestamp) {
     return `${date.toLocaleDateString('ja-JP')} ${date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+const GUIDE_MODE_STORAGE_KEY = 'catalogGuideModeEnabled';
+let guideModeEnabled = localStorage.getItem(GUIDE_MODE_STORAGE_KEY) === 'true';
+let activeGuideCleanup = null;
+
+function setGuideModeEnabled(enabled) {
+    guideModeEnabled = !!enabled;
+    localStorage.setItem(GUIDE_MODE_STORAGE_KEY, String(guideModeEnabled));
+}
+
+async function persistGuideMode(enabled, userId = null) {
+    setGuideModeEnabled(enabled);
+    const uid = userId || getCurrentUser()?.uid;
+    if (!uid) return;
+
+    try {
+        await update(ref(db, `Users/${uid}`), {
+            guidedTourEnabled: guideModeEnabled,
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.warn('[GUIDE] Could not persist guide mode to profile:', error?.message || error);
+    }
+}
+
+function stopGuidedTour() {
+    if (typeof activeGuideCleanup === 'function') {
+        activeGuideCleanup();
+    }
+    activeGuideCleanup = null;
+}
+
+function getOrderGuideSteps() {
+    return [
+        {
+            selector: '#placeOrderSearchInput',
+            arrow: '➡',
+            title: 'カタログを検索',
+            body: 'ここにキーワードを入力すると、必要なカタログを素早く見つけられます。'
+        },
+        {
+            selector: '#placeOrderProductGrid',
+            arrow: '➡',
+            title: '商品カードを選択',
+            body: 'カードをクリックすると注文モーダルが開き、数量や依頼情報を入力できます。'
+        },
+        {
+            selector: '#cartItemsList',
+            arrow: '➡',
+            title: 'カート内容を確認',
+            body: '追加した商品はここに表示されます。数量・件数を確認してから注文してください。'
+        },
+        {
+            selector: '#cartCheckoutBtn',
+            arrow: '➡',
+            title: '一括注文を実行',
+            body: '準備ができたらこのボタンでまとめて注文します。'
+        },
+        {
+            selector: '#cartClearBtn',
+            arrow: '➡',
+            title: 'カートをクリア',
+            body: '誤って追加した場合はこのボタンでリセットできます。'
+        }
+    ];
+}
+
+function getMyPageGuideSteps() {
+    return [
+        {
+            selector: '#myPageHeaderCard',
+            arrow: '➡',
+            title: 'マイページ概要',
+            body: 'ここで総注文数やユーザー概要を確認できます。'
+        },
+        {
+            selector: '#myPageGuideControls',
+            arrow: '➡',
+            title: 'ガイド機能の切替',
+            body: 'このトグルをONにすると、注文ガイド/マイページガイドをいつでも開始できます。'
+        },
+        {
+            selector: '#myPageStatsCards',
+            arrow: '➡',
+            title: '注文ステータス統計',
+            body: '完了・発送済み・処理中・キャンセルの件数をすぐ確認できます。'
+        },
+        {
+            selector: '#myPageOrdersTitle',
+            arrow: '➡',
+            title: '注文一覧',
+            body: 'ここで各注文の進行状況と詳細を追跡できます。'
+        },
+        {
+            selector: '.mypage-status-timeline',
+            arrow: '➡',
+            title: 'ステータス履歴',
+            body: 'ステータスの更新履歴（日時・更新者）を時系列で確認できます。'
+        }
+    ];
+}
+
+function startSpotlightGuide(steps) {
+    stopGuidedTour();
+
+    if (!Array.isArray(steps) || steps.length === 0) return;
+
+    let stepIndex = 0;
+    let currentTarget = null;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'appGuideOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        pointer-events: auto;
+    `;
+
+    const spotlight = document.createElement('div');
+    spotlight.style.cssText = `
+        position: fixed;
+        border-radius: 12px;
+        border: 3px solid #3b82f6;
+        box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.62);
+        pointer-events: none;
+        z-index: 20001;
+        transition: all 0.2s ease;
+    `;
+
+    const tooltip = document.createElement('div');
+    tooltip.style.cssText = `
+        position: fixed;
+        width: 340px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+        z-index: 20002;
+        padding: 14px;
+        color: #0f172a;
+    `;
+
+    const content = document.createElement('div');
+    const nav = document.createElement('div');
+    nav.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:8px;';
+    tooltip.appendChild(content);
+    tooltip.appendChild(nav);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '終了';
+    closeBtn.style.cssText = 'padding:6px 10px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; font-size:12px; cursor:pointer;';
+
+    const stepText = document.createElement('div');
+    stepText.style.cssText = 'font-size:12px; color:#64748b;';
+
+    const controls = document.createElement('div');
+    controls.style.cssText = 'display:flex; gap:8px;';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '前へ';
+    prevBtn.style.cssText = 'padding:6px 10px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; font-size:12px; cursor:pointer;';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '次へ';
+    nextBtn.style.cssText = 'padding:6px 12px; border:1px solid #2563eb; background:#2563eb; color:white; border-radius:8px; font-size:12px; cursor:pointer; font-weight:700;';
+
+    controls.appendChild(prevBtn);
+    controls.appendChild(nextBtn);
+    nav.appendChild(closeBtn);
+    nav.appendChild(stepText);
+    nav.appendChild(controls);
+
+    function cleanup() {
+        overlay.remove();
+        spotlight.remove();
+        tooltip.remove();
+        window.removeEventListener('resize', reposition);
+        window.removeEventListener('scroll', reposition, true);
+    }
+
+    function getTooltipPosition(rect) {
+        const margin = 12;
+        const tooltipW = 340;
+        const tooltipH = 170;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        let placement = 'right';
+        let left = rect.right + margin;
+        let top = rect.top;
+
+        if (left + tooltipW > vw - margin) {
+            placement = 'left';
+            left = rect.left - tooltipW - margin;
+        }
+
+        if (left < margin) {
+            placement = 'bottom';
+            left = Math.min(vw - tooltipW - margin, Math.max(margin, rect.left));
+            top = rect.bottom + margin;
+        }
+
+        if (placement === 'bottom' && top + tooltipH > vh - margin) {
+            placement = 'top';
+            top = rect.top - tooltipH - margin;
+        }
+
+        top = Math.min(vh - tooltipH - margin, Math.max(margin, top));
+
+        return { left, top, placement };
+    }
+
+    function reposition() {
+        if (!currentTarget) return;
+        const rect = currentTarget.getBoundingClientRect();
+        spotlight.style.left = `${rect.left - 6}px`;
+        spotlight.style.top = `${rect.top - 6}px`;
+        spotlight.style.width = `${rect.width + 12}px`;
+        spotlight.style.height = `${rect.height + 12}px`;
+
+        const pos = getTooltipPosition(rect);
+        tooltip.style.left = `${pos.left}px`;
+        tooltip.style.top = `${pos.top}px`;
+    }
+
+    function findNextVisibleTarget(startIndex, direction = 1) {
+        let i = startIndex;
+        while (i >= 0 && i < steps.length) {
+            const element = document.querySelector(steps[i].selector);
+            if (element) {
+                const rect = element.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    return { i, element };
+                }
+            }
+            i += direction;
+        }
+        return null;
+    }
+
+    function renderStep(index) {
+        const match = findNextVisibleTarget(index, 1);
+        if (!match) {
+            cleanup();
+            activeGuideCleanup = null;
+            return;
+        }
+
+        stepIndex = match.i;
+        currentTarget = match.element;
+        currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+
+        const step = steps[stepIndex];
+        content.innerHTML = `
+            <div style="font-size:15px; font-weight:800; color:#1e3a8a; margin-bottom:8px;">${step.arrow || '➡'} ${step.title}</div>
+            <div style="font-size:13px; color:#334155; line-height:1.55;">${step.body}</div>
+        `;
+
+        stepText.textContent = `${stepIndex + 1} / ${steps.length}`;
+        prevBtn.disabled = stepIndex <= 0;
+        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+        nextBtn.textContent = stepIndex >= steps.length - 1 ? '完了' : '次へ';
+
+        setTimeout(reposition, 120);
+    }
+
+    closeBtn.addEventListener('click', () => {
+        cleanup();
+        activeGuideCleanup = null;
+    });
+
+    prevBtn.addEventListener('click', () => {
+        const prevMatch = findNextVisibleTarget(stepIndex - 1, -1);
+        if (prevMatch) {
+            renderStep(prevMatch.i);
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        if (stepIndex >= steps.length - 1) {
+            cleanup();
+            activeGuideCleanup = null;
+            return;
+        }
+        renderStep(stepIndex + 1);
+    });
+
+    overlay.addEventListener('click', (e) => {
+        // click outside tooltip advances to next step for smoother onboarding
+        if (e.target === overlay && stepIndex < steps.length - 1) {
+            renderStep(stepIndex + 1);
+        }
+    });
+
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(spotlight);
+    document.body.appendChild(tooltip);
+
+    activeGuideCleanup = cleanup;
+    renderStep(0);
+}
+
+function startOrderGuide() {
+    activateTopTab('placeOrder');
+    setTimeout(() => startSpotlightGuide(getOrderGuideSteps()), 350);
+}
+
+function startMyPageGuide() {
+    startSpotlightGuide(getMyPageGuideSteps());
+}
+
 function activateTopTab(tab) {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
@@ -407,6 +721,23 @@ function activateTopTab(tab) {
             loadPlaceOrderProducts().finally(() => {
                 window._placeOrderLoading = false;
             });
+        }
+
+        // Show quick entry point when guide mode is enabled
+        const searchInput = document.getElementById('placeOrderSearchInput');
+        if (searchInput) {
+            let guideBtn = document.getElementById('orderGuideStartBtn');
+            if (!guideBtn) {
+                guideBtn = document.createElement('button');
+                guideBtn.id = 'orderGuideStartBtn';
+                guideBtn.type = 'button';
+                guideBtn.className = 'btn btn-sm';
+                guideBtn.style.cssText = 'margin-top:8px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; font-weight:700;';
+                guideBtn.textContent = '✨ 注文ガイド開始';
+                guideBtn.addEventListener('click', () => startOrderGuide());
+                searchInput.parentElement.appendChild(guideBtn);
+            }
+            guideBtn.style.display = guideModeEnabled ? 'inline-block' : 'none';
         }
     }
     if (tab === 'catalogEntries') {
@@ -5339,6 +5670,7 @@ function setupLogoutHandler() {
 
             if (confirm('Are you sure you want to logout?')) {
                 try {
+                    stopGuidedTour();
                     await logoutUser();
                     window.location.href = 'login.html';
                 } catch (error) {
@@ -5356,6 +5688,7 @@ function setupLogoutHandler() {
 
             if (confirm('Are you sure you want to logout?')) {
                 try {
+                    stopGuidedTour();
                     await logoutUser();
                     window.location.href = 'login.html';
                 } catch (error) {
@@ -5763,6 +6096,11 @@ async function openMyPage() {
         if (userSnapshot.exists()) {
             userData = userSnapshot.val();
         }
+
+        // Guide mode preference: profile value has priority, then local fallback
+        if (typeof userData.guidedTourEnabled === 'boolean') {
+            setGuideModeEnabled(userData.guidedTourEnabled);
+        }
         
         // Fetch all orders for this user
         const ordersRef = ref(db, 'Orders');
@@ -5816,7 +6154,7 @@ async function openMyPage() {
         
         // Build professional header
         const headerHtml = `
-            <div style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); 
+            <div id="myPageHeaderCard" style="background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); 
                         padding: 40px 30px; border-radius: 16px; margin-bottom: 30px; 
                         box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap;">
@@ -5836,10 +6174,29 @@ async function openMyPage() {
                 </div>
             </div>
         `;
+
+        const guideControlsHtml = `
+            <div id="myPageGuideControls" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <div style="font-size: 15px; font-weight: 800; color: #1e3a8a;">✨ ガイドモード</div>
+                        <div style="font-size: 12px; color: #475569; margin-top: 4px;">ONにすると、注文とマイページのステップガイドをいつでも開始できます。</div>
+                    </div>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                        <input id="myPageGuideModeToggle" type="checkbox" ${guideModeEnabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                        <span style="font-size: 13px; color: #0f172a; font-weight: 700;">ガイドモードを有効化</span>
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                    <button id="startOrderGuideBtn" class="btn btn-sm" style="background: ${guideModeEnabled ? '#2563eb' : '#94a3b8'}; color: white; border: none; font-weight: 700;" ${guideModeEnabled ? '' : 'disabled'}>➡ 注文ガイドを開始</button>
+                    <button id="startMyPageGuideBtn" class="btn btn-sm" style="background: ${guideModeEnabled ? '#0ea5e9' : '#94a3b8'}; color: white; border: none; font-weight: 700;" ${guideModeEnabled ? '' : 'disabled'}>➡ マイページガイドを開始</button>
+                </div>
+            </div>
+        `;
         
         // Build statistics cards
         const statsHtml = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 30px;">
+            <div id="myPageStatsCards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 30px;">
                 <div style="background: linear-gradient(135deg, #f0fdf4 0%, #e8f5e9 100%);
                            border: 1px solid #86efac; 
                            padding: 18px; border-radius: 12px; transition: all 0.3s ease;
@@ -6025,7 +6382,7 @@ async function openMyPage() {
                 const progressPercent = (statusHistory.length / 4) * 100;
                 
                 return `
-                    <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; 
+                    <div class="mypage-order-card" style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; 
                                 margin-bottom: 16px; animation: slideInUp 0.5s ease-out backwards; 
                                 animation-delay: ${idx * 0.08}s;
                                 transition: all 0.3s ease; cursor: pointer;
@@ -6073,7 +6430,7 @@ async function openMyPage() {
                         </div>
                         
                         <!-- Status Timeline -->
-                        <div style="margin: 16px 0; padding: 12px; background: ${statusBgLight}; 
+                        <div class="mypage-status-timeline" style="margin: 16px 0; padding: 12px; background: ${statusBgLight}; 
                                    border-left: 3px solid ${statusColor}; border-radius: 6px;">
                             <div style="font-size: 11px; color: ${statusTextDark}; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
                                 📋 ステータス推移
@@ -6113,7 +6470,7 @@ async function openMyPage() {
             
             ordersHtml = `
                 <div>
-                    <h3 style="color: #1f2937; margin: 0 0 18px 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+                    <h3 id="myPageOrdersTitle" style="color: #1f2937; margin: 0 0 18px 0; font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
                         <i class="fas fa-box-open" style="color: #3b82f6; font-size: 20px;"></i>
                         注文一覧
                         <span style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 600;">
@@ -6138,11 +6495,55 @@ async function openMyPage() {
             ${animationStyle}
             <div style="padding: 30px 20px; color: #1f2937; background: #ffffff;">
                 ${headerHtml}
+                ${guideControlsHtml}
                 ${totalOrders > 0 ? statsHtml : ''}
                 ${accountInfoHtml}
                 ${ordersHtml}
             </div>
         `;
+
+        const guideToggle = document.getElementById('myPageGuideModeToggle');
+        const startOrderGuideBtn = document.getElementById('startOrderGuideBtn');
+        const startMyPageGuideBtn = document.getElementById('startMyPageGuideBtn');
+
+        if (guideToggle) {
+            guideToggle.addEventListener('change', async () => {
+                await persistGuideMode(guideToggle.checked, currentUser.uid);
+                const isEnabled = guideToggle.checked;
+                if (startOrderGuideBtn) {
+                    startOrderGuideBtn.disabled = !isEnabled;
+                    startOrderGuideBtn.style.background = isEnabled ? '#2563eb' : '#94a3b8';
+                }
+                if (startMyPageGuideBtn) {
+                    startMyPageGuideBtn.disabled = !isEnabled;
+                    startMyPageGuideBtn.style.background = isEnabled ? '#0ea5e9' : '#94a3b8';
+                }
+                if (!isEnabled) {
+                    stopGuidedTour();
+                }
+                showNotification(isEnabled ? 'ガイドモードを有効化しました' : 'ガイドモードを無効化しました', 'info');
+            });
+        }
+
+        if (startOrderGuideBtn) {
+            startOrderGuideBtn.addEventListener('click', () => {
+                if (!guideModeEnabled) {
+                    showNotification('先にガイドモードをONにしてください', 'error');
+                    return;
+                }
+                startOrderGuide();
+            });
+        }
+
+        if (startMyPageGuideBtn) {
+            startMyPageGuideBtn.addEventListener('click', () => {
+                if (!guideModeEnabled) {
+                    showNotification('先にガイドモードをONにしてください', 'error');
+                    return;
+                }
+                startMyPageGuide();
+            });
+        }
         
         // Smooth scroll to My Page
         window.scrollTo({ top: 0, behavior: 'smooth' });
