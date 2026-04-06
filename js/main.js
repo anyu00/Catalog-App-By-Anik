@@ -376,6 +376,7 @@ function formatStatusHistoryTimestamp(timestamp) {
 }
 
 const GUIDE_MODE_STORAGE_KEY = 'catalogGuideModeEnabled';
+const GUIDE_FIRST_PROMPT_STORAGE_PREFIX = 'catalogGuideFirstPromptSeen';
 let guideModeEnabled = localStorage.getItem(GUIDE_MODE_STORAGE_KEY) === 'true';
 let activeGuideCleanup = null;
 
@@ -689,6 +690,136 @@ function startMyPageGuide() {
     startSpotlightGuide(getMyPageGuideSteps());
 }
 
+function getGuideFirstPromptStorageKey(userId) {
+    return `${GUIDE_FIRST_PROMPT_STORAGE_PREFIX}:${userId}`;
+}
+
+async function markGuideFirstPromptSeen(userId) {
+    if (!userId) return;
+
+    localStorage.setItem(getGuideFirstPromptStorageKey(userId), 'true');
+
+    try {
+        await update(ref(db, `Users/${userId}`), {
+            guidedTourPromptSeen: true,
+            guidedTourPromptSeenAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+    } catch (error) {
+        console.warn('[GUIDE] Could not persist first-run prompt state:', error?.message || error);
+    }
+}
+
+async function shouldShowGuideFirstPrompt(userId) {
+    if (!userId) return false;
+
+    if (localStorage.getItem(getGuideFirstPromptStorageKey(userId)) === 'true') {
+        return false;
+    }
+
+    try {
+        const userSnap = await get(ref(db, `Users/${userId}`));
+        const userData = userSnap.exists() ? userSnap.val() : null;
+        if (userData?.guidedTourPromptSeen === true) {
+            localStorage.setItem(getGuideFirstPromptStorageKey(userId), 'true');
+            return false;
+        }
+    } catch (error) {
+        console.warn('[GUIDE] Could not check first-run prompt state:', error?.message || error);
+    }
+
+    return true;
+}
+
+function showGuideFirstPrompt(onStartGuide, onDismiss) {
+    const existing = document.getElementById('firstRunGuidePromptOverlay');
+    if (existing) {
+        existing.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'firstRunGuidePromptOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        z-index: 21000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    `;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+        width: min(520px, 100%);
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+        padding: 18px;
+    `;
+
+    card.innerHTML = `
+        <div style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">はじめての方へ</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.7; margin-bottom: 14px;">
+            30秒のガイドで、注文の流れとマイページの見方をすぐ把握できます。<br>
+            後で使う場合は「あとで」を選んでください。
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <button id="firstRunGuideLaterBtn" type="button" class="btn btn-sm" style="background:#ffffff; color:#334155; border:1px solid #cbd5e1; font-weight:700;">あとで</button>
+            <button id="firstRunGuideStartBtn" type="button" class="btn btn-sm" style="background:#2563eb; color:#ffffff; border:none; font-weight:700;">ガイドを開始</button>
+        </div>
+    `;
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    const closePrompt = () => overlay.remove();
+
+    const laterBtn = card.querySelector('#firstRunGuideLaterBtn');
+    const startBtn = card.querySelector('#firstRunGuideStartBtn');
+
+    laterBtn?.addEventListener('click', () => {
+        closePrompt();
+        if (typeof onDismiss === 'function') onDismiss();
+    });
+
+    startBtn?.addEventListener('click', () => {
+        closePrompt();
+        if (typeof onStartGuide === 'function') onStartGuide();
+    });
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closePrompt();
+            if (typeof onDismiss === 'function') onDismiss();
+        }
+    });
+}
+
+async function maybeShowGuideFirstPrompt(user, startupTab) {
+    if (!user?.uid) return;
+
+    const shouldShow = await shouldShowGuideFirstPrompt(user.uid);
+    if (!shouldShow) return;
+
+    const canGuideOrder = startupTab === 'placeOrder' || !!document.querySelector('.topnav-btn[data-tab="placeOrder"]');
+
+    showGuideFirstPrompt(async () => {
+        await persistGuideMode(true, user.uid);
+        await markGuideFirstPromptSeen(user.uid);
+        if (canGuideOrder) {
+            startOrderGuide();
+        } else {
+            openMyPage();
+            setTimeout(() => startMyPageGuide(), 300);
+        }
+    }, async () => {
+        await markGuideFirstPromptSeen(user.uid);
+    });
+}
+
 function activateTopTab(tab) {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
@@ -723,7 +854,7 @@ function activateTopTab(tab) {
             });
         }
 
-        // Show quick entry point when guide mode is enabled
+        // Keep a visible help entry so first-time users can launch the walkthrough from 注文.
         const searchInput = document.getElementById('placeOrderSearchInput');
         if (searchInput) {
             let guideBtn = document.getElementById('orderGuideStartBtn');
@@ -733,11 +864,16 @@ function activateTopTab(tab) {
                 guideBtn.type = 'button';
                 guideBtn.className = 'btn btn-sm';
                 guideBtn.style.cssText = 'margin-top:8px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; font-weight:700;';
-                guideBtn.textContent = '✨ 注文ガイド開始';
-                guideBtn.addEventListener('click', () => startOrderGuide());
+                guideBtn.textContent = '❓ 使い方を見る';
+                guideBtn.addEventListener('click', async () => {
+                    if (!guideModeEnabled) {
+                        await persistGuideMode(true, currentUser?.uid || null);
+                    }
+                    startOrderGuide();
+                });
                 searchInput.parentElement.appendChild(guideBtn);
             }
-            guideBtn.style.display = guideModeEnabled ? 'inline-block' : 'none';
+            guideBtn.style.display = 'inline-block';
         }
     }
     if (tab === 'catalogEntries') {
@@ -5284,6 +5420,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 activateTopTab(startupTab);
             }
 
+            // Offer one-time onboarding prompt to brand-new users after UI is ready.
+            setTimeout(() => {
+                maybeShowGuideFirstPrompt(user, startupTab);
+            }, 450);
+
             setupCartWarning(); // Warn if leaving with cart items
             updateKPIs();
             setInterval(updateKPIs, 30000); // Update KPIs every 30 seconds
@@ -6179,17 +6320,17 @@ async function openMyPage() {
             <div id="myPageGuideControls" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <div>
-                        <div style="font-size: 15px; font-weight: 800; color: #1e3a8a;">✨ ガイドモード</div>
-                        <div style="font-size: 12px; color: #475569; margin-top: 4px;">ONにすると、注文とマイページのステップガイドをいつでも開始できます。</div>
+                        <div style="font-size: 15px; font-weight: 800; color: #1e3a8a;">✨ はじめてガイド</div>
+                        <div style="font-size: 12px; color: #475569; margin-top: 4px;">迷ったときは下のボタンを押すだけで、画面の使い方を順番に案内します。</div>
                     </div>
                     <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
                         <input id="myPageGuideModeToggle" type="checkbox" ${guideModeEnabled ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
-                        <span style="font-size: 13px; color: #0f172a; font-weight: 700;">ガイドモードを有効化</span>
+                        <span style="font-size: 13px; color: #0f172a; font-weight: 700;">次回ログイン時もガイドを使いやすくする</span>
                     </label>
                 </div>
                 <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-                    <button id="startOrderGuideBtn" class="btn btn-sm" style="background: ${guideModeEnabled ? '#2563eb' : '#94a3b8'}; color: white; border: none; font-weight: 700;" ${guideModeEnabled ? '' : 'disabled'}>➡ 注文ガイドを開始</button>
-                    <button id="startMyPageGuideBtn" class="btn btn-sm" style="background: ${guideModeEnabled ? '#0ea5e9' : '#94a3b8'}; color: white; border: none; font-weight: 700;" ${guideModeEnabled ? '' : 'disabled'}>➡ マイページガイドを開始</button>
+                    <button id="startOrderGuideBtn" class="btn btn-sm" style="background: #2563eb; color: white; border: none; font-weight: 700;">➡ 注文の使い方を見る</button>
+                    <button id="startMyPageGuideBtn" class="btn btn-sm" style="background: #0ea5e9; color: white; border: none; font-weight: 700;">➡ マイページの見方を見る</button>
                 </div>
             </div>
         `;
@@ -6511,35 +6652,37 @@ async function openMyPage() {
                 await persistGuideMode(guideToggle.checked, currentUser.uid);
                 const isEnabled = guideToggle.checked;
                 if (startOrderGuideBtn) {
-                    startOrderGuideBtn.disabled = !isEnabled;
-                    startOrderGuideBtn.style.background = isEnabled ? '#2563eb' : '#94a3b8';
+                    startOrderGuideBtn.style.background = '#2563eb';
                 }
                 if (startMyPageGuideBtn) {
-                    startMyPageGuideBtn.disabled = !isEnabled;
-                    startMyPageGuideBtn.style.background = isEnabled ? '#0ea5e9' : '#94a3b8';
+                    startMyPageGuideBtn.style.background = '#0ea5e9';
                 }
                 if (!isEnabled) {
                     stopGuidedTour();
                 }
-                showNotification(isEnabled ? 'ガイドモードを有効化しました' : 'ガイドモードを無効化しました', 'info');
+                showNotification(isEnabled ? 'ガイド設定を保存しました' : 'ガイドの自動補助をオフにしました', 'info');
             });
         }
 
         if (startOrderGuideBtn) {
-            startOrderGuideBtn.addEventListener('click', () => {
+            startOrderGuideBtn.addEventListener('click', async () => {
                 if (!guideModeEnabled) {
-                    showNotification('先にガイドモードをONにしてください', 'error');
-                    return;
+                    await persistGuideMode(true, currentUser.uid);
+                    if (guideToggle) {
+                        guideToggle.checked = true;
+                    }
                 }
                 startOrderGuide();
             });
         }
 
         if (startMyPageGuideBtn) {
-            startMyPageGuideBtn.addEventListener('click', () => {
+            startMyPageGuideBtn.addEventListener('click', async () => {
                 if (!guideModeEnabled) {
-                    showNotification('先にガイドモードをONにしてください', 'error');
-                    return;
+                    await persistGuideMode(true, currentUser.uid);
+                    if (guideToggle) {
+                        guideToggle.checked = true;
+                    }
                 }
                 startMyPageGuide();
             });
