@@ -887,8 +887,6 @@ function promptMyPageEntryClickForGuide() {
     hint.style.top = `${top}px`;
     hint.style.left = `${left}px`;
     document.body.appendChild(hint);
-
-    showNotification('右上のプロフィールをクリックすると、マイページの案内が続きます。', 'info');
 }
 
 function setupMyPageEntryGuideHook() {
