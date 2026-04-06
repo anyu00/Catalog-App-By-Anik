@@ -477,13 +477,14 @@ function getMyPageGuideSteps() {
     ];
 }
 
-function startSpotlightGuide(steps) {
+function startSpotlightGuide(steps, options = {}) {
     stopGuidedTour();
 
     if (!Array.isArray(steps) || steps.length === 0) return;
 
     let stepIndex = 0;
     let currentTarget = null;
+    let isClosed = false;
 
     const overlay = document.createElement('div');
     overlay.id = 'appGuideOverlay';
@@ -556,6 +557,17 @@ function startSpotlightGuide(steps) {
         window.removeEventListener('scroll', reposition, true);
     }
 
+    function closeGuide(completed = false) {
+        if (isClosed) return;
+        isClosed = true;
+        cleanup();
+        activeGuideCleanup = null;
+
+        if (completed && typeof options.onComplete === 'function') {
+            options.onComplete();
+        }
+    }
+
     function getTooltipPosition(rect) {
         const margin = 12;
         const tooltipW = 340;
@@ -619,8 +631,7 @@ function startSpotlightGuide(steps) {
     function renderStep(index) {
         const match = findNextVisibleTarget(index, 1);
         if (!match) {
-            cleanup();
-            activeGuideCleanup = null;
+            closeGuide(false);
             return;
         }
 
@@ -642,10 +653,7 @@ function startSpotlightGuide(steps) {
         setTimeout(reposition, 120);
     }
 
-    closeBtn.addEventListener('click', () => {
-        cleanup();
-        activeGuideCleanup = null;
-    });
+    closeBtn.addEventListener('click', () => closeGuide(false));
 
     prevBtn.addEventListener('click', () => {
         const prevMatch = findNextVisibleTarget(stepIndex - 1, -1);
@@ -656,8 +664,7 @@ function startSpotlightGuide(steps) {
 
     nextBtn.addEventListener('click', () => {
         if (stepIndex >= steps.length - 1) {
-            cleanup();
-            activeGuideCleanup = null;
+            closeGuide(true);
             return;
         }
         renderStep(stepIndex + 1);
@@ -677,13 +684,25 @@ function startSpotlightGuide(steps) {
     document.body.appendChild(spotlight);
     document.body.appendChild(tooltip);
 
-    activeGuideCleanup = cleanup;
+    activeGuideCleanup = () => closeGuide(false);
     renderStep(0);
 }
 
-function startOrderGuide() {
+function startOrderGuide(options = {}) {
+    const shouldContinueToMyPage = options.chainToMyPage !== false;
+
     activateTopTab('placeOrder');
-    setTimeout(() => startSpotlightGuide(getOrderGuideSteps()), 350);
+    setTimeout(() => {
+        startSpotlightGuide(getOrderGuideSteps(), {
+            onComplete: async () => {
+                if (!shouldContinueToMyPage) return;
+
+                showNotification('続いて、マイページの見方をご案内します。', 'info');
+                await openMyPage();
+                setTimeout(() => startMyPageGuide(), 350);
+            }
+        });
+    }, 350);
 }
 
 function startMyPageGuide() {
@@ -854,26 +873,70 @@ function activateTopTab(tab) {
             });
         }
 
-        // Keep a visible help entry so first-time users can launch the walkthrough from 注文.
+        // Keep order-page guide controls always visible so users can start/stop guidance without leaving 注文.
         const searchInput = document.getElementById('placeOrderSearchInput');
         if (searchInput) {
+            let guideControls = document.getElementById('orderGuideControls');
             let guideBtn = document.getElementById('orderGuideStartBtn');
-            if (!guideBtn) {
+            let guideToggle = document.getElementById('orderGuideModeToggle');
+
+            if (!guideControls) {
+                guideControls = document.createElement('div');
+                guideControls.id = 'orderGuideControls';
+                guideControls.style.cssText = 'display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px;';
+
                 guideBtn = document.createElement('button');
                 guideBtn.id = 'orderGuideStartBtn';
                 guideBtn.type = 'button';
                 guideBtn.className = 'btn btn-sm';
-                guideBtn.style.cssText = 'margin-top:8px; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; font-weight:700;';
+                guideBtn.style.cssText = 'background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; font-weight:700;';
                 guideBtn.textContent = '❓ 使い方を見る';
                 guideBtn.addEventListener('click', async () => {
                     if (!guideModeEnabled) {
                         await persistGuideMode(true, currentUser?.uid || null);
+                        const orderToggle = document.getElementById('orderGuideModeToggle');
+                        if (orderToggle) {
+                            orderToggle.checked = true;
+                        }
                     }
                     startOrderGuide();
                 });
-                searchInput.parentElement.appendChild(guideBtn);
+
+                const toggleLabel = document.createElement('label');
+                toggleLabel.style.cssText = 'display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; color:#334155; font-size:12px; font-weight:700;';
+
+                guideToggle = document.createElement('input');
+                guideToggle.id = 'orderGuideModeToggle';
+                guideToggle.type = 'checkbox';
+                guideToggle.checked = guideModeEnabled;
+                guideToggle.style.cssText = 'width:16px; height:16px; cursor:pointer;';
+                guideToggle.addEventListener('change', async () => {
+                    await persistGuideMode(guideToggle.checked, currentUser?.uid || null);
+                    const myPageToggle = document.getElementById('myPageGuideModeToggle');
+                    if (myPageToggle) {
+                        myPageToggle.checked = guideToggle.checked;
+                    }
+                    if (!guideToggle.checked) {
+                        stopGuidedTour();
+                    }
+                    showNotification(guideToggle.checked ? 'ガイドをONにしました' : 'ガイドをOFFにしました', 'info');
+                });
+
+                const toggleText = document.createElement('span');
+                toggleText.textContent = 'ガイド ON/OFF';
+
+                toggleLabel.appendChild(guideToggle);
+                toggleLabel.appendChild(toggleText);
+
+                guideControls.appendChild(guideBtn);
+                guideControls.appendChild(toggleLabel);
+                searchInput.parentElement.appendChild(guideControls);
+            } else {
+                if (guideToggle) {
+                    guideToggle.checked = guideModeEnabled;
+                }
             }
-            guideBtn.style.display = 'inline-block';
+            guideControls.style.display = 'flex';
         }
     }
     if (tab === 'catalogEntries') {
