@@ -379,6 +379,7 @@ const GUIDE_MODE_STORAGE_KEY = 'catalogGuideModeEnabled';
 const GUIDE_FIRST_PROMPT_STORAGE_PREFIX = 'catalogGuideFirstPromptSeen';
 let guideModeEnabled = localStorage.getItem(GUIDE_MODE_STORAGE_KEY) === 'true';
 let activeGuideCleanup = null;
+let pendingMyPageGuideAfterOrder = false;
 
 function setGuideModeEnabled(enabled) {
     guideModeEnabled = !!enabled;
@@ -697,9 +698,7 @@ function startOrderGuide(options = {}) {
             onComplete: async () => {
                 if (!shouldContinueToMyPage) return;
 
-                showNotification('続いて、マイページの見方をご案内します。', 'info');
-                await openMyPage();
-                setTimeout(() => startMyPageGuide(), 350);
+                promptMyPageEntryClickForGuide();
             }
         });
     }, 350);
@@ -839,6 +838,78 @@ async function maybeShowGuideFirstPrompt(user, startupTab) {
     });
 }
 
+function clearMyPageEntryHint() {
+    const hint = document.getElementById('orderToMyPageHint');
+    if (hint) {
+        hint.remove();
+    }
+
+    const entry = document.querySelector('.user-display[onclick*="openMyPage"]') || document.querySelector('.user-display');
+    if (entry) {
+        entry.style.outline = '';
+        entry.style.boxShadow = '';
+    }
+}
+
+function promptMyPageEntryClickForGuide() {
+    clearMyPageEntryHint();
+
+    const entry = document.querySelector('.user-display[onclick*="openMyPage"]') || document.querySelector('.user-display');
+    if (!entry) {
+        showNotification('右上のプロフィールからマイページを開いてください。', 'info');
+        return;
+    }
+
+    pendingMyPageGuideAfterOrder = true;
+    entry.style.outline = '3px solid #22c55e';
+    entry.style.boxShadow = '0 0 0 4px rgba(34, 197, 94, 0.25)';
+
+    const rect = entry.getBoundingClientRect();
+    const hint = document.createElement('div');
+    hint.id = 'orderToMyPageHint';
+    hint.style.cssText = `
+        position: fixed;
+        z-index: 21010;
+        background: #ffffff;
+        border: 1px solid #86efac;
+        border-radius: 10px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        padding: 10px 12px;
+        max-width: 280px;
+        color: #14532d;
+        font-size: 12px;
+        font-weight: 700;
+    `;
+    hint.innerHTML = '➡ 次はここをクリックしてマイページへ進みましょう<br><span style="font-size:11px; font-weight:600; color:#166534;">注文状況と履歴を確認できます</span>';
+
+    const top = Math.max(12, rect.bottom + 8);
+    const left = Math.min(window.innerWidth - 292, Math.max(12, rect.right - 280));
+    hint.style.top = `${top}px`;
+    hint.style.left = `${left}px`;
+    document.body.appendChild(hint);
+
+    showNotification('右上のプロフィールをクリックすると、マイページの案内が続きます。', 'info');
+}
+
+function setupMyPageEntryGuideHook() {
+    const entry = document.querySelector('.user-display[onclick*="openMyPage"]') || document.querySelector('.user-display');
+    if (!entry || entry.dataset.myPageGuideHooked === 'true') {
+        return;
+    }
+
+    entry.dataset.myPageGuideHooked = 'true';
+    entry.addEventListener('click', () => {
+        if (!pendingMyPageGuideAfterOrder) {
+            clearMyPageEntryHint();
+            return;
+        }
+
+        pendingMyPageGuideAfterOrder = false;
+        clearMyPageEntryHint();
+        setTimeout(() => startMyPageGuide(), 420);
+    });
+}
+
 function activateTopTab(tab) {
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
@@ -968,6 +1039,8 @@ function initTabSwitching() {
 
     const analyticsCard = document.getElementById('analyticsDateRangeCard');
     if (analyticsCard) analyticsCard.style.display = 'none';
+
+    setupMyPageEntryGuideHook();
 }
 
 // ===== CATALOG FORM =====
@@ -6278,6 +6351,7 @@ function hexToRgb(hex) {
  */
 async function openMyPage() {
     try {
+        const shouldAutoStartGuideAfterOpen = pendingMyPageGuideAfterOrder;
         const currentUser = getCurrentUser();
         if (!currentUser) {
             alert('ユーザー情報が見つかりません');
@@ -6749,6 +6823,12 @@ async function openMyPage() {
                 }
                 startMyPageGuide();
             });
+        }
+
+        if (shouldAutoStartGuideAfterOpen) {
+            pendingMyPageGuideAfterOrder = false;
+            clearMyPageEntryHint();
+            setTimeout(() => startMyPageGuide(), 420);
         }
         
         // Smooth scroll to My Page
