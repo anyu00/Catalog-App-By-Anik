@@ -930,6 +930,17 @@ function activateTopTab(tab) {
     const activeBtn = document.querySelector(`.topnav-btn[data-tab="${tab}"]`);
     if (activeBtn) activeBtn.classList.add('active');
 
+    // Hide loading overlay after tab activation
+    const loadingOverlay = document.getElementById('appLoadingOverlay');
+    if (loadingOverlay) {
+        console.log('[TAB ACTIVATE] Hiding loading overlay');
+        loadingOverlay.style.opacity = '0';
+        loadingOverlay.style.pointerEvents = 'none';
+        setTimeout(() => {
+            loadingOverlay.style.display = 'none';
+        }, 500);
+    }
+
     // Lazy-load expensive components
     if (tab === 'stockCalendar') {
         if (!window.calendarInitialized) {
@@ -5724,6 +5735,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabElement && tabElement.style.display === 'none') {
                     console.log('[STARTUP SAFETY] Tab still hidden, activating placeOrder now');
                     activateTopTab('placeOrder');
+                } else {
+                    // Even if tab is shown, hide loading overlay
+                    const loadingOverlay = document.getElementById('appLoadingOverlay');
+                    if (loadingOverlay && loadingOverlay.style.display !== 'none') {
+                        console.log('[STARTUP SAFETY] Hiding loading overlay');
+                        loadingOverlay.style.opacity = '0';
+                        loadingOverlay.style.pointerEvents = 'none';
+                        setTimeout(() => {
+                            loadingOverlay.style.display = 'none';
+                        }, 500);
+                    }
                 }
             }, 2500);
             
@@ -5738,6 +5760,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabElement && tabElement.style.display === 'none') {
                     console.log('[STARTUP SAFETY] Error case - activating placeOrder fallback');
                     activateTopTab('placeOrder');
+                } else {
+                    // Even if tab is shown, hide loading overlay
+                    const loadingOverlay = document.getElementById('appLoadingOverlay');
+                    if (loadingOverlay && loadingOverlay.style.display !== 'none') {
+                        console.log('[STARTUP SAFETY] Error case - hiding loading overlay');
+                        loadingOverlay.style.opacity = '0';
+                        loadingOverlay.style.pointerEvents = 'none';
+                        setTimeout(() => {
+                            loadingOverlay.style.display = 'none';
+                        }, 500);
+                    }
                 }
             }, 3000);
         }

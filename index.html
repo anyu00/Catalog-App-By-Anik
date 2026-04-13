@@ -40,6 +40,26 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js"></script>
 </head>
 <body>
+    <!-- LOADING OVERLAY -->
+    <div id="appLoadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s ease;">
+        <div style="text-align: center;">
+            <div style="margin-bottom: 24px;">
+                <div style="display: inline-block; position: relative; width: 60px; height: 60px;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border: 4px solid #e0e7ff; border-top-color: #2563eb; border-radius: 50%; animation: appSpinnerRotate 1s linear infinite;"></div>
+                </div>
+            </div>
+            <p style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0;">ポチカタ！を読み込み中...</p>
+            <small style="color: #64748b; display: block; margin-top: 8px;">少々お待ちください</small>
+        </div>
+    </div>
+
+    <style>
+        @keyframes appSpinnerRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
     <!-- MAIN CONTENT -->
     <div class="main-content-shell">
         <!-- Top Navigation (Option A) -->
