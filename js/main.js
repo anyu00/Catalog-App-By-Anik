@@ -5716,10 +5716,30 @@ document.addEventListener('DOMContentLoaded', () => {
             setupLogoutHandler();
 
             console.log('✓ Application initialized | User:', user.email);
+            
+            // SAFETY FALLBACK: Ensure placeOrder tab is activated if it hasn't been already
+            // This handles edge cases where startup sequence might not complete
+            setTimeout(() => {
+                const tabElement = document.getElementById('tab-placeOrder');
+                if (tabElement && tabElement.style.display === 'none') {
+                    console.log('[STARTUP SAFETY] Tab still hidden, activating placeOrder now');
+                    activateTopTab('placeOrder');
+                }
+            }, 2500);
+            
         } catch (error) {
             console.error('[STARTUP] Initialization failed:', error);
             showNotification('初期化中に一時的なエラーが発生しました。再読込してください。', 'error');
             recoverStartupTabDisplay(startupTab || 'placeOrder');
+            
+            // SAFETY FALLBACK for error case
+            setTimeout(() => {
+                const tabElement = document.getElementById('tab-placeOrder');
+                if (tabElement && tabElement.style.display === 'none') {
+                    console.log('[STARTUP SAFETY] Error case - activating placeOrder fallback');
+                    activateTopTab('placeOrder');
+                }
+            }, 3000);
         }
     });  
 });
