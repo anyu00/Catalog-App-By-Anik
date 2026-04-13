@@ -935,7 +935,16 @@ function activateTopTab(tab) {
         }, 100);
     }
     if (tab === 'placeOrder') {
-        if (!window._placeOrderLoading) {
+        // Show loading state immediately to prevent blank screen race condition
+        const grid = document.getElementById('placeOrderProductGrid');
+        const noResults = document.getElementById('placeOrderNoResults');
+        if (grid && noResults && !window._placeOrderDataReady) {
+            grid.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1;">📂 カタログを読み込み中...</div>';
+            noResults.style.display = 'none';
+        }
+
+        // Only load if not already loaded and not currently loading
+        if (!window._placeOrderLoading && !window._placeOrderDataReady) {
             window._placeOrderLoading = true;
             loadPlaceOrderProducts().finally(() => {
                 window._placeOrderLoading = false;
@@ -1627,8 +1636,14 @@ async function loadPlaceOrderProducts() {
         
         renderPlaceOrderProductGrid();
         setupCatalogRealTimeListener();
+        window._placeOrderDataReady = true;  // Mark data as ready to prevent redundant loads
     } catch (error) {
         console.error('[CATALOG LOAD] Error loading catalog items:', error);
+        // Show error state in grid
+        const grid = document.getElementById('placeOrderProductGrid');
+        if (grid) {
+            grid.innerHTML = `<div style="padding:40px; text-align:center; color:#b91c1c; grid-column:1/-1; background:#fee2e2; border-radius:8px;">❌ カタログの読み込みに失敗しました。<br><small style="color:#7f1d1d;">ページをリロードしてください。</small></div>`;
+        }
     }
 }
 
