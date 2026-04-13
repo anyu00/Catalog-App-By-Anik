@@ -935,14 +935,21 @@ function activateTopTab(tab) {
         }, 100);
     }
     if (tab === 'placeOrder') {
-        // Always show loading state immediately when tab is activated to prevent blank screen
+        // Show loading state and ensure it stays until data is ready
         const grid = document.getElementById('placeOrderProductGrid');
         const noResults = document.getElementById('placeOrderNoResults');
         if (grid && noResults) {
-            // Only show loading state if data isn't ready yet
+            // Set to loading state immediately
             if (!window._placeOrderDataReady) {
-                grid.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1; align-self:center;">📂 カタログを読み込み中...<br><small style="color:#94a3b8; margin-top:8px; display:block;">通常は1-2秒で完了します</small></div>';
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'placeOrderLoadingContainer';
+                loadingDiv.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1; align-self:center;"><div style="font-size:24px; margin-bottom:12px;">📂</div><p style="font-weight:600;margin:0 0 4px 0;">カタログを読み込み中...</p><small style="color:#94a3b8; margin-top:8px; display:block;">初回読み込みは1-3秒かかります</small></div>';
+                grid.innerHTML = '';
+                grid.appendChild(loadingDiv);
                 noResults.style.display = 'none';
+                console.log('[TAB ACTIVATE] Showing loading state for placeOrder');
+            } else {
+                console.log('[TAB ACTIVATE] Data ready, grid has', grid.children.length, 'items');
             }
         }
 
@@ -952,10 +959,10 @@ function activateTopTab(tab) {
             window._placeOrderLoading = true;
             loadPlaceOrderProducts().finally(() => {
                 window._placeOrderLoading = false;
-                console.log('[TAB ACTIVATE] placeOrder data load complete, _placeOrderDataReady =', window._placeOrderDataReady);
+                console.log('[TAB ACTIVATE] placeOrder data load complete');
             });
         } else if (window._placeOrderDataReady) {
-            console.log('[TAB ACTIVATE] placeOrder data already ready, showing cached grid');
+            console.log('[TAB ACTIVATE] placeOrder data already ready');
         }
 
         // Keep order-page guide controls always visible so users can start/stop guidance without leaving 注文.
@@ -1543,6 +1550,9 @@ ensureHighlightAnimation();
 
 
 async function loadPlaceOrderProducts() {
+    const startTime = Date.now();
+    console.log('[CATALOG LOAD] Starting catalog data load at', new Date().toLocaleTimeString());
+    
     try {
         // Load user's location (if they have one assigned to their account)
         const currentUser = getCurrentUser();
@@ -1553,13 +1563,19 @@ async function loadPlaceOrderProducts() {
             selectedAddressValue = userAddress.value;
         }
         
-        console.log('[CATALOG LOAD] Starting catalog data load...');
+        console.log('[CATALOG LOAD] Loading from Firebase...');
+        const loadStartTime = Date.now();
         
         // Load and build unified catalog database
-        const namesSnapshot = await get(ref(db, 'CatalogNames'));
-        const imagesSnapshot = await get(ref(db, 'CatalogImages'));
-        const catalogsSnapshot = await get(ref(db, 'Catalogs'));
-        const ordersSnapshot = await get(ref(db, 'Orders'));
+        const [namesSnapshot, imagesSnapshot, catalogsSnapshot, ordersSnapshot] = await Promise.all([
+            get(ref(db, 'CatalogNames')),
+            get(ref(db, 'CatalogImages')),
+            get(ref(db, 'Catalogs')),
+            get(ref(db, 'Orders'))
+        ]);
+        
+        const firebaseLoadTime = Date.now() - loadStartTime;
+        console.log(`[CATALOG LOAD] Firebase load took ${firebaseLoadTime}ms`);
         
         // Initialize CatalogDB from CatalogNames — purge deleted entries first
         const currentNames = namesSnapshot.exists() ? namesSnapshot.val() : {};
@@ -1643,7 +1659,11 @@ async function loadPlaceOrderProducts() {
         
         renderPlaceOrderProductGrid();
         setupCatalogRealTimeListener();
-        window._placeOrderDataReady = true;  // Mark data as ready to prevent redundant loads
+        
+        const totalTime = Date.now() - startTime;
+        console.log(`[CATALOG LOAD] Total load time: ${totalTime}ms`);
+        window._placeOrderDataReady = true;  // Mark data as ready
+        
     } catch (error) {
         console.error('[CATALOG LOAD] Error loading catalog items:', error);
         // Show error state in grid with retry option
@@ -5576,9 +5596,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('[STARTUP] preloading placeOrder data...');
                 if (!window._placeOrderLoading && !window._placeOrderDataReady) {
                     window._placeOrderLoading = true;
+                    const preloadStartTime = Date.now();
+                    
                     try {
+                        // Load data and ensure minimum 2-second display to guarantee Firebase completes
+                        const startMinWait = Date.now();
+                        const minimumWaitMs = 2000;  // GUARANTEE 2 seconds min
+                        
                         await loadPlaceOrderProducts();
-                        console.log('[STARTUP] placeOrder preload complete');
+                        
+                        const elapsedTime = Date.now() - startMinWait;
+                        if (elapsedTime < minimumWaitMs) {
+                            console.log(`[STARTUP] Loaded fast (${elapsedTime}ms), waiting ${minimumWaitMs - elapsedTime}ms to guarantee stability`);
+                            await new Promise(resolve => setTimeout(resolve, minimumWaitMs - elapsedTime));
+                        }
+                        
+                        const preloadTime = Date.now() - preloadStartTime;
+                        console.log(`[STARTUP] placeOrder preload complete (${preloadTime}ms total)`);
                     } catch (error) {
                         console.error('[STARTUP] placeOrder preload failed:', error);
                     } finally {
