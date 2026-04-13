@@ -1646,11 +1646,16 @@ async function loadPlaceOrderProducts() {
         window._placeOrderDataReady = true;  // Mark data as ready to prevent redundant loads
     } catch (error) {
         console.error('[CATALOG LOAD] Error loading catalog items:', error);
-        // Show error state in grid
+        // Show error state in grid with retry option
         const grid = document.getElementById('placeOrderProductGrid');
         if (grid) {
-            grid.innerHTML = `<div style="padding:40px; text-align:center; color:#b91c1c; grid-column:1/-1; background:#fee2e2; border-radius:8px;">❌ カタログの読み込みに失敗しました。<br><small style="color:#7f1d1d;">ページをリロードしてください。</small></div>`;
+            grid.innerHTML = `<div style="padding:40px; text-align:center; color:#b91c1c; grid-column:1/-1; background:#fee2e2; border-radius:8px;">
+                <p>❌ カタログの読み込みに失敗しました</p>
+                <small style="color:#7f1d1d; display:block; margin:8px 0;">エラー: ${error.message || 'Unknown error'}</small>
+                <button onclick="location.reload()" style="margin-top:12px; padding:8px 16px; background:#dc2626; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">ページをリロード</button>
+            </div>`;
         }
+        console.error('[CATALOG LOAD] Full error object:', error);
     }
 }
 
@@ -5562,18 +5567,38 @@ document.addEventListener('DOMContentLoaded', () => {
             initAdminPanel();
 
             // Preload required data before showing startup tab (no flicker startup)
-            if (startupTab === 'placeOrder') {
-                if (!window._placeOrderLoading) {
+            console.log('[STARTUP] Startup tab:', startupTab, 'CatalogDB keys:', Object.keys(CatalogDB).length);
+            
+            // GUARANTEE: Always preload placeOrder if it's accessible (most common first tab)
+            const shouldPreloadPlaceOrder = startupTab === 'placeOrder';
+            
+            if (shouldPreloadPlaceOrder) {
+                console.log('[STARTUP] preloading placeOrder data...');
+                if (!window._placeOrderLoading && !window._placeOrderDataReady) {
                     window._placeOrderLoading = true;
-                    await loadPlaceOrderProducts().finally(() => {
+                    try {
+                        await loadPlaceOrderProducts();
+                        console.log('[STARTUP] placeOrder preload complete');
+                    } catch (error) {
+                        console.error('[STARTUP] placeOrder preload failed:', error);
+                    } finally {
                         window._placeOrderLoading = false;
-                    });
+                    }
+                } else {
+                    console.log('[STARTUP] placeOrder already loaded or loading, skipping preload');
                 }
             }
 
             // Reveal only the resolved startup tab after setup and preload
+            console.log('[STARTUP] Activating tab:', startupTab);
             if (startupTab) {
-                activateTopTab(startupTab);
+                try {
+                    activateTopTab(startupTab);
+                    console.log('[STARTUP] Tab activated successfully');
+                } catch (error) {
+                    console.error('[STARTUP] Tab activation failed:', error);
+                    recoverStartupTabDisplay(startupTab);
+                }
             }
 
             // Offer one-time onboarding prompt to brand-new users after UI is ready.
