@@ -1,6 +1,6 @@
 {
-  "name": "油研カタ",
-  "short_name": "油研カタ",
+  "name": "ポチカタ！",
+  "short_name": "ポチカタ！",
   "description": "カタログ管理と注文システム",
   "start_url": "/index.html",
   "scope": "/",
