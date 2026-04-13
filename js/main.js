@@ -1615,6 +1615,7 @@ async function loadPlaceOrderProducts() {
         console.log('[CATALOG LOAD] After loading names, CatalogDB has:', Object.keys(CatalogDB).length, 'items');
         if (Object.keys(CatalogDB).length === 0) {
             console.warn('[CATALOG LOAD] ⚠️  CatalogDB IS EMPTY - no catalog names in Firebase!');
+        }
         
         // Add images to CatalogDB
         if (imagesSnapshot.exists()) {
