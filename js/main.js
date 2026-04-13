@@ -935,20 +935,27 @@ function activateTopTab(tab) {
         }, 100);
     }
     if (tab === 'placeOrder') {
-        // Show loading state immediately to prevent blank screen race condition
+        // Always show loading state immediately when tab is activated to prevent blank screen
         const grid = document.getElementById('placeOrderProductGrid');
         const noResults = document.getElementById('placeOrderNoResults');
-        if (grid && noResults && !window._placeOrderDataReady) {
-            grid.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1;">📂 カタログを読み込み中...</div>';
-            noResults.style.display = 'none';
+        if (grid && noResults) {
+            // Only show loading state if data isn't ready yet
+            if (!window._placeOrderDataReady) {
+                grid.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1; align-self:center;">📂 カタログを読み込み中...<br><small style="color:#94a3b8; margin-top:8px; display:block;">通常は1-2秒で完了します</small></div>';
+                noResults.style.display = 'none';
+            }
         }
 
-        // Only load if not already loaded and not currently loading
+        // Load data if not already loaded and not currently loading
         if (!window._placeOrderLoading && !window._placeOrderDataReady) {
+            console.log('[TAB ACTIVATE] Loading placeOrder data');
             window._placeOrderLoading = true;
             loadPlaceOrderProducts().finally(() => {
                 window._placeOrderLoading = false;
+                console.log('[TAB ACTIVATE] placeOrder data load complete, _placeOrderDataReady =', window._placeOrderDataReady);
             });
+        } else if (window._placeOrderDataReady) {
+            console.log('[TAB ACTIVATE] placeOrder data already ready, showing cached grid');
         }
 
         // Keep order-page guide controls always visible so users can start/stop guidance without leaving 注文.
