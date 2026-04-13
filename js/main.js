@@ -909,14 +909,21 @@ function setupMyPageEntryGuideHook() {
 }
 
 function activateTopTab(tab) {
+    console.log('[TAB ACTIVATE] activateTopTab called with tab:', tab);
     const topNavBtns = document.querySelectorAll('.topnav-btn');
 
     // Hide all tabs first to avoid mixed states
-    document.querySelectorAll('.tab-section').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tab-section').forEach(t => {
+        t.style.display = 'none';
+    });
 
     // Show selected tab
     const tabElement = document.getElementById('tab-' + tab);
-    if (tabElement) tabElement.style.display = 'block';
+    console.log('[TAB ACTIVATE] Tab element found:', !!tabElement);
+    if (tabElement) {
+        tabElement.style.display = 'block';
+        console.log('[TAB ACTIVATE] Tab displayed, tab height:', tabElement.offsetHeight);
+    }
 
     // Update active state in topbar only
     topNavBtns.forEach(b => b.classList.remove('active'));
@@ -935,19 +942,22 @@ function activateTopTab(tab) {
         }, 100);
     }
     if (tab === 'placeOrder') {
+        console.log('[TAB ACTIVATE] Handling placeOrder tab activation');
         // Show loading state and ensure it stays until data is ready
         const grid = document.getElementById('placeOrderProductGrid');
         const noResults = document.getElementById('placeOrderNoResults');
+        console.log('[TAB ACTIVATE] Grid element found:', !!grid, 'NoResults element found:', !!noResults);
         if (grid && noResults) {
             // Set to loading state immediately
             if (!window._placeOrderDataReady) {
+                console.log('[TAB ACTIVATE] Data not ready, showing loading state');
                 const loadingDiv = document.createElement('div');
                 loadingDiv.id = 'placeOrderLoadingContainer';
                 loadingDiv.innerHTML = '<div style="padding:40px; text-align:center; color:#64748b; grid-column:1/-1; align-self:center;"><div style="font-size:24px; margin-bottom:12px;">📂</div><p style="font-weight:600;margin:0 0 4px 0;">カタログを読み込み中...</p><small style="color:#94a3b8; margin-top:8px; display:block;">初回読み込みは1-3秒かかります</small></div>';
                 grid.innerHTML = '';
                 grid.appendChild(loadingDiv);
                 noResults.style.display = 'none';
-                console.log('[TAB ACTIVATE] Showing loading state for placeOrder');
+                console.log('[TAB ACTIVATE] Loading container inserted');
             } else {
                 console.log('[TAB ACTIVATE] Data ready, grid has', grid.children.length, 'items');
             }
@@ -955,14 +965,16 @@ function activateTopTab(tab) {
 
         // Load data if not already loaded and not currently loading
         if (!window._placeOrderLoading && !window._placeOrderDataReady) {
-            console.log('[TAB ACTIVATE] Loading placeOrder data');
+            console.log('[TAB ACTIVATE] Starting placeOrder data load');
             window._placeOrderLoading = true;
             loadPlaceOrderProducts().finally(() => {
                 window._placeOrderLoading = false;
                 console.log('[TAB ACTIVATE] placeOrder data load complete');
             });
         } else if (window._placeOrderDataReady) {
-            console.log('[TAB ACTIVATE] placeOrder data already ready');
+            console.log('[TAB ACTIVATE] placeOrder data already ready, no load needed');
+        } else {
+            console.log('[TAB ACTIVATE] placeOrder data currently loading, skipping');
         }
 
         // Keep order-page guide controls always visible so users can start/stop guidance without leaving 注文.
@@ -1551,11 +1563,14 @@ ensureHighlightAnimation();
 
 async function loadPlaceOrderProducts() {
     const startTime = Date.now();
-    console.log('[CATALOG LOAD] Starting catalog data load at', new Date().toLocaleTimeString());
+    console.log('[CATALOG LOAD] ===== STARTING CATALOG DATA LOAD =====');
+    console.log('[CATALOG LOAD] Current time:', new Date().toLocaleTimeString());
+    console.log('[CATALOG LOAD] CatalogDB before load:', Object.keys(CatalogDB).length, 'items');
     
     try {
         // Load user's location (if they have one assigned to their account)
         const currentUser = getCurrentUser();
+        console.log('[CATALOG LOAD] Current user:', currentUser?.email || 'NOT SET');
         if (currentUser) {
             userAssignedLocationId = await getUserLocation(currentUser.uid);
             const userAddress = await getUserSelectedAddress(currentUser.uid);
@@ -1575,10 +1590,19 @@ async function loadPlaceOrderProducts() {
         ]);
         
         const firebaseLoadTime = Date.now() - loadStartTime;
-        console.log(`[CATALOG LOAD] Firebase load took ${firebaseLoadTime}ms`);
+        console.log(`[CATALOG LOAD] Firebase queries completed in ${firebaseLoadTime}ms`);
+        console.log('[CATALOG LOAD] CatalogNames exists:', namesSnapshot.exists(), 'Count:', namesSnapshot.exists() ? Object.keys(namesSnapshot.val()).length : 0);
+        console.log('[CATALOG LOAD] CatalogImages exists:', imagesSnapshot.exists(), 'Count:', imagesSnapshot.exists() ? Object.keys(imagesSnapshot.val()).length : 0);
+        console.log('[CATALOG LOAD] Catalogs exists:', catalogsSnapshot.exists(), 'Count:', catalogsSnapshot.exists() ? Object.keys(catalogsSnapshot.val()).length : 0);
+        console.log('[CATALOG LOAD] Orders exists:', ordersSnapshot.exists(), 'Count:', ordersSnapshot.exists() ? Object.keys(ordersSnapshot.val()).length : 0);
         
         // Initialize CatalogDB from CatalogNames — purge deleted entries first
         const currentNames = namesSnapshot.exists() ? namesSnapshot.val() : {};
+        console.log('[CATALOG LOAD] Current catalog names from Firebase:', Object.keys(currentNames).length, 'names');
+        if (Object.keys(currentNames).length > 0) {
+            console.log('[CATALOG LOAD] Sample names:', Object.entries(currentNames).slice(0, 3).map(([k, v]) => `${k}:${v}`).join(', '));
+        }
+        
         Object.keys(CatalogDB).forEach(key => {
             if (!currentNames[key]) delete CatalogDB[key];
         });
@@ -1588,24 +1612,26 @@ async function loadPlaceOrderProducts() {
             }
             CatalogDB[key].name = name;
         });
-        if (Object.keys(currentNames).length > 0) {
-            console.log('[CATALOG LOAD] Loaded', Object.keys(currentNames).length, 'catalog names');
-        }
+        console.log('[CATALOG LOAD] After loading names, CatalogDB has:', Object.keys(CatalogDB).length, 'items');
+        if (Object.keys(CatalogDB).length === 0) {
+            console.warn('[CATALOG LOAD] ⚠️  CatalogDB IS EMPTY - no catalog names in Firebase!');
         
         // Add images to CatalogDB
         if (imagesSnapshot.exists()) {
-            Object.entries(imagesSnapshot.val()).forEach(([key, image]) => {
+            const imageData = imagesSnapshot.val();
+            Object.entries(imageData).forEach(([key, image]) => {
                 if (CatalogDB[key]) {
                     CatalogDB[key].image = image;
                 }
             });
-            console.log('[CATALOG LOAD] Loaded', Object.keys(imagesSnapshot.val()).length, 'catalog images');
+            console.log('[CATALOG LOAD] Added', Object.keys(imageData).length, 'catalog images');
         }
         
         // Add entries and calculate stock for CatalogDB
         if (catalogsSnapshot.exists()) {
             const catalogData = catalogsSnapshot.val();
             const stockByName = {};
+            console.log('[CATALOG LOAD] Processing', Object.keys(catalogData).length, 'catalog entries');
             
             // Group entries by catalog name and calculate stock
             Object.entries(catalogData).forEach(([entryKey, entry]) => {
@@ -1635,13 +1661,13 @@ async function loadPlaceOrderProducts() {
                 }
             });
             
-            console.log('[CATALOG LOAD] Loaded', Object.keys(catalogData).length, 'catalog entries');
+            console.log('[CATALOG LOAD] Processed', Object.keys(catalogData).length, 'catalog entries, stock calculated');
         }
         
         // Load Orders and subtract OrderQuantity from stock to match ledger 在庫残数
         if (ordersSnapshot.exists()) {
             window.Orders = ordersSnapshot.val() || {};
-            console.log('[CATALOG LOAD] Loaded', Object.keys(window.Orders).length, 'orders for popularity');
+            console.log('[CATALOG LOAD] Loaded', Object.keys(window.Orders).length, 'orders');
             
             // Subtract only active order quantities from stock; cancelled orders restore stock.
             const orderedByName = {};
@@ -1655,17 +1681,28 @@ async function loadPlaceOrderProducts() {
             });
         } else {
             window.Orders = {};
+            console.log('[CATALOG LOAD] No orders in Firebase');
         }
         
+        console.log('[CATALOG LOAD] Final CatalogDB state:', Object.keys(CatalogDB).length, 'items');
+        console.log('[CATALOG LOAD] Calling renderPlaceOrderProductGrid() with', Object.keys(CatalogDB).length, 'catalogs');
         renderPlaceOrderProductGrid();
+        console.log('[CATALOG LOAD] Grid rendered, now setting up real-time listener');
         setupCatalogRealTimeListener();
         
         const totalTime = Date.now() - startTime;
-        console.log(`[CATALOG LOAD] Total load time: ${totalTime}ms`);
+        console.log(`[CATALOG LOAD] ===== COMPLETE in ${totalTime}ms =====`);
+        console.log('[CATALOG LOAD] Grid element:', document.getElementById('placeOrderProductGrid') ? 'EXISTS' : 'MISSING');
+        const gridChildren = document.getElementById('placeOrderProductGrid');
+        if (gridChildren) {
+            console.log('[CATALOG LOAD] Grid has', gridChildren.children.length, 'children');
+        }
         window._placeOrderDataReady = true;  // Mark data as ready
         
     } catch (error) {
-        console.error('[CATALOG LOAD] Error loading catalog items:', error);
+        console.error('[CATALOG LOAD] ❌ ERROR DURING CATALOG LOAD:', error);
+        console.error('[CATALOG LOAD] Error message:', error.message);
+        console.error('[CATALOG LOAD] Error stack:', error.stack);
         // Show error state in grid with retry option
         const grid = document.getElementById('placeOrderProductGrid');
         if (grid) {
@@ -1674,8 +1711,9 @@ async function loadPlaceOrderProducts() {
                 <small style="color:#7f1d1d; display:block; margin:8px 0;">エラー: ${error.message || 'Unknown error'}</small>
                 <button onclick="location.reload()" style="margin-top:12px; padding:8px 16px; background:#dc2626; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600;">ページをリロード</button>
             </div>`;
+        } else {
+            console.error('[CATALOG LOAD] Grid element not found!');
         }
-        console.error('[CATALOG LOAD] Full error object:', error);
     }
 }
 
@@ -1982,9 +2020,13 @@ window.updateSelectedAddress = function() {
 };
 
 function renderPlaceOrderProductGrid() {
+    console.log('[GRID RENDER] renderPlaceOrderProductGrid called');
     const grid = document.getElementById('placeOrderProductGrid');
     const noResults = document.getElementById('placeOrderNoResults');
     const searchTerm = (document.getElementById('placeOrderSearchInput')?.value || '').toLowerCase();
+    
+    console.log('[GRID RENDER] Grid element:', !!grid, 'NoResults element:', !!noResults, 'Search term:', searchTerm);
+    console.log('[GRID RENDER] CatalogDB has', Object.keys(CatalogDB).length, 'items');
     
     grid.innerHTML = '';
     let itemCount = 0;
@@ -1997,6 +2039,8 @@ function renderPlaceOrderProductGrid() {
             orderCounts[catalogName] = (orderCounts[catalogName] || 0) + 1;
         }
     });
+    
+    console.log('[GRID RENDER] Order counts calculated for', Object.keys(orderCounts).length, 'catalogs');
     
     // Sort catalogs by popularity (order count descending), then alphabetically for zero-count items
     const sortedCatalogs = Object.entries(CatalogDB)
@@ -2015,9 +2059,14 @@ function renderPlaceOrderProductGrid() {
             return nameA.localeCompare(nameB, 'ja');
         });
     
+    console.log('[GRID RENDER] Sorted catalogs count:', sortedCatalogs.length);
+    
     // Render sorted catalogs
-    sortedCatalogs.forEach(([key, catalogData]) => {
-        if (!catalogData) return;
+    sortedCatalogs.forEach(([key, catalogData], idx) => {
+        if (!catalogData) {
+            console.log('[GRID RENDER] Catalog at index', idx, 'has no data');
+            return;
+        }
         
         const catalogName = catalogData.name || key;
         const imageUrl = extractImageUrl(catalogData.image || '');
@@ -2071,6 +2120,8 @@ function renderPlaceOrderProductGrid() {
         card.addEventListener('click', () => openPlaceOrderModal(key));
         grid.appendChild(card);
     });
+    
+    console.log('[GRID RENDER] ===== COMPLETE: ', itemCount, 'items rendered, grid has', grid.children.length, 'children =====');
     
     noResults.style.display = itemCount === 0 ? 'block' : 'none';
 }
