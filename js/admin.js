@@ -295,7 +295,7 @@ async function fetchAndRenderUsers() {
       const tr = document.createElement('tr');
 
       const tdUid = document.createElement('td'); tdUid.textContent = uid.slice(0,8);
-      const tdEmail = document.createElement('td'); tdEmail.textContent = u.email || '';
+      const tdEmail = document.createElement('td'); tdEmail.textContent = (u.email || '').split('@')[0];
       const tdRole = document.createElement('td'); tdRole.textContent = u.role || 'user';
       const tdActive = document.createElement('td'); tdActive.textContent = u.isActive === false ? 'No' : 'Yes';
       const tdActions = document.createElement('td');
@@ -337,7 +337,7 @@ async function fetchAndRenderUsers() {
 async function selectUser(uid) {
   currentSelectedUid = uid;
   const profile = await getUserProfile(uid);
-  document.getElementById('selUserEmail').textContent = profile?.email || uid;
+  document.getElementById('selUserEmail').textContent = (profile?.email || uid).split('@')[0];
   document.getElementById('selUserRole').value = profile?.role || 'user';
   document.getElementById('selUserActive').checked = profile?.isActive !== false;
 

@@ -6100,7 +6100,7 @@ function updateUserDisplay(user) {
         userEmail.textContent = user.email;
     }
     if (userEmailInline) {
-        userEmailInline.textContent = user.email;
+        userEmailInline.textContent = user.email.split('@')[0];
     }
 
     if ((userRole || userRoleInline) && currentUser) {
