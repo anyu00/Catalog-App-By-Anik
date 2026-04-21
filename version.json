@@ -1,5 +1,5 @@
 {
-  "version": "2026041303",
-  "lastUpdated": "2026-04-13T03:00:00Z",
-  "buildDate": "April 13, 2026 v3 - Fixed first-load timing"
+  "version": "2026042101",
+  "lastUpdated": "2026-04-21T12:00:00Z",
+  "buildDate": "April 21, 2026 - Cache invalidation after commit reset"
 }
